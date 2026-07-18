@@ -8,6 +8,10 @@ the GitHub repo `kobonrosetta/homeplate`.
 > ~30–60s to wake on the next visit. Fine for a pilot — upgrade to the $7/mo instance for
 > always-on before a public launch.
 
+> **This deployment is live at:** **https://homeplate-jyd2.onrender.com**
+> (Render appended `-jyd2` for uniqueness.) Wherever the steps below show
+> `homeplate.onrender.com`, use `homeplate-jyd2.onrender.com` instead.
+
 ## Before you start
 - Code is pushed to GitHub ✅
 - A Render account — sign up at [render.com](https://render.com) with your GitHub (free)
