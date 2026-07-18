@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Light theme (default) — warm editorial */
+:root {
+  --bg: 250 246 239; /* warm cream */
+  --card: 255 253 249; /* warm off-white (not clinical white) */
+  --ink: 38 33 30; /* warm near-black */
+  --muted: 107 95 88; /* warm secondary text */
+  --faint: 158 146 136; /* warm hints, placeholders */
+  --line: 233 226 216; /* warm hairline borders */
+  --brand: 176 84 20; /* amber */
+  --clay: 194 104 61; /* terracotta accent */
+}
+
+/* Dark theme — warm charcoal, follows the visitor's system setting */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: 26 22 19; /* warm near-black, never pure #000 */
+    --card: 40 34 30;
+    --ink: 245 242 237;
+    --muted: 176 166 158;
+    --faint: 124 114 106;
+    --line: 62 55 49;
+    --brand: 224 138 52; /* brighter, slightly desaturated amber for dark */
+    --clay: 208 118 74;
+  }
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  background: rgb(var(--bg));
+  color: rgb(var(--ink));
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Display headings get the serif; tight leading + tracking reads "designed". */
+h1,
+h2,
+h3 {
+  font-family: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+}
+
+/* ...but small UPPERCASE eyebrow/section labels stay in the clean sans. */
+h1.uppercase,
+h2.uppercase,
+h3.uppercase {
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+}
+
+/* Warm, layered elevation (single light source). Reads lush, not dated. */
+.shadow-soft {
+  box-shadow:
+    0 1px 2px rgb(92 62 36 / 0.05),
+    0 8px 20px rgb(92 62 36 / 0.06);
+}
+.shadow-lift {
+  box-shadow:
+    0 2px 6px rgb(92 62 36 / 0.07),
+    0 18px 36px rgb(92 62 36 / 0.11);
+}

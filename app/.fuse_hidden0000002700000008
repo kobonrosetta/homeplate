@@ -1,0 +1,27 @@
+import type { Metadata } from "next";
+import "./globals.css";
+import SiteHeader from "@/components/site-header";
+import { CartProvider } from "@/components/cart-context";
+
+export const metadata: Metadata = {
+  title: "HomePlate — county-approved home kitchens, near you",
+  description:
+    "Discover and order from local, county-approved home bakers and cooks. Real food, real people, verified and trusted.",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <CartProvider>
+          <SiteHeader />
+          {children}
+        </CartProvider>
+      </body>
+    </html>
+  );
+}

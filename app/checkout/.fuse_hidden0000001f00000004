@@ -1,0 +1,19 @@
+import Link from "next/link";
+
+export default function CheckoutPage() {
+  return (
+    <main className="mx-auto max-w-2xl px-6 py-16 text-center">
+      <h1 className="text-2xl font-semibold text-stone-900">Checkout</h1>
+      <p className="mt-3 text-stone-600">
+        Card payment and the cook payout (Stripe) are the next milestone — this is
+        where checkout will live.
+      </p>
+      <Link
+        href="/cart"
+        className="mt-6 inline-block text-amber-700 hover:underline"
+      >
+        ← Back to cart
+      </Link>
+    </main>
+  );
+}
