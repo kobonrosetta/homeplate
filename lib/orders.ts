@@ -45,33 +45,38 @@ export async function confirmPaidOrder(
     }
   }
 
-  // Best-effort: email the cook that they've got a paid order.
+  // Best-effort notifications — must never break order confirmation.
   try {
     const { data: order } = await admin
       .from("orders")
       .select(
-        "cook_id, fulfillment, pickup_time, delivery_address, contact_name, contact_phone, contact_email, notes, subtotal_cents, order_items(title, quantity)"
+        "cook_id, fulfillment, pickup_time, delivery_address, contact_name, contact_phone, contact_email, notes, subtotal_cents, total_cents, order_items(title, quantity)"
       )
       .eq("id", orderId)
       .maybeSingle();
+
     if (order?.cook_id) {
       const { data: cook } = await admin
         .from("cooks")
         .select("business_name, profile_id")
         .eq("id", order.cook_id)
         .maybeSingle();
+
+      const kitchen = cook?.business_name ?? "the kitchen";
+      const items = (order.order_items ?? [])
+        .map((i: any) => `${i.quantity}× ${i.title}`)
+        .join(", ");
+      const where =
+        order.fulfillment === "delivery"
+          ? `Deliver to ${order.delivery_address ?? ""}`
+          : `Pickup${order.pickup_time ? ` · ${order.pickup_time}` : ""}`;
+
+      // 1) Alert the cook that they've got a paid order.
       const res = cook?.profile_id
         ? await admin.auth.admin.getUserById(cook.profile_id)
         : null;
       const cookEmail = res?.data?.user?.email;
       if (cookEmail) {
-        const items = (order.order_items ?? [])
-          .map((i: any) => `${i.quantity}× ${i.title}`)
-          .join(", ");
-        const where =
-          order.fulfillment === "delivery"
-            ? `Deliver to ${order.delivery_address ?? ""}`
-            : `Pickup${order.pickup_time ? ` · ${order.pickup_time}` : ""}`;
         const contactLine = [
           order.contact_name ?? "Buyer",
           order.contact_phone,
@@ -81,7 +86,7 @@ export async function confirmPaidOrder(
           .join(" · ");
         await sendEmail({
           to: cookEmail,
-          subject: `New order — ${cook?.business_name ?? "your kitchen"}`,
+          subject: `New order — ${kitchen}`,
           html: wrapEmail(
             `<h2>You've got a new order</h2>
              <p><strong>${items}</strong></p>
@@ -90,6 +95,29 @@ export async function confirmPaidOrder(
              <p><strong>Buyer:</strong> ${contactLine}</p>
              ${order.notes ? `<p><strong>Note:</strong> ${order.notes}</p>` : ""}
              <p>Open My Kitchen to manage it.</p>`
+          ),
+        });
+      }
+
+      // 2) Send the buyer their receipt / confirmation.
+      if (order.contact_email) {
+        await sendEmail({
+          to: order.contact_email,
+          subject: `Order confirmed — ${kitchen}`,
+          html: wrapEmail(
+            `<h2>Your order is confirmed</h2>
+             <p>Thanks${
+               order.contact_name ? `, ${order.contact_name}` : ""
+             }! ${kitchen} has your order and your contact details.</p>
+             <p><strong>${items}</strong></p>
+             <p>You paid <strong>${formatUsd(order.total_cents ?? 0)}</strong></p>
+             <p>${where}</p>
+             ${
+               order.fulfillment === "delivery"
+                 ? ""
+                 : `<p>${kitchen} will share the exact pickup address and time with you directly.</p>`
+             }
+             <p>You can find this order anytime under <strong>Purchases</strong>.</p>`
           ),
         });
       }
