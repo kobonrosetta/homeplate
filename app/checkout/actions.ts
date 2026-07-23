@@ -10,10 +10,25 @@ type CartLine = { listingId: string; quantity: number };
 
 export async function startCheckout(formData: FormData) {
   const supabase = createClient();
+  // Resolve the buyer. Guests have no account yet — create an anonymous one here
+  // on the server instead of in the browser (the old client-side auth step could
+  // deadlock and freeze checkout). Signed-in users pass straight through.
   const {
-    data: { user },
+    data: { user: existingUser },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  let user = existingUser;
+  if (!user) {
+    const { data: anon, error: anonErr } =
+      await supabase.auth.signInAnonymously();
+    if (anonErr || !anon.user) {
+      redirect(
+        `/checkout?error=${encodeURIComponent(
+          "Couldn't start checkout — please try again."
+        )}`
+      );
+    }
+    user = anon.user;
+  }
 
   const cookId = String(formData.get("cook_id") ?? "");
   let requested: CartLine[] = [];

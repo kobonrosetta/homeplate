@@ -1,9 +1,10 @@
 "use client";
 
-import { type FormEvent, useMemo, useRef, useState } from "react";
+import { useState } from "react";
+import { useFormStatus } from "react-dom";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useCart } from "@/components/cart-context";
-import { createClient } from "@/lib/supabase/client";
 import { calcServiceFeeCents, formatUsd } from "@/lib/constants";
 import { startCheckout } from "@/app/checkout/actions";
 
@@ -23,10 +24,7 @@ export default function CheckoutForm({
 }) {
   const { cart, subtotalCents } = useCart();
   const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
-  const [pending, setPending] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const supabase = useMemo(() => createClient(), []);
-  const readyRef = useRef(false);
+  const urlError = useSearchParams().get("error");
 
   if (!cart || cart.items.length === 0) {
     return (
@@ -47,33 +45,11 @@ export default function CheckoutForm({
     quantity: i.quantity,
   }));
 
-  // First submit: make sure there's a session (guests get an anonymous one),
-  // then re-submit so the server action runs with that session. The readyRef
-  // lets the second, native submit pass straight through to the server action.
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
-    if (readyRef.current) return;
-    e.preventDefault();
-    const form = e.currentTarget;
-    setErr(null);
-    setPending(true);
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) {
-        const { error } = await supabase.auth.signInAnonymously();
-        if (error) throw error;
-      }
-      readyRef.current = true;
-      form.requestSubmit();
-    } catch {
-      setPending(false);
-      setErr("Couldn't start checkout. Please try again.");
-    }
-  }
-
+  // Plain server-action form: clicking Pay calls startCheckout directly (React
+  // handles the submit). Guest sign-in now happens server-side, so there's no
+  // client-side auth step that can hang.
   return (
-    <form action={startCheckout} onSubmit={onSubmit} className="mt-6 space-y-6">
+    <form action={startCheckout} className="mt-6 space-y-6">
       <input type="hidden" name="cook_id" value={cart.cook.id} />
       <input type="hidden" name="items" value={JSON.stringify(items)} />
       <input type="hidden" name="fulfillment" value={fulfillment} />
@@ -92,8 +68,10 @@ export default function CheckoutForm({
         )}
       </p>
 
-      {err && (
-        <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{err}</p>
+      {urlError && (
+        <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          {urlError}
+        </p>
       )}
 
       <Field label="Your name">
@@ -177,24 +155,34 @@ export default function CheckoutForm({
       </Field>
 
       <div className="space-y-2 rounded-xl border border-line p-4 text-sm">
-        <Row label="Subtotal (the cook receives this)" value={formatUsd(subtotalCents)} />
+        <Row
+          label="Subtotal (the cook receives this)"
+          value={formatUsd(subtotalCents)}
+        />
         <Row label="Service fee (8% + $0.30)" value={formatUsd(fee)} />
         <div className="border-t border-line pt-2">
           <Row label="Total" value={formatUsd(total)} bold />
         </div>
       </div>
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="w-full rounded-full bg-brand px-6 py-3 font-medium text-white hover:bg-brand/90 disabled:opacity-60"
-      >
-        {pending ? "Taking you to payment…" : `Pay ${formatUsd(total)}`}
-      </button>
+      <SubmitButton total={total} />
       <p className="text-center text-xs text-faint">
         No account needed — pay as a guest. Secure payment by Stripe.
       </p>
     </form>
+  );
+}
+
+function SubmitButton({ total }: { total: number }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="w-full rounded-full bg-brand px-6 py-3 font-medium text-white hover:bg-brand/90 disabled:opacity-60"
+    >
+      {pending ? "Taking you to payment…" : `Pay ${formatUsd(total)}`}
+    </button>
   );
 }
 
