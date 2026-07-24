@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import HeroSlideshow, { type HeroKitchen } from "@/components/hero-slideshow";
 
 export const dynamic = "force-dynamic";
 
@@ -13,10 +14,43 @@ export default async function Home() {
   } = await supabase.auth.getUser();
   if (user) redirect("/browse");
 
+  // Real kitchens for the hero slideshow — same criteria as Browse (active,
+  // something in stock), narrowed to ones with a photo to show.
+  const { data: cooksData } = await supabase
+    .from("cooks")
+    .select(
+      "business_name, slug, city, permit_verified, listings(photo_url, is_available, price_cents, limited_quantity, quantity_available)"
+    )
+    .eq("status", "active")
+    .limit(20);
+
+  const heroKitchens: HeroKitchen[] = (cooksData ?? [])
+    .map((c: any) => {
+      const avail = (c.listings ?? []).filter(
+        (l: any) =>
+          l.is_available && (!l.limited_quantity || l.quantity_available > 0)
+      );
+      const prices = avail
+        .map((l: any) => l.price_cents)
+        .filter((n: any) => typeof n === "number" && n > 0);
+      return {
+        slug: c.slug,
+        name: c.business_name,
+        city: c.city,
+        photo: avail.find((l: any) => l.photo_url)?.photo_url ?? null,
+        verified: c.permit_verified,
+        minPriceCents: prices.length ? Math.min(...prices) : null,
+        count: avail.length,
+      };
+    })
+    .filter((k) => k.count > 0 && k.photo)
+    .slice(0, 5)
+    .map(({ count, ...k }) => k);
+
   return (
     <main className="min-h-screen">
       {/* Hero */}
-      <section className="mx-auto max-w-6xl px-6 pb-20 pt-14 sm:pt-24">
+      <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-20 pt-14 sm:pt-24 lg:grid-cols-[1fr_minmax(0,26rem)]">
         <div className="max-w-2xl">
           <Link
             href="/verified"
@@ -50,6 +84,7 @@ export default async function Home() {
             Now serving Santa Clara County.
           </p>
         </div>
+        {heroKitchens.length > 0 && <HeroSlideshow kitchens={heroKitchens} />}
       </section>
 
       {/* Value props */}

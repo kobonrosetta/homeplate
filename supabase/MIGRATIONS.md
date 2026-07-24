@@ -4,7 +4,10 @@ Every schema change to the HomePlate Supabase project has been applied **by hand
 the Supabase SQL editor — this project does not use the Supabase CLI migration system.
 This file is the canonical record of what was run, in what order, and whether it's live.
 
-**Status: all 16 migrations applied.** #16 (`harden-orders.sql`) applied and verified
+**Status: 16 of 18 applied — #17 (`harden-cooks.sql`) and #18
+(`add-order-in-progress.sql`) are written but NOT yet run.** Run both (17 first) in the
+SQL editor before deploying the kitchen-pause / "I'm on it" / order-reminder changes.
+#16 (`harden-orders.sql`) applied and verified
 live on **2026-07-23** (forged `completed` order insert → 403; cook editing money
 columns → 400; cook completing an unpaid order → 400; legit `confirmed→ready→completed`
 and guest checkout still work). Migrations 1–15 verified against the live database on
@@ -33,6 +36,8 @@ Project ref: `jycefrvkqybadwupokdn` (Santa Clara County pilot)
 | 14 | `orders-policies.sql` | RLS — buyer can add items to own order; cook can update own kitchen's orders | ✅ |
 | 15 | `storage-policies.sql` | Storage RLS — a cook can only write/delete photos in their own folder | ✅ |
 | 16 | `harden-orders.sql` | Orders hardening — orders must be born `pending` with consistent amounts (blocks forged completed orders → forged reviews); status-only, legal-transition updates for end-user sessions (protects the payout ledger); `order_items.listing_id` nulls out on listing delete | ✅ |
+| 17 | `harden-cooks.sql` | Cooks hardening + kitchen pause — closes REST self-approval (a cook's session could set `status='active'` + `permit_verified=true` on their own row, or insert a kitchen born active); end-user sessions may only edit profile columns and toggle `active↔paused` (the dashboard pause button); adds `suspended` status for admin suspension; permit columns become server-written (sell wizard now uses the service role) | ⬜ |
+| 18 | `add-order-in-progress.sql` | "Never miss an order" — `in_progress` order status (the cook's "I'm on it" acknowledgment), `orders.reminder_sent_at` (at-most-once reminder emails from the cron endpoint), re-issues the orders transition trigger with the new legal moves | ⬜ |
 
 ## Replaying on a fresh database
 

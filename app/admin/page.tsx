@@ -12,8 +12,13 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const STATUS_ORDER: Record<string, number> = { pending: 0, active: 1, paused: 2 };
-const PAID = new Set(["confirmed", "ready", "completed"]);
+const STATUS_ORDER: Record<string, number> = {
+  pending: 0,
+  active: 1,
+  paused: 2,
+  suspended: 3,
+};
+const PAID = new Set(["confirmed", "in_progress", "ready", "completed"]);
 
 export default async function AdminPage() {
   // Invisible to anyone who isn't an admin.
@@ -310,7 +315,8 @@ function StatusBadge({ status }: { status: string }) {
   const m: Record<string, { l: string; c: string }> = {
     pending: { l: "Pending review", c: "bg-amber-100 text-amber-900" },
     active: { l: "Live", c: "bg-emerald-100 text-emerald-800" },
-    paused: { l: "Paused", c: "bg-line text-muted" },
+    paused: { l: "Paused by cook", c: "bg-line text-muted" },
+    suspended: { l: "Suspended", c: "bg-red-100 text-red-800" },
   };
   const s = m[status] ?? m.pending;
   return (

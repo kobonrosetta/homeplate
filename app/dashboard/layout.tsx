@@ -22,7 +22,9 @@ export default async function DashboardLayout({
             ? "✓ County-verified · live"
             : cook.status === "pending"
               ? "⏳ Under review — we'll email you when you're approved"
-              : "Paused"}
+              : cook.status === "paused"
+                ? "⏸ Paused — hidden from buyers until you resume (Settings)"
+                : "Suspended — contact support"}
           {cook.city ? ` · ${cook.city}` : ""}
         </p>
       </div>

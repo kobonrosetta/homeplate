@@ -1,6 +1,7 @@
 import { getCurrentCook } from "@/lib/cook";
 import { createClient } from "@/lib/supabase/server";
 import { updateKitchen } from "../edit/actions";
+import { toggleKitchenPause } from "./actions";
 import {
   TextField,
   TextArea,
@@ -27,6 +28,36 @@ export default async function SettingsPage({
   return (
     <div className="max-w-xl">
       <h2 className="text-lg font-semibold text-ink">Kitchen settings</h2>
+
+      {(cook.status === "active" || cook.status === "paused") && (
+        <form
+          action={toggleKitchenPause}
+          className="mt-4 flex items-center justify-between gap-4 rounded-lg border border-line bg-card p-4"
+        >
+          <div>
+            <p className="text-sm font-medium text-ink">
+              {cook.status === "active"
+                ? "Your kitchen is live"
+                : "Your kitchen is paused"}
+            </p>
+            <p className="mt-0.5 text-xs text-muted">
+              {cook.status === "active"
+                ? "Going on vacation or slammed this week? Pause to hide your kitchen — no new orders until you resume."
+                : "Buyers can't see your kitchen or place orders. Resume whenever you're ready."}
+            </p>
+          </div>
+          <button
+            type="submit"
+            className={
+              cook.status === "active"
+                ? "shrink-0 rounded-full border border-line px-4 py-2 text-sm font-medium text-ink hover:border-muted hover:bg-line"
+                : "shrink-0 rounded-full bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90"
+            }
+          >
+            {cook.status === "active" ? "Pause kitchen" : "Resume selling"}
+          </button>
+        </form>
+      )}
 
       <form action={updateKitchen} className="mt-4 space-y-5">
         <FormError message={searchParams.error} />

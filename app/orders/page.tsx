@@ -7,7 +7,8 @@ import ReviewForm from "@/components/review-form";
 export const dynamic = "force-dynamic";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
-  confirmed: { label: "Paid · being prepared", cls: "bg-amber-100 text-amber-900" },
+  confirmed: { label: "Paid · sent to the kitchen", cls: "bg-amber-100 text-amber-900" },
+  in_progress: { label: "Cook is on it", cls: "bg-indigo-100 text-indigo-900" },
   ready: { label: "Ready for pickup", cls: "bg-blue-100 text-blue-900" },
   completed: { label: "Completed", cls: "bg-emerald-100 text-emerald-800" },
   cancelled: { label: "Cancelled", cls: "bg-red-100 text-red-800" },

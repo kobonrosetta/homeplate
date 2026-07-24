@@ -32,15 +32,27 @@ export default async function DashboardOverview() {
     0
   );
   const newOrders = ords.filter((o: any) => o.status === "confirmed").length;
+  const inProgressOrders = ords.filter(
+    (o: any) => o.status === "in_progress"
+  ).length;
   const readyOrders = ords.filter((o: any) => o.status === "ready").length;
 
   // Prioritized — the order they're pushed is the order they're shown.
   const tasks: { label: string; href: string; urgent?: boolean }[] = [];
   if (newOrders > 0)
     tasks.push({
-      label: `${newOrders} new ${newOrders === 1 ? "order" : "orders"} to prepare`,
+      label: `${newOrders} new ${
+        newOrders === 1 ? "order" : "orders"
+      } waiting — tap "I'm on it" so the buyer knows`,
       href: "/dashboard/orders",
       urgent: true,
+    });
+  if (inProgressOrders > 0)
+    tasks.push({
+      label: `${inProgressOrders} ${
+        inProgressOrders === 1 ? "order" : "orders"
+      } in progress`,
+      href: "/dashboard/orders",
     });
   if (totalListings === 0)
     tasks.push({

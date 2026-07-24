@@ -20,14 +20,16 @@ export async function approveCook(formData: FormData) {
   revalidatePath("/browse");
 }
 
-// Reject / pause a kitchen → hidden from buyers.
+// Reject / suspend a kitchen → hidden from buyers. 'suspended' (not
+// 'paused') so the cook can't lift it themselves — their pause toggle
+// only allows active <-> paused (see supabase/harden-cooks.sql).
 export async function rejectCook(formData: FormData) {
   const admin = await getAdminUser();
   if (!admin) return;
   const id = String(formData.get("cook_id") ?? "");
   if (!id) return;
   const db = createAdminClient();
-  await db.from("cooks").update({ status: "paused" }).eq("id", id);
+  await db.from("cooks").update({ status: "suspended" }).eq("id", id);
   revalidatePath("/admin");
   revalidatePath("/browse");
 }
