@@ -5,7 +5,12 @@ import {
   calcTotalCents,
   formatUsd,
 } from "../lib/constants";
-import { normalizePermit, namesMatch, isExpired } from "../lib/match";
+import {
+  normalizePermit,
+  namesMatch,
+  nameMatchTier,
+  isExpired,
+} from "../lib/match";
 
 let pass = 0;
 let fail = 0;
@@ -59,6 +64,16 @@ check("isExpired: future date is current", () =>
   assert.ok(!isExpired("2027-01-01", "2026-07-24")));
 check("isExpired: missing expiry treated as current", () =>
   assert.ok(!isExpired(null, "2026-07-24")));
+
+// --- advisory name tiers (never gate; just guide the reviewer) ---
+check("nameMatchTier: identical → exact", () =>
+  assert.equal(nameMatchTier("Raffin Bakery", "RAFFIN BAKERY"), "exact"));
+check("nameMatchTier: DBA sharing a distinctive word → partial", () =>
+  assert.equal(nameMatchTier("Gonzalez Empanadas", "MARIA GONZALEZ"), "partial"));
+check("nameMatchTier: only a generic word in common → none", () =>
+  assert.equal(nameMatchTier("Sunrise Kitchen", "Mountain View Kitchen"), "none"));
+check("nameMatchTier: totally different → none", () =>
+  assert.equal(nameMatchTier("Joe's Tacos", "Raffin Bakery"), "none"));
 
 console.log("\n" + pass + " passed, " + fail + " failed");
 if (fail > 0) process.exit(1);

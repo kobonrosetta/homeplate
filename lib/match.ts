@@ -27,6 +27,37 @@ export function namesMatch(a: string, b: string): boolean {
   return na.length > 0 && na === normalizeName(b);
 }
 
+// Generic words that overlap across unrelated food businesses — a shared
+// "kitchen" or "bakery" isn't evidence two names are the same operator.
+const GENERIC = new Set([
+  "the", "and", "llc", "inc", "co", "home", "by", "kitchen", "kitchens",
+  "bakery", "bakeries", "food", "foods", "cafe", "cakes", "cake",
+  "catering", "cuisine", "eats", "treats",
+]);
+
+function distinctiveTokens(s: string): string[] {
+  return normalizeName(s)
+    .split(" ")
+    .filter((t) => t.length >= 3 && !GENERIC.has(t));
+}
+
+// How the cook's brand name relates to the name on the county permit. This is
+// ADVISORY — it never gates verification (the permit match + admin review do
+// that). It just tells the reviewer where to look:
+//   exact   — normalized names are identical
+//   partial — they share a distinctive word (likely a DBA or a typo)
+//   none    — no meaningful overlap (scrutinize: is this the same operator?)
+export function nameMatchTier(
+  brand: string,
+  permitName: string
+): "exact" | "partial" | "none" {
+  const nb = normalizeName(brand);
+  if (nb.length > 0 && nb === normalizeName(permitName)) return "exact";
+  const brandTokens = new Set(distinctiveTokens(brand));
+  const shared = distinctiveTokens(permitName).filter((t) => brandTokens.has(t));
+  return shared.length > 0 ? "partial" : "none";
+}
+
 // A permit with no expiry recorded is treated as current (some county rows omit
 // it); an expiry strictly before today is expired. `today` is YYYY-MM-DD.
 export function isExpired(

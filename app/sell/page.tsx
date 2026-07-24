@@ -204,7 +204,7 @@ function Step3() {
           label="Permit number"
           name="permit_number"
           required
-          placeholder="e.g. MEHKO-2025-001"
+          placeholder="e.g. PT0503912"
         />
         <TextField
           label="Street address"
@@ -219,6 +219,20 @@ function Step3() {
           <TextField label="City" name="city" required placeholder="Sunnyvale" />
           <TextField label="ZIP" name="zip" placeholder="94086" />
         </div>
+        <label className="block">
+          <span className="text-sm font-medium text-ink">
+            Photo of your permit (optional)
+          </span>
+          <input
+            name="permit_photo"
+            type="file"
+            accept="image/*,application/pdf"
+            className="mt-1 block w-full text-sm text-muted file:mr-4 file:rounded-full file:border-0 file:bg-line file:px-4 file:py-2 file:text-sm file:font-medium hover:file:bg-line"
+          />
+          <p className="mt-1 text-xs text-faint">
+            Speeds up your review. Kept private — only the HomePlate team sees it.
+          </p>
+        </label>
         <SubmitButton>Submit application</SubmitButton>
       </form>
 

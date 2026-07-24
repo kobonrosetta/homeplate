@@ -125,3 +125,26 @@ export async function uploadCookAvatar(
   return supabase.storage.from("listing-photos").getPublicUrl(path).data
     .publicUrl;
 }
+
+// Upload an (optional) photo of the cook's physical permit. Goes to the PRIVATE
+// "permits" bucket — it shows the holder's name/address, so it must never be
+// publicly readable. Returns the storage PATH (admins view it via a short-lived
+// signed URL), or null if no file was provided / the upload failed.
+export async function uploadPermitPhoto(
+  supabase: any,
+  cookId: string,
+  formData: FormData
+): Promise<string | null> {
+  const file = formData.get("permit_photo");
+  if (!(file instanceof File) || file.size === 0) return null;
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const path = `${cookId}/permit-${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage
+    .from("permits")
+    .upload(path, file, {
+      contentType: file.type || "image/jpeg",
+      upsert: true,
+    });
+  if (error) return null;
+  return path;
+}

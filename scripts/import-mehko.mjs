@@ -33,11 +33,27 @@ const titleCase = (s) =>
 const toDate = (s) =>
   /^\d{8}$/.test(s ?? "") ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : null;
 
+// Page through the whole dataset rather than trusting a single request — the
+// Socrata resource caps an unqualified fetch at 1000 rows, so an explicit
+// $limit/$offset loop is the only way this stays correct if the county list
+// grows past that. Stops when a page comes back short.
+async function fetchAll() {
+  const PAGE = 1000;
+  const MAX = 50000; // sanity backstop against a runaway loop
+  const all = [];
+  for (let offset = 0; offset < MAX; offset += PAGE) {
+    const res = await fetch(`${DATASET}?$limit=${PAGE}&$offset=${offset}&$order=permit_`);
+    if (!res.ok) throw new Error(`county API ${res.status} at offset ${offset}`);
+    const page = await res.json();
+    all.push(...page);
+    if (page.length < PAGE) break;
+  }
+  return all;
+}
+
 async function main() {
   console.log("Fetching county MEHKO list…");
-  const res = await fetch(`${DATASET}?$limit=1000`);
-  if (!res.ok) throw new Error(`county API ${res.status}`);
-  const raw = await res.json();
+  const raw = await fetchAll();
 
   // Map + dedupe by permit number (last one wins).
   const byPermit = new Map();

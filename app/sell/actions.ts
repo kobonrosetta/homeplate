@@ -5,9 +5,13 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify } from "@/lib/slug";
-import { insertListingFromForm, uploadCookAvatar } from "@/lib/listings";
+import {
+  insertListingFromForm,
+  uploadCookAvatar,
+  uploadPermitPhoto,
+} from "@/lib/listings";
 import { sendEmail, wrapEmail } from "@/lib/email";
-import { normalizePermit, namesMatch, isExpired } from "@/lib/match";
+import { normalizePermit, isExpired } from "@/lib/match";
 
 async function requireCookUser() {
   const supabase = createClient();
@@ -28,17 +32,6 @@ async function myCookId(supabase: any, userId: string): Promise<string | null> {
   return data?.[0]?.id ?? null;
 }
 
-async function myCookName(
-  supabase: any,
-  cookId: string
-): Promise<string | null> {
-  const { data } = await supabase
-    .from("cooks")
-    .select("business_name")
-    .eq("id", cookId)
-    .maybeSingle();
-  return data?.business_name ?? null;
-}
 
 // STEP 1 — create (or update) the kitchen basics. No permit/address yet, so the
 // cook is committed and productive before we ask for the hard stuff.
@@ -161,12 +154,13 @@ export async function wizardFinalize(formData: FormData) {
     );
   }
 
-  // Match the permit against the county approved-operator list. The permit
-  // list is PUBLIC, so a bare permit-number match proves nothing — anyone can
-  // read a real number off the county site. Auto-verify only when the number
-  // matches AND the kitchen name agrees AND the permit isn't expired; otherwise
-  // we still link the operator (so the admin reviewer sees the discrepancy) but
-  // leave it unverified. Admin approval remains the real gate either way.
+  // Match the permit against the county approved-operator list. The permit is
+  // the county-verifiable fact, so the auto-flag keys on a live (non-expired)
+  // permit match. The kitchen name is NOT a gate — cooks legitimately brand
+  // differently from the name on their permit (a DBA, or a typo on the paper
+  // application). The admin console shows the reviewer how the names line up
+  // (nameMatchTier) as an advisory signal, and admin approval — plus, when
+  // provided, the permit photo below — is the real gate.
   const normalizedPermit = normalizePermit(permitNumber);
   const { data: match } = await supabase
     .from("approved_operators")
@@ -174,12 +168,13 @@ export async function wizardFinalize(formData: FormData) {
     .eq("permit_number", normalizedPermit)
     .maybeSingle();
 
-  const cookName = await myCookName(supabase, cookId);
   const today = new Date().toISOString().slice(0, 10);
-  const verified =
-    !!match &&
-    !isExpired(match.expires_at, today) &&
-    namesMatch(cookName ?? "", match.name);
+  const verified = !!match && !isExpired(match.expires_at, today);
+
+  // Optional: a photo of the physical permit — the one piece of evidence the
+  // public county list can't provide, so it's what makes the admin's review
+  // meaningful against someone copying a stranger's public permit number.
+  const permitPhotoPath = await uploadPermitPhoto(supabase, cookId, formData);
 
   // Permit columns are protected from end-user sessions (see
   // supabase/harden-cooks.sql), so this write goes through the service
@@ -195,11 +190,13 @@ export async function wizardFinalize(formData: FormData) {
     })
     .eq("id", cookId);
 
-  // Home address lives in the locked-down private table.
+  // Home address (and the private permit photo path) live in the locked-down
+  // owner-only table.
   await supabase.from("cook_private").upsert(
     {
       cook_id: cookId,
       street_address: streetAddress,
+      ...(permitPhotoPath ? { permit_photo_path: permitPhotoPath } : {}),
       updated_at: new Date().toISOString(),
     },
     { onConflict: "cook_id" }

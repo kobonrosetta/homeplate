@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getAdminUser } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatUsd } from "@/lib/constants";
-import { namesMatch, isExpired } from "@/lib/match";
+import { nameMatchTier, isExpired } from "@/lib/match";
 import {
   approveCook,
   rejectCook,
@@ -89,6 +89,28 @@ export default async function AdminPage() {
   );
   const { data: profs } = await db.from("profiles").select("id, phone");
   const phoneById = new Map((profs ?? []).map((p: any) => [p.id, p.phone]));
+
+  // Permit photos live in the private "permits" bucket — turn each stored path
+  // into a short-lived signed URL (service role) so the reviewer can open it.
+  const { data: privRows } = await db
+    .from("cook_private")
+    .select("cook_id, permit_photo_path")
+    .in("cook_id", list.map((c: any) => c.id));
+  const photoPathByCook = new Map(
+    (privRows ?? [])
+      .filter((r: any) => r.permit_photo_path)
+      .map((r: any) => [r.cook_id, r.permit_photo_path])
+  );
+  const signedByPath = new Map<string, string>();
+  const photoPaths = [...photoPathByCook.values()] as string[];
+  if (photoPaths.length) {
+    const { data: signed } = await db.storage
+      .from("permits")
+      .createSignedUrls(photoPaths, 600);
+    for (const s of signed ?? []) {
+      if (s.signedUrl && s.path) signedByPath.set(s.path, s.signedUrl);
+    }
+  }
 
   // Marketplace pulse.
   const gmv = paidOrders.reduce((n, o: any) => n + o.total_cents, 0);
@@ -186,6 +208,18 @@ export default async function AdminPage() {
                       {c.permit_number || "—"} · {c.operation_type}
                       {c.city ? ` · ${c.city}` : ""}
                     </p>
+                    {photoPathByCook.has(c.id) ? (
+                      <a
+                        href={signedByPath.get(photoPathByCook.get(c.id) as string)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-block text-xs font-medium text-brand underline hover:no-underline"
+                      >
+                        View permit photo →
+                      </a>
+                    ) : (
+                      <p className="mt-1 text-xs text-faint">No permit photo uploaded</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-xs uppercase tracking-wide text-faint">
@@ -303,10 +337,11 @@ function Stat({
   );
 }
 
-// Tells the reviewer exactly how the entered permit lines up with the county
-// list — the whole point of the review step. Green only when the permit
-// resolves AND the kitchen name agrees AND it isn't expired; amber flags a
-// real-permit-but-something's-off case that a human should look at.
+// Tells the reviewer how the entered permit lines up with the county list. The
+// permit match (found + not expired) is what verifies a kitchen; the NAME is
+// advisory only — cooks brand differently from their permit name, so a name
+// gap is a "look closer," never a disqualifier. Green = permit is live; the
+// name line just points the reviewer's attention.
 function MatchNote({
   cook,
   op,
@@ -323,27 +358,31 @@ function MatchNote({
       </p>
     );
   }
-  const expired = isExpired(op.expires_at, today);
-  const nameOk = namesMatch(cook.business_name, op.name);
-  if (expired) {
+  if (isExpired(op.expires_at, today)) {
     return (
-      <p className="mt-0.5 text-amber-700">
-        ⚠ permit expired {op.expires_at} — {op.name}
+      <p className="mt-0.5 text-red-600">
+        ✗ permit {op.permit_number} expired {op.expires_at} — {op.name}
       </p>
     );
   }
-  if (!nameOk) {
-    return (
-      <p className="mt-0.5 text-amber-700">
-        ⚠ permit is for <strong>{op.name}</strong>, not “{cook.business_name}” —
-        verify this is the same operator
-      </p>
-    );
-  }
+  const tier = nameMatchTier(cook.business_name, op.name);
   return (
-    <p className="mt-0.5 text-emerald-700">
-      ✓ {op.name} ({op.permit_number})
-    </p>
+    <div className="mt-0.5">
+      <p className="text-emerald-700">
+        ✓ permit {op.permit_number} — {op.name}
+      </p>
+      {tier === "none" && (
+        <p className="mt-0.5 text-amber-700">
+          ⚠ brand “{cook.business_name}” doesn’t resemble the permit name —
+          confirm it’s the same operator
+        </p>
+      )}
+      {tier === "partial" && (
+        <p className="mt-0.5 text-muted">
+          brand “{cook.business_name}” partly matches — likely a DBA or typo
+        </p>
+      )}
+    </div>
   );
 }
 
