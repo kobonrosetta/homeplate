@@ -4,9 +4,10 @@ Every schema change to the HomePlate Supabase project has been applied **by hand
 the Supabase SQL editor — this project does not use the Supabase CLI migration system.
 This file is the canonical record of what was run, in what order, and whether it's live.
 
-**Status: 16 of 18 applied — #17 (`harden-cooks.sql`) and #18
-(`add-order-in-progress.sql`) are written but NOT yet run.** Run both (17 first) in the
-SQL editor before deploying the kitchen-pause / "I'm on it" / order-reminder changes.
+**Status: 18 of 19 applied — #19 (`add-operator-expiry.sql`) is written but NOT yet
+run.** Run it in the SQL editor, then load real data with `node scripts/import-mehko.mjs`
+(pulls the live Santa Clara County MEHKO list into `approved_operators`). #17
+(`harden-cooks.sql`) and #18 (`add-order-in-progress.sql`) applied 2026-07-24.
 #16 (`harden-orders.sql`) applied and verified
 live on **2026-07-23** (forged `completed` order insert → 403; cook editing money
 columns → 400; cook completing an unpaid order → 400; legit `confirmed→ready→completed`
@@ -37,7 +38,8 @@ Project ref: `jycefrvkqybadwupokdn` (Santa Clara County pilot)
 | 15 | `storage-policies.sql` | Storage RLS — a cook can only write/delete photos in their own folder | ✅ |
 | 16 | `harden-orders.sql` | Orders hardening — orders must be born `pending` with consistent amounts (blocks forged completed orders → forged reviews); status-only, legal-transition updates for end-user sessions (protects the payout ledger); `order_items.listing_id` nulls out on listing delete | ✅ |
 | 17 | `harden-cooks.sql` | Cooks hardening + kitchen pause — closes REST self-approval (a cook's session could set `status='active'` + `permit_verified=true` on their own row, or insert a kitchen born active); end-user sessions may only edit profile columns and toggle `active↔paused` (the dashboard pause button); adds `suspended` status for admin suspension; permit columns become server-written (sell wizard now uses the service role) | ⬜ |
-| 18 | `add-order-in-progress.sql` | "Never miss an order" — `in_progress` order status (the cook's "I'm on it" acknowledgment), `orders.reminder_sent_at` (at-most-once reminder emails from the cron endpoint), re-issues the orders transition trigger with the new legal moves | ⬜ |
+| 18 | `add-order-in-progress.sql` | "Never miss an order" — `in_progress` order status (the cook's "I'm on it" acknowledgment), `orders.reminder_sent_at` (at-most-once reminder emails from the cron endpoint), re-issues the orders transition trigger with the new legal moves | ✅ |
+| 19 | `add-operator-expiry.sql` | Real county permit data — adds `approved_operators.expires_at` + a unique index on `permit_number` (integrity + upsert target). Rows loaded by `scripts/import-mehko.mjs` from the Santa Clara County MEHKO open-data API; signup now requires permit **and** name to match (and not be expired) to auto-flag verified | ⬜ |
 
 ## Replaying on a fresh database
 

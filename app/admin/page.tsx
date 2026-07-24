@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getAdminUser } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatUsd } from "@/lib/constants";
+import { namesMatch, isExpired } from "@/lib/match";
 import {
   approveCook,
   rejectCook,
@@ -38,13 +39,14 @@ export default async function AdminPage() {
       (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9)
   );
   const nameById = new Map(list.map((c: any) => [c.id, c.business_name]));
+  const today = new Date().toISOString().slice(0, 10);
 
   // County matches.
   const opIds = list.map((c: any) => c.approved_operator_id).filter(Boolean);
   const { data: ops } = opIds.length
     ? await db
         .from("approved_operators")
-        .select("id, name, permit_number, city")
+        .select("id, name, permit_number, city, expires_at")
         .in("id", opIds)
     : { data: [] as any[] };
   const opById = new Map((ops ?? []).map((o: any) => [o.id, o]));
@@ -189,17 +191,7 @@ export default async function AdminPage() {
                     <p className="text-xs uppercase tracking-wide text-faint">
                       County list match
                     </p>
-                    <p
-                      className={`mt-0.5 ${
-                        c.permit_verified ? "text-emerald-700" : "text-red-600"
-                      }`}
-                    >
-                      {op
-                        ? `✓ ${op.name} (${op.permit_number})`
-                        : c.permit_verified
-                          ? "✓ matched"
-                          : "✗ no match in the county list"}
-                    </p>
+                    <MatchNote cook={c} op={op} today={today} />
                   </div>
                 </div>
 
@@ -308,6 +300,50 @@ function Stat({
         {value}
       </p>
     </div>
+  );
+}
+
+// Tells the reviewer exactly how the entered permit lines up with the county
+// list — the whole point of the review step. Green only when the permit
+// resolves AND the kitchen name agrees AND it isn't expired; amber flags a
+// real-permit-but-something's-off case that a human should look at.
+function MatchNote({
+  cook,
+  op,
+  today,
+}: {
+  cook: any;
+  op: any;
+  today: string;
+}) {
+  if (!op) {
+    return (
+      <p className="mt-0.5 text-red-600">
+        ✗ {cook.permit_number ? "permit not on the county list" : "no permit entered"}
+      </p>
+    );
+  }
+  const expired = isExpired(op.expires_at, today);
+  const nameOk = namesMatch(cook.business_name, op.name);
+  if (expired) {
+    return (
+      <p className="mt-0.5 text-amber-700">
+        ⚠ permit expired {op.expires_at} — {op.name}
+      </p>
+    );
+  }
+  if (!nameOk) {
+    return (
+      <p className="mt-0.5 text-amber-700">
+        ⚠ permit is for <strong>{op.name}</strong>, not “{cook.business_name}” —
+        verify this is the same operator
+      </p>
+    );
+  }
+  return (
+    <p className="mt-0.5 text-emerald-700">
+      ✓ {op.name} ({op.permit_number})
+    </p>
   );
 }
 

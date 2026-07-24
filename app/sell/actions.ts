@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify } from "@/lib/slug";
 import { insertListingFromForm, uploadCookAvatar } from "@/lib/listings";
 import { sendEmail, wrapEmail } from "@/lib/email";
+import { normalizePermit, namesMatch, isExpired } from "@/lib/match";
 
 async function requireCookUser() {
   const supabase = createClient();
@@ -25,6 +26,18 @@ async function myCookId(supabase: any, userId: string): Promise<string | null> {
     .eq("profile_id", userId)
     .limit(1);
   return data?.[0]?.id ?? null;
+}
+
+async function myCookName(
+  supabase: any,
+  cookId: string
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("cooks")
+    .select("business_name")
+    .eq("id", cookId)
+    .maybeSingle();
+  return data?.business_name ?? null;
 }
 
 // STEP 1 — create (or update) the kitchen basics. No permit/address yet, so the
@@ -148,13 +161,25 @@ export async function wizardFinalize(formData: FormData) {
     );
   }
 
-  // Match the permit against the county approved-operator list (a signal for
-  // the admin; the kitchen still waits for approval either way).
+  // Match the permit against the county approved-operator list. The permit
+  // list is PUBLIC, so a bare permit-number match proves nothing — anyone can
+  // read a real number off the county site. Auto-verify only when the number
+  // matches AND the kitchen name agrees AND the permit isn't expired; otherwise
+  // we still link the operator (so the admin reviewer sees the discrepancy) but
+  // leave it unverified. Admin approval remains the real gate either way.
+  const normalizedPermit = normalizePermit(permitNumber);
   const { data: match } = await supabase
     .from("approved_operators")
-    .select("id")
-    .ilike("permit_number", permitNumber)
+    .select("id, name, expires_at")
+    .eq("permit_number", normalizedPermit)
     .maybeSingle();
+
+  const cookName = await myCookName(supabase, cookId);
+  const today = new Date().toISOString().slice(0, 10);
+  const verified =
+    !!match &&
+    !isExpired(match.expires_at, today) &&
+    namesMatch(cookName ?? "", match.name);
 
   // Permit columns are protected from end-user sessions (see
   // supabase/harden-cooks.sql), so this write goes through the service
@@ -162,8 +187,8 @@ export async function wizardFinalize(formData: FormData) {
   await createAdminClient()
     .from("cooks")
     .update({
-      permit_number: permitNumber,
-      permit_verified: Boolean(match),
+      permit_number: normalizedPermit,
+      permit_verified: verified,
       approved_operator_id: match?.id ?? null,
       city: city || null,
       zip: zip || null,
