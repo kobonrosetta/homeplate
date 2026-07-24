@@ -28,6 +28,7 @@ The full marketplace loop works end to end: discover → pay (real Stripe test) 
 
 - [ ] **"County-verified" is backed by 5 fake permits** (`seed.sql`), and signup auto-approves anyone whose permit number string-matches — no name check, no human review (`app/sell/actions.ts`). Load the real Santa Clara County list and add a name match + review step before the verified badge goes public. There is no "refreshed daily" scraper despite the README.
 - [x] **Reviews can be forged / review-bombed via the API.** ✅ FIXED (Jul 2026) — stricter RLS requires a completed order owned by the reviewer with matching cook; verified a live forged-review attempt returns HTTP 403. RLS only checks `buyer_id = auth.uid()` on review insert — not that the order is real, completed, or the reviewer's, and a user can spawn free orders against any `cook_id`. A competitor could 1-star bomb a kitchen. Fix with a stricter RLS policy (or a SECURITY DEFINER function).
+  - [x] **REOPENED + REFIXED (Jul 23 2026 review):** the fix above was bypassable — the orders INSERT policy didn't pin `status`, so an attacker could mint their own "completed" order and review it (proven live: 201 + 201 with a fresh anonymous session). `supabase/harden-orders.sql` closes it: orders must be born `pending` with consistent amounts, and a DB trigger makes `pending → completed` server-only. ✅ **Applied + verified live Jul 23 2026** — forged completed-order insert → 403; cook editing money columns → 400; cook completing an unpaid order → 400; legit flow + guest checkout unaffected. (Trigger needed one fix: role detection via `current_user`, not the plural JWT-claims GUC, which is empty on this instance.)
 
 ## MEDIUM
 
@@ -35,9 +36,21 @@ The full marketplace loop works end to end: discover → pay (real Stripe test) 
 - [x] **Storage policy too loose** ✅ FIXED (Jul 2026) — writes scoped to the owner's `{cook.id}/` folder; verified a stranger uploading into another kitchen's folder returns 403. Was: any signed-in user could update/delete any cook's listing photos (`storage-policies.sql` checked only the bucket, not the owner path).
 - [x] **AI routes are unauthenticated + unthrottled** ✅ FIXED (Jul 2026) — both `/api/ai/*` now require a signed-in user (401 otherwise). Per-user rate-limiting deferred (needs a shared store; low priority at pilot scale).
 
+## Jul 23 2026 full-codebase review — found & fixed in one batch
+
+All fixed in code the same day; the DB items go live when migration #16 runs.
+
+- [x] **Payout-ledger integrity:** a cook could mark an unpaid `pending` order `completed` (`advanceOrder` had no state-machine guard) or PATCH money columns on their own orders via the raw API — both inflate the manual "owed to cook" sums. Fixed: legal-transition guard in the action + DB trigger (status-only, legal transitions) in `harden-orders.sql`.
+- [x] **Checkout trust:** the cart's localStorage prices could go stale (buyer sees one total, Stripe charges another) and items that went unavailable were silently dropped from the order. Fixed: cart self-syncs against live listings, server bounces on price drift or missing items, and `/cart` finally renders checkout errors (they were silently lost).
+- [x] **Cancelled orders never restored inventory** — now they restock limited items (and the dashboard gained a Cancel button).
+- [x] **Email HTML injection:** buyer-typed notes/name/address went into the cook's email unescaped (phishing vector). Fixed with `escapeHtml` in all email templates.
+- [x] **Migration replay landmine:** files 9 and 14 recreated policies that `schema.sql` now embeds, so a fresh-DB replay (i.e. deploy day) aborted. Drop-guards added; MIGRATIONS.md corrected.
+- [x] Smaller: AI routes now reject anonymous sessions (free Groq-burn); listing prices must be > $0 (≤ $10k); deleting an ever-ordered listing no longer fails silently (FK now `set null` + error surfaced); guest "account created" message now says to confirm by email; stray "County-verified" badge removed from buyer header; empty-cart flash and duplicate checkout error banner fixed; fee note copy now mentions the $0.30.
+
 ## LOW / CLEANUP
-- [ ] Delete dead `components/browse-filters.tsx` (imported nowhere).
-- [ ] Remove 23 leftover `.fuse_hidden*` editor temp files before any deploy/copy.
+- [x] Delete dead `components/browse-filters.tsx` (imported nowhere). ✅ deleted Jul 23 2026.
+- [x] Remove 23 leftover `.fuse_hidden*` editor temp files before any deploy/copy. ✅ they were actually *committed to git* — `git rm`'d and gitignored Jul 23 2026.
+- [x] Remove unused `stripe` + `@stripe/stripe-js` npm deps (imported nowhere). ✅ Jul 23 2026.
 - [ ] `cooks.latitude/longitude` are never read — the distance search doesn't exist yet (scrub them in the address fix regardless).
 - [ ] README "What's built" checkboxes are stale/unchecked and still say "Stripe Connect" (not built). Fix before anyone does due diligence.
 - [x] Run `supabase/one-kitchen-per-user.sql` ✅ applied (Jul 2026) — no dupes existed; unique constraint added, verified a second-kitchen insert now returns 409.

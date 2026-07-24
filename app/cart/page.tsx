@@ -1,17 +1,37 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCart } from "@/components/cart-context";
+import CartSync from "@/components/cart-sync";
 import { formatUsd, calcServiceFeeCents } from "@/lib/constants";
 
+// Checkout bounces its errors here (?error=...) — e.g. "no longer available"
+// or "prices changed". useSearchParams needs a Suspense boundary.
+function CheckoutError() {
+  const message = useSearchParams().get("error");
+  if (!message) return null;
+  return (
+    <p className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+      {message}
+    </p>
+  );
+}
+
 export default function CartPage() {
-  const { cart, subtotalCents, setQty, removeItem } = useCart();
+  const { cart, loaded, subtotalCents, setQty, removeItem } = useCart();
   const router = useRouter();
+
+  // Don't flash "your cart is empty" before localStorage has been read.
+  if (!loaded) return null;
 
   if (!cart || cart.items.length === 0) {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16 text-center">
+        <Suspense>
+          <CheckoutError />
+        </Suspense>
         <h1 className="text-2xl font-semibold text-ink">Your cart is empty</h1>
         <p className="mt-2 text-muted">
           Find something delicious from a local kitchen.
@@ -32,6 +52,10 @@ export default function CartPage() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-10">
       <h1 className="text-2xl font-semibold text-ink">Your cart</h1>
+      <Suspense>
+        <CheckoutError />
+      </Suspense>
+      <CartSync />
       <p className="mt-1 text-muted">
         From{" "}
         <Link
@@ -63,11 +87,14 @@ export default function CartPage() {
             </div>
             <input
               type="number"
-              min={0}
+              min={1}
               value={i.quantity}
-              onChange={(e) =>
-                setQty(i.listingId, parseInt(e.target.value || "0", 10))
-              }
+              onChange={(e) => {
+                // Ignore transient empty/garbage keystrokes so clearing the
+                // field doesn't delete the item — that's the Remove button.
+                const v = parseInt(e.target.value, 10);
+                if (!Number.isNaN(v)) setQty(i.listingId, Math.max(1, v));
+              }}
               className="w-16 rounded-lg border border-line px-2 py-1 text-center"
             />
             <button

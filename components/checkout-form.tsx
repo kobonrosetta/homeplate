@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useCart } from "@/components/cart-context";
+import CartSync from "@/components/cart-sync";
 import { calcServiceFeeCents, formatUsd } from "@/lib/constants";
 import { startCheckout } from "@/app/checkout/actions";
 
@@ -22,9 +22,11 @@ export default function CheckoutForm({
   defaultEmail: string;
   signedIn: boolean;
 }) {
-  const { cart, subtotalCents } = useCart();
+  const { cart, loaded, subtotalCents } = useCart();
   const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
-  const urlError = useSearchParams().get("error");
+
+  // Don't flash "your cart is empty" before localStorage has been read.
+  if (!loaded) return null;
 
   if (!cart || cart.items.length === 0) {
     return (
@@ -40,16 +42,22 @@ export default function CheckoutForm({
   const fee = calcServiceFeeCents(subtotalCents);
   const total = subtotalCents + fee;
   const canDeliver = cart.cook.deliveryAvailable ?? false;
+  // priceCents/title let the server compare what the buyer SAW against the
+  // authoritative DB prices and bounce on drift — never to price the order.
   const items = cart.items.map((i) => ({
     listingId: i.listingId,
     quantity: i.quantity,
+    priceCents: i.priceCents,
+    title: i.title,
   }));
 
   // Plain server-action form: clicking Pay calls startCheckout directly (React
   // handles the submit). Guest sign-in now happens server-side, so there's no
   // client-side auth step that can hang.
   return (
-    <form action={startCheckout} className="mt-6 space-y-6">
+    <>
+      <CartSync />
+      <form action={startCheckout} className="mt-6 space-y-6">
       <input type="hidden" name="cook_id" value={cart.cook.id} />
       <input type="hidden" name="items" value={JSON.stringify(items)} />
       <input type="hidden" name="fulfillment" value={fulfillment} />
@@ -67,12 +75,6 @@ export default function CheckoutForm({
           </>
         )}
       </p>
-
-      {urlError && (
-        <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-          {urlError}
-        </p>
-      )}
 
       <Field label="Your name">
         <input
@@ -169,7 +171,8 @@ export default function CheckoutForm({
       <p className="text-center text-xs text-faint">
         No account needed — pay as a guest. Secure payment by Stripe.
       </p>
-    </form>
+      </form>
+    </>
   );
 }
 

@@ -29,11 +29,14 @@ cooks or real permit data yet. The tech is ahead of the business.
 - **Groq** — AI helpers (listing descriptions, photo-quality check).
 - **Tailwind** with semantic CSS-variable tokens; **Fraunces** (headings) + **Inter** (body).
   "Warm editorial" visual direction.
-- Hosting target: **Vercel** (connect it to the GitHub repo `kobonrosetta/homeplate`).
+- Hosting: **Render** (deploys from the GitHub repo `kobonrosetta/homeplate`). **Live at
+  https://homeplate-jyd2.onrender.com** — see `DEPLOY.md`. (The free instance sleeps after
+  ~15 min idle.)
 
 > ⚠️ **Stripe and Resend are called via raw `fetch`, not their SDKs** (`lib/stripe.ts`,
-> `lib/email.ts`). This is deliberate — do not "upgrade" them to the Node SDKs. The
-> `@stripe/stripe-js` dependency is only the browser redirect helper.
+> `lib/email.ts`). This is deliberate — do not "upgrade" them to the Node SDKs, and no
+> Stripe npm package belongs in `package.json` (checkout redirects server-side to
+> Stripe's hosted URL; the unused `stripe`/`@stripe/stripe-js` deps were removed Jul 2026).
 
 ## Run & verify
 
@@ -138,21 +141,26 @@ them re-opens real vulnerabilities:
    project. Log every new one in `supabase/MIGRATIONS.md`. Do **not** enable Supabase's
    GitHub integration (the loose SQL files aren't in its expected `migrations/` format).
 7. **Known deferred / cleanup** (see `PROJECT_REVIEW.md`): limited-inventory oversell race
-   (low priority at pilot scale), dead `components/browse-filters.tsx`, unused
-   `cooks.latitude/longitude`, and test/junk data to purge before launch.
+   (low priority at pilot scale) and unused `cooks.latitude/longitude`. (Dead
+   `browse-filters.tsx` and the committed `.fuse_hidden*` junk were removed Jul 2026.)
 
 ## Current status & what's left to launch
 
 Everything through the build + visual polish is **done** — full loop, security batch,
 guest checkout, admin console, onboarding wizard, email notifications, fee transparency,
-reviews, inventory, payouts view, and the warm-editorial visual pass. What remains is
-**not more features**:
+reviews, inventory, payouts view, and the warm-editorial visual pass. **Deployed and live
+on Render** (https://homeplate-jyd2.onrender.com): env vars wired, `STRIPE_WEBHOOK_SECRET`
+set + the webhook endpoint verified against the live URL, `ADMIN_EMAILS` set, Google OAuth
+redirects configured. A second security batch (Jul 23 2026) closed a reopened
+review-forgery hole + payout-ledger tampering + checkout-trust bugs — see
+`PROJECT_REVIEW.md` and `supabase/harden-orders.sql`. What remains is **not more features**:
 
-1. **Deploy** — Vercel (from the GitHub repo) + Supabase; wire env vars (set
-   `STRIPE_WEBHOOK_SECRET`, verify a Resend sending domain and update `EMAIL_FROM`, set
-   `ADMIN_EMAILS`, Google OAuth redirect URLs). **Rotate all secrets** first.
-2. **Load real Santa Clara County permit data** into `approved_operators` (+ name-match/review).
-3. **Recruit one real cook.** The only thing that tests whether cooks will actually join.
+1. **Load real Santa Clara County permit data** into `approved_operators` (+ name-match/review).
+2. **Recruit one real cook.** The only thing that tests whether cooks will actually join.
+3. **Go fully live:** rotate all secrets (they were shared in chat / a screenshot — still on
+   Stripe **test** mode), then switch Stripe to live keys + a live-mode webhook and decide
+   the payout path (still manual; Connect not built). Verify a Resend sending domain and
+   update `EMAIL_FROM` to email anyone beyond your own address.
 
 ## Companion docs
 

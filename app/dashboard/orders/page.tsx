@@ -163,6 +163,13 @@ function OrderCard({ o, active }: { o: any; active?: boolean }) {
           className="mt-4 flex flex-wrap justify-end gap-2"
         >
           <input type="hidden" name="order_id" value={o.id} />
+          <button
+            name="status"
+            value="cancelled"
+            className="rounded-full border border-line px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+          >
+            Cancel order
+          </button>
           {o.status === "confirmed" && (
             <button
               name="status"

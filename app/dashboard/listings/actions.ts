@@ -49,10 +49,16 @@ export async function updateListing(formData: FormData) {
   const leadTime = String(formData.get("lead_time_note") ?? "").trim();
   const allergens = String(formData.get("allergens") ?? "").trim();
 
-  if (!title || Number.isNaN(priceDollars)) {
+  if (!title || Number.isNaN(priceDollars) || priceDollars <= 0) {
     redirect(
       `/dashboard/listings/${id}/edit?error=` +
-        encodeURIComponent("A title and a valid price are required.")
+        encodeURIComponent("A title and a price above $0 are required.")
+    );
+  }
+  if (priceDollars > 10000) {
+    redirect(
+      `/dashboard/listings/${id}/edit?error=` +
+        encodeURIComponent("That price looks too high — the maximum is $10,000.")
     );
   }
 
@@ -118,6 +124,16 @@ export async function toggleListing(formData: FormData) {
 export async function deleteListing(formData: FormData) {
   const { supabase, cook } = await requireCook();
   const id = String(formData.get("id"));
-  await supabase.from("listings").delete().eq("id", id).eq("cook_id", cook.id);
+  const { error } = await supabase
+    .from("listings")
+    .delete()
+    .eq("id", id)
+    .eq("cook_id", cook.id);
+  if (error) {
+    redirect(
+      "/dashboard/menu?error=" +
+        encodeURIComponent(`Couldn't delete this listing: ${error.message}`)
+    );
+  }
   revalidatePath("/dashboard", "layout");
 }
