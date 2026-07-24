@@ -2,9 +2,14 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentCook } from "@/lib/cook";
 import { formatUsd } from "@/lib/constants";
+import { FormError } from "@/components/form";
 import { toggleListing, deleteListing } from "../listings/actions";
 
-export default async function MenuPage() {
+export default async function MenuPage({
+  searchParams,
+}: {
+  searchParams: { error?: string };
+}) {
   const { cook } = await getCurrentCook();
   const supabase = createClient();
   const { data: listings } = await supabase
@@ -25,6 +30,10 @@ export default async function MenuPage() {
         >
           + Add a listing
         </Link>
+      </div>
+
+      <div className="mt-4">
+        <FormError message={searchParams.error} />
       </div>
 
       {items.length === 0 ? (

@@ -4,7 +4,10 @@ Every schema change to the HomePlate Supabase project has been applied **by hand
 the Supabase SQL editor — this project does not use the Supabase CLI migration system.
 This file is the canonical record of what was run, in what order, and whether it's live.
 
-**Status: all 15 migrations applied.** Verified against the live database on
+**Status: all 16 migrations applied.** #16 (`harden-orders.sql`) applied and verified
+live on **2026-07-23** (forged `completed` order insert → 403; cook editing money
+columns → 400; cook completing an unpaid order → 400; legit `confirmed→ready→completed`
+and guest checkout still work). Migrations 1–15 verified against the live database on
 **2026-07-16** — tables and columns by direct query, policies and triggers by behavior
 tests.
 
@@ -15,7 +18,7 @@ Project ref: `jycefrvkqybadwupokdn` (Santa Clara County pilot)
 | #  | File | Purpose | Live? |
 |----|------|---------|:-----:|
 | 1  | `schema.sql` | Base tables (profiles, approved_operators, cooks, cook_private, listings, orders, order_items, reviews), indexes, RLS enabled, core access policies | ✅ |
-| 2  | `seed.sql` | Seeds `approved_operators` with the initial Santa Clara County permit list (6 rows) | ✅ |
+| 2  | `seed.sql` | Seeds `approved_operators` with the initial Santa Clara County permit list (5 rows) | ✅ |
 | 3  | `google-oauth.sql` | `handle_new_user` trigger — auto-creates a profile row on signup (Google + email) | ✅ |
 | 4  | `add-cook-address.sql` | *(historical)* Added street_address / latitude / longitude to `cooks` | ✅ |
 | 5  | `private-cook-columns.sql` | Moved the address into a separate `cook_private` table (owner-only RLS) and dropped it from `cooks` — this is the fix for the address leak | ✅ |
@@ -29,12 +32,16 @@ Project ref: `jycefrvkqybadwupokdn` (Santa Clara County pilot)
 | 13 | `one-kitchen-per-user.sql` | Unique constraint — one kitchen per user (profile_id) | ✅ |
 | 14 | `orders-policies.sql` | RLS — buyer can add items to own order; cook can update own kitchen's orders | ✅ |
 | 15 | `storage-policies.sql` | Storage RLS — a cook can only write/delete photos in their own folder | ✅ |
+| 16 | `harden-orders.sql` | Orders hardening — orders must be born `pending` with consistent amounts (blocks forged completed orders → forged reviews); status-only, legal-transition updates for end-user sessions (protects the payout ledger); `order_items.listing_id` nulls out on listing delete | ✅ |
 
 ## Replaying on a fresh database
 
 If you ever spin up a new Supabase project (staging or production), run these files **in
-the order above** in the SQL editor. They use `if not exists` / `if exists` guards, so
-re-running them is safe.
+the order above** in the SQL editor. Each file is safe to re-run: Postgres has no
+`create policy if not exists`, so policy files drop the policy by name first and then
+recreate it (everything else uses `if not exists` / `if exists` / `create or replace`
+guards). Files 9 and 14 originally lacked those drop-guards and would abort a replay
+with "policy already exists" — fixed 2026-07-23.
 
 - **Files 4 and 5 are historical.** The address split is already baked into `schema.sql`,
   so on a fresh database #4 adds the columns and #5 immediately removes them — a harmless

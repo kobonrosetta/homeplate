@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendEmail, wrapEmail } from "@/lib/email";
+import { escapeHtml, sendEmail, wrapEmail } from "@/lib/email";
 import { formatUsd } from "@/lib/constants";
 
 /**
@@ -45,6 +45,44 @@ export async function confirmPaidOrder(
     }
   }
 
+  await notifyOrderConfirmed(admin, orderId);
+}
+
+/**
+ * Put stock back for a cancelled order's limited items — the mirror of the
+ * deduction in confirmPaidOrder. The caller must only invoke this after an
+ * update that actually transitioned the order into 'cancelled' (matched rows
+ * > 0), which is what prevents a retried cancel from restocking twice.
+ */
+export async function restockOrderItems(orderId: string): Promise<void> {
+  const admin = createAdminClient();
+  const { data: lines } = await admin
+    .from("order_items")
+    .select("listing_id, quantity")
+    .eq("order_id", orderId);
+
+  for (const line of lines ?? []) {
+    if (!line.listing_id) continue;
+    const { data: listing } = await admin
+      .from("listings")
+      .select("limited_quantity, quantity_available")
+      .eq("id", line.listing_id)
+      .maybeSingle();
+    if (listing?.limited_quantity) {
+      await admin
+        .from("listings")
+        .update({
+          quantity_available: (listing.quantity_available ?? 0) + line.quantity,
+        })
+        .eq("id", line.listing_id);
+    }
+  }
+}
+
+async function notifyOrderConfirmed(
+  admin: ReturnType<typeof createAdminClient>,
+  orderId: string
+): Promise<void> {
   // Best-effort notifications — must never break order confirmation.
   try {
     const { data: order } = await admin
@@ -62,14 +100,17 @@ export async function confirmPaidOrder(
         .eq("id", order.cook_id)
         .maybeSingle();
 
-      const kitchen = cook?.business_name ?? "the kitchen";
+      // Everything user-typed gets escaped — email HTML is an injection target.
+      const kitchen = escapeHtml(cook?.business_name ?? "the kitchen");
       const items = (order.order_items ?? [])
-        .map((i: any) => `${i.quantity}× ${i.title}`)
+        .map((i: any) => `${i.quantity}× ${escapeHtml(i.title)}`)
         .join(", ");
       const where =
         order.fulfillment === "delivery"
-          ? `Deliver to ${order.delivery_address ?? ""}`
-          : `Pickup${order.pickup_time ? ` · ${order.pickup_time}` : ""}`;
+          ? `Deliver to ${escapeHtml(order.delivery_address ?? "")}`
+          : `Pickup${
+              order.pickup_time ? ` · ${escapeHtml(order.pickup_time)}` : ""
+            }`;
 
       // 1) Alert the cook that they've got a paid order.
       const res = cook?.profile_id
@@ -83,6 +124,7 @@ export async function confirmPaidOrder(
           order.contact_email,
         ]
           .filter(Boolean)
+          .map((v) => escapeHtml(String(v)))
           .join(" · ");
         await sendEmail({
           to: cookEmail,
@@ -93,7 +135,11 @@ export async function confirmPaidOrder(
              <p>${where}</p>
              <p>You receive <strong>${formatUsd(order.subtotal_cents ?? 0)}</strong></p>
              <p><strong>Buyer:</strong> ${contactLine}</p>
-             ${order.notes ? `<p><strong>Note:</strong> ${order.notes}</p>` : ""}
+             ${
+               order.notes
+                 ? `<p><strong>Note:</strong> ${escapeHtml(order.notes)}</p>`
+                 : ""
+             }
              <p>Open My Kitchen to manage it.</p>`
           ),
         });
@@ -107,7 +153,7 @@ export async function confirmPaidOrder(
           html: wrapEmail(
             `<h2>Your order is confirmed</h2>
              <p>Thanks${
-               order.contact_name ? `, ${order.contact_name}` : ""
+               order.contact_name ? `, ${escapeHtml(order.contact_name)}` : ""
              }! ${kitchen} has your order and your contact details.</p>
              <p><strong>${items}</strong></p>
              <p>You paid <strong>${formatUsd(order.total_cents ?? 0)}</strong></p>

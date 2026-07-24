@@ -16,8 +16,8 @@ Premium positioning: the best home kitchens near you, verified against the count
 |---|---|
 | **Next.js** | The app itself — every page people see and click, plus the server logic behind it. |
 | **Supabase** | The backend — database, logins, and photo storage, ready-made. |
-| **Stripe** | The money — checkout, cook payouts, and the service fee. |
-| **Vercel** | Hosting — where the app lives on the internet (deploys straight from the GitHub repo). |
+| **Stripe** | The money — checkout and the service fee (test mode for the pilot; cook payouts are manual — Connect isn't built yet). |
+| **Render** | Hosting — where the app lives on the internet (deploys straight from the GitHub repo). Live at `homeplate-jyd2.onrender.com`. |
 
 ---
 
@@ -107,11 +107,12 @@ HomePlate/
 - [x] Checkout (Stripe test mode, 8% + $0.30 fee) + webhook
 - [x] Orders, reviews, email notifications, inventory
 - [x] Admin console, cook onboarding wizard, payouts view
-- [x] Security hardening + visual polish
+- [x] Security hardening (incl. a Jul 2026 batch: order-forgery + payout-ledger + checkout-trust fixes) + visual polish
+- [x] **Deployed live on Render** — env wired, Stripe webhook verified against the live URL
 
-**Still to launch (not features):** deploy to Vercel + wire env & rotate secrets · load
-the real Santa Clara County permit data · recruit one real cook. See [`CLAUDE.md`](./CLAUDE.md)
-and [`PROJECT_REVIEW.md`](./PROJECT_REVIEW.md) for the full picture.
+**Still to launch (not features):** load the real Santa Clara County permit data · recruit
+one real cook · rotate secrets and switch Stripe from test to live mode. See
+[`CLAUDE.md`](./CLAUDE.md) and [`PROJECT_REVIEW.md`](./PROJECT_REVIEW.md) for the full picture.
 
 > Note: Stripe **Connect** (automated cook payouts) isn't built yet — payouts are manual
 > for the pilot, and "Checkout" above is plain Stripe in test mode.

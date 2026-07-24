@@ -9,8 +9,8 @@ the GitHub repo `kobonrosetta/homeplate`.
 > always-on before a public launch.
 
 > **This deployment is live at:** **https://homeplate-jyd2.onrender.com**
-> (Render appended `-jyd2` for uniqueness.) Wherever the steps below show
-> `homeplate.onrender.com`, use `homeplate-jyd2.onrender.com` instead.
+> (Render appended `-jyd2` for uniqueness — the plain `homeplate.onrender.com` is
+> not this app.) The concrete URLs in the steps below already use the live one.
 
 ## Before you start
 - Code is pushed to GitHub ✅
@@ -21,7 +21,8 @@ the GitHub repo `kobonrosetta/homeplate`.
 1. Render dashboard → **New +** → **Web Service**.
 2. **Connect GitHub** and pick the **`kobonrosetta/homeplate`** repo (approve access if asked).
 3. Fill in the settings:
-   - **Name:** `homeplate`  → this becomes your URL, `homeplate.onrender.com`
+   - **Name:** `homeplate`  → becomes your URL; Render may append a suffix for
+     uniqueness (this deploy became `homeplate-jyd2.onrender.com`)
    - **Region:** closest to you (e.g. Oregon for the West Coast)
    - **Branch:** `main`
    - **Runtime / Language:** Node
@@ -45,15 +46,15 @@ Scroll to **Environment Variables**. Add **every** key from your `.env.local` (t
 | `RESEND_API_KEY` | same as local |
 | `EMAIL_FROM` | same as local for now |
 | `ADMIN_EMAILS` | your email — so you can reach `/admin` |
-| `NEXT_PUBLIC_SITE_URL` | **`https://homeplate.onrender.com`** (your Render URL, *not* localhost) |
+| `NEXT_PUBLIC_SITE_URL` | **`https://homeplate-jyd2.onrender.com`** (your live Render URL, *not* localhost) |
 
 > `NEXT_PUBLIC_*` values are baked in at **build time**, so set them **before** you deploy.
 > Change one later and you must trigger a fresh deploy for it to take effect.
 
 ## 3. Deploy
 Click **Create Web Service**. Render installs, builds, and boots the app (first build ~3–5
-min). You'll get a URL like `https://homeplate.onrender.com` — open it, you should see the
-landing page.
+min). You'll get your URL (this deploy's is `https://homeplate-jyd2.onrender.com`) — open
+it, you should see the landing page.
 
 > - Build fails on a Node version error? Add env var `NODE_VERSION` = `20` and redeploy.
 > - Page won't load/bind? Set **Start command** to `npx next start -p $PORT -H 0.0.0.0`.
@@ -62,12 +63,12 @@ landing page.
 
 **a) Supabase auth redirects** — so login works on the live site.
 Supabase dashboard → **Authentication → URL Configuration**:
-- **Site URL:** `https://homeplate.onrender.com`
-- **Redirect URLs:** add `https://homeplate.onrender.com/**`
+- **Site URL:** `https://homeplate-jyd2.onrender.com`
+- **Redirect URLs:** add `https://homeplate-jyd2.onrender.com/**`
 
 **b) Stripe webhook** — so payments confirm reliably (not just on the success page).
 Stripe dashboard → **Developers → Webhooks → Add endpoint**:
-- **Endpoint URL:** `https://homeplate.onrender.com/api/stripe/webhook`
+- **Endpoint URL:** `https://homeplate-jyd2.onrender.com/api/stripe/webhook`
 - **Event to send:** `checkout.session.completed`
 - Create it, then copy the **Signing secret** (`whsec_…`).
 - Back in Render → your service → **Environment** → set `STRIPE_WEBHOOK_SECRET` to that value → **Save** (Render redeploys automatically).

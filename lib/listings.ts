@@ -28,8 +28,11 @@ export async function insertListingFromForm(
   const leadTime = String(formData.get("lead_time_note") ?? "").trim();
   const allergens = String(formData.get("allergens") ?? "").trim();
 
-  if (!title || Number.isNaN(priceDollars)) {
-    return "A title and a valid price are required.";
+  if (!title || Number.isNaN(priceDollars) || priceDollars <= 0) {
+    return "A title and a price above $0 are required.";
+  }
+  if (priceDollars > 10000) {
+    return "That price looks too high — the maximum is $10,000.";
   }
 
   let photoUrl: string | null = null;

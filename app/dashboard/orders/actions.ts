@@ -3,40 +3,57 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { sendEmail, wrapEmail } from "@/lib/email";
+import { getCurrentCook } from "@/lib/cook";
+import { restockOrderItems } from "@/lib/orders";
+import { escapeHtml, sendEmail, wrapEmail } from "@/lib/email";
 
-// Statuses a cook is allowed to move an order into.
-const ALLOWED = new Set(["ready", "completed", "cancelled"]);
+// Target status -> the statuses an order may come FROM. Pending never appears:
+// an unpaid order can't be advanced, completed, or cancelled by a cook — only
+// Stripe-verified confirmation (server-side) moves an order out of pending.
+const TRANSITIONS: Record<string, string[]> = {
+  ready: ["confirmed"],
+  completed: ["confirmed", "ready"],
+  cancelled: ["confirmed", "ready"],
+};
 
 export async function advanceOrder(formData: FormData) {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user, cook } = await getCurrentCook();
   if (!user) redirect("/login");
+  if (!cook) redirect("/dashboard");
 
   const orderId = String(formData.get("order_id") ?? "");
   const status = String(formData.get("status") ?? "");
-  if (!orderId || !ALLOWED.has(status)) return;
+  const from = TRANSITIONS[status];
+  if (!orderId || !from) return;
 
-  // The "cook updates own kitchen orders" RLS policy guarantees a cook can only
-  // change orders that belong to their own kitchen.
-  await supabase.from("orders").update({ status }).eq("id", orderId);
+  // Scope to this cook's kitchen (RLS enforces this too) and to a legal
+  // predecessor status. Zero matched rows = stale button or a retry — do
+  // nothing, which is also what makes the cancel restock run at most once.
+  const { data: updated } = await supabase
+    .from("orders")
+    .update({ status })
+    .eq("id", orderId)
+    .eq("cook_id", cook.id)
+    .in("status", from)
+    .select("id");
+  if (!updated || updated.length === 0) {
+    revalidatePath("/dashboard/orders");
+    return;
+  }
+
+  // A cancelled order's limited items go back on the shelf.
+  if (status === "cancelled") await restockOrderItems(orderId);
 
   // Best-effort: tell the buyer their order is ready for pickup.
   if (status === "ready") {
     try {
       const { data: order } = await supabase
         .from("orders")
-        .select("contact_email, cook_id")
+        .select("contact_email")
         .eq("id", orderId)
         .maybeSingle();
       if (order?.contact_email) {
-        const { data: cook } = await supabase
-          .from("cooks")
-          .select("business_name")
-          .eq("id", order.cook_id)
-          .maybeSingle();
         await sendEmail({
           to: order.contact_email,
           subject: `Your order is ready${
@@ -44,7 +61,9 @@ export async function advanceOrder(formData: FormData) {
           }`,
           html: wrapEmail(
             `<h2>Your order is ready</h2>
-             <p>${cook?.business_name ?? "The kitchen"} has your order ready. Check your confirmation email for the pickup details.</p>`
+             <p>${escapeHtml(
+               cook?.business_name ?? "The kitchen"
+             )} has your order ready. Check your confirmation email for the pickup details.</p>`
           ),
         });
       }

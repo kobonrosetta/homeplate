@@ -69,9 +69,6 @@ export default async function SiteHeader() {
               <Link href="/orders" className={linkClass}>
                 Purchases
               </Link>
-              <span className="hidden items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800 sm:inline-flex">
-                ✓ County-verified
-              </span>
               <span className="hidden text-faint sm:inline">{userLabel}</span>
               <SignOut />
             </>

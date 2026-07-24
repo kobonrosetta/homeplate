@@ -26,6 +26,8 @@ export type CartCook = {
 };
 type Cart = { cook: CartCook; items: CartItem[] } | null;
 
+export type LiveListing = { id: string; title: string; price_cents: number };
+
 type CartContextValue = {
   cart: Cart;
   loaded: boolean;
@@ -34,6 +36,7 @@ type CartContextValue = {
   addItem: (cook: CartCook, item: Omit<CartItem, "quantity">, qty?: number) => void;
   removeItem: (listingId: string) => void;
   setQty: (listingId: string, qty: number) => void;
+  reconcile: (live: LiveListing[]) => { changed: string[]; removed: string[] };
   clear: () => void;
 };
 
@@ -107,6 +110,33 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // Sync the saved cart against what the kitchen sells right now: refresh
+  // stale titles/prices, drop items that are gone or unavailable, and report
+  // what happened so the caller can tell the buyer. Prices in the cart are
+  // display-only either way — checkout re-reads them from the database.
+  const reconcile = useCallback((live: LiveListing[]) => {
+    const changed: string[] = [];
+    const removed: string[] = [];
+    setCart((prev) => {
+      if (!prev) return prev;
+      const liveById = new Map(live.map((l) => [l.id, l]));
+      const items: CartItem[] = [];
+      for (const i of prev.items) {
+        const now = liveById.get(i.listingId);
+        if (!now) {
+          removed.push(i.title);
+          continue;
+        }
+        if (now.price_cents !== i.priceCents) changed.push(now.title);
+        items.push({ ...i, title: now.title, priceCents: now.price_cents });
+      }
+      if (!changed.length && !removed.length) return prev;
+      return items.length ? { cook: prev.cook, items } : null;
+    });
+    // De-dupe: React may run the updater twice in dev (strict mode).
+    return { changed: [...new Set(changed)], removed: [...new Set(removed)] };
+  }, []);
+
   const clear = useCallback(() => setCart(null), []);
 
   const count = useMemo(
@@ -126,6 +156,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     addItem,
     removeItem,
     setQty,
+    reconcile,
     clear,
   };
 

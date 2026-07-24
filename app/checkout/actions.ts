@@ -6,7 +6,14 @@ import { createClient } from "@/lib/supabase/server";
 import { calcServiceFeeCents } from "@/lib/constants";
 import { createCheckoutSession } from "@/lib/stripe";
 
-type CartLine = { listingId: string; quantity: number };
+// priceCents/title are what the buyer's cart DISPLAYED — used only to detect
+// drift against the authoritative DB prices, never to price the order.
+type CartLine = {
+  listingId: string;
+  quantity: number;
+  priceCents?: number;
+  title?: string;
+};
 
 export async function startCheckout(formData: FormData) {
   const supabase = createClient();
@@ -69,8 +76,30 @@ export async function startCheckout(formData: FormData) {
   const rows = (listings ?? []).filter(
     (l) => l.is_available && l.cook_id === cookId
   );
-  if (rows.length === 0)
-    err("/cart", "These items are no longer available.");
+
+  // Never charge for a different cart than the buyer approved: if anything
+  // they're looking at has since vanished or changed price, bounce back to the
+  // cart (which re-syncs itself against live listings) instead of proceeding.
+  const rowById = new Map(rows.map((l) => [l.id, l]));
+  const gone = requested.filter((r) => !rowById.has(r.listingId));
+  if (gone.length > 0) {
+    const names = gone.map((g) => g.title?.trim() || "an item").join(", ");
+    err("/cart", `No longer available: ${names}. We've updated your cart.`);
+  }
+  const drifted = requested.some((r) => {
+    const row = rowById.get(r.listingId);
+    return (
+      typeof r.priceCents === "number" &&
+      row &&
+      row.price_cents !== r.priceCents
+    );
+  });
+  if (drifted) {
+    err(
+      "/cart",
+      "Prices changed since you added these items — your cart has been updated, please review it."
+    );
+  }
 
   const { data: cook } = await supabase
     .from("cooks")

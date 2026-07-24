@@ -2,11 +2,13 @@
 -- The old policy only checked buyer_id = auth.uid(), so a user could spawn a
 -- throwaway order against ANY cook and post a fake (e.g. 1-star) review.
 -- New rule: a review must be tied to a COMPLETED order that belongs to the
--- reviewer and whose cook matches. Only a kitchen's own cook can mark an order
--- completed, so a competitor's spawned order stays 'pending' and is unreviewable.
--- Run in Supabase: SQL Editor -> paste -> Run.
+-- reviewer and whose cook matches. This only holds together with
+-- harden-orders.sql, which forces orders to be born 'pending' and makes
+-- pending -> completed server-only — so a spawned order can never become
+-- reviewable. Run in Supabase: SQL Editor -> paste -> Run.
 
 drop policy if exists "buyer writes own review" on reviews;
+drop policy if exists "buyer reviews own completed order" on reviews;
 
 create policy "buyer reviews own completed order" on reviews
   for insert with check (

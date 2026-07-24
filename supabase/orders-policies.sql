@@ -9,6 +9,7 @@
 -- ============================================================
 
 -- A buyer can add line items to an order that belongs to them.
+drop policy if exists "buyer adds items to own order" on order_items;
 create policy "buyer adds items to own order" on order_items
   for insert with check (
     exists (
@@ -17,7 +18,8 @@ create policy "buyer adds items to own order" on order_items
     )
   );
 
--- A cook can update orders for their own kitchen (pending -> confirmed -> ready...).
+-- A cook can update orders for their own kitchen (confirmed -> ready -> completed).
+drop policy if exists "cook updates own kitchen orders" on orders;
 create policy "cook updates own kitchen orders" on orders
   for update using (
     exists (select 1 from cooks c where c.id = orders.cook_id and c.profile_id = auth.uid())

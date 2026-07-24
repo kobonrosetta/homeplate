@@ -37,6 +37,18 @@ export async function sendEmail(opts: {
   }
 }
 
+// Escape user-typed text before interpolating it into email HTML — a buyer's
+// order note (or name, address, item title…) must render as text, never as
+// markup someone crafted to make our email look like it says something else.
+export function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // Minimal branded wrapper so emails aren't raw text.
 export function wrapEmail(bodyHtml: string): string {
   return `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#292524">

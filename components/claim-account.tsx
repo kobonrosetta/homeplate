@@ -16,7 +16,9 @@ export default function ClaimAccount({ defaultEmail }: { defaultEmail: string })
   if (done) {
     return (
       <div className="mt-6 rounded-xl border border-line bg-card p-4 text-sm text-ink">
-        ✓ Account created — find this order anytime under &ldquo;Purchases.&rdquo;
+        ✓ Almost done — we sent a confirmation link to your email. Click it to
+        finish creating your account, then find this order anytime under
+        &ldquo;Purchases.&rdquo;
       </div>
     );
   }

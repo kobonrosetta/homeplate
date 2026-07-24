@@ -6,12 +6,13 @@ import { createClient } from "@/lib/supabase/server";
 // Grades a photo (sent as a base64 data URL) so the cook gets instant
 // feedback before they submit the listing.
 export async function POST(request: Request) {
-  // Signed-in users only — these routes spend the Groq key.
+  // Real signed-in users only — these routes spend the Groq key, and
+  // anonymous (guest-checkout) sessions are free to mint in bulk.
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) {
+  if (!user || user.is_anonymous) {
     return NextResponse.json({ error: "Sign in required." }, { status: 401 });
   }
 
