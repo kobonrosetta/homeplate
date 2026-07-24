@@ -11,9 +11,10 @@ import { escapeHtml, sendEmail, wrapEmail } from "@/lib/email";
 // an unpaid order can't be advanced, completed, or cancelled by a cook — only
 // Stripe-verified confirmation (server-side) moves an order out of pending.
 const TRANSITIONS: Record<string, string[]> = {
-  ready: ["confirmed"],
-  completed: ["confirmed", "ready"],
-  cancelled: ["confirmed", "ready"],
+  in_progress: ["confirmed"],
+  ready: ["confirmed", "in_progress"],
+  completed: ["confirmed", "in_progress", "ready"],
+  cancelled: ["confirmed", "in_progress", "ready"],
 };
 
 export async function advanceOrder(formData: FormData) {

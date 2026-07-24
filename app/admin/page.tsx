@@ -18,7 +18,7 @@ const STATUS_ORDER: Record<string, number> = {
   paused: 2,
   suspended: 3,
 };
-const PAID = new Set(["confirmed", "ready", "completed"]);
+const PAID = new Set(["confirmed", "in_progress", "ready", "completed"]);
 
 export default async function AdminPage() {
   // Invisible to anyone who isn't an admin.

@@ -1,0 +1,24 @@
+# Nudges cooks about paid orders that sat unacknowledged for 45+ minutes.
+# Calls the app's reminder endpoint every 15 minutes; the endpoint decides
+# who (if anyone) actually gets an email, at most once per order.
+#
+# Setup: add a CRON_SECRET repository secret (GitHub → Settings → Secrets)
+# with the same value as the CRON_SECRET env var on Render.
+name: Order reminders
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the reminder endpoint
+        run: |
+          # Generous timeout + retries ride out Render's free-tier cold start.
+          curl -sS --fail-with-body -X POST \
+            --max-time 120 --retry 3 --retry-delay 20 --retry-all-errors \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://homeplate-jyd2.onrender.com/api/cron/remind-orders
