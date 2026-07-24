@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify } from "@/lib/slug";
 import { insertListingFromForm, uploadCookAvatar } from "@/lib/listings";
 import { sendEmail, wrapEmail } from "@/lib/email";
@@ -155,7 +156,10 @@ export async function wizardFinalize(formData: FormData) {
     .ilike("permit_number", permitNumber)
     .maybeSingle();
 
-  await supabase
+  // Permit columns are protected from end-user sessions (see
+  // supabase/harden-cooks.sql), so this write goes through the service
+  // role. cookId is always the signed-in user's own kitchen (myCookId).
+  await createAdminClient()
     .from("cooks")
     .update({
       permit_number: permitNumber,
