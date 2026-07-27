@@ -16,19 +16,42 @@ const IMAGE_TYPES = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
+]);
+// Buyer-facing photos must render in every browser, so no HEIC above (Safari
+// converts iPhone HEIC to JPEG on upload; a raw .heic would show broken for
+// most buyers and slip past the AI food gate unscored). Permit photos are
+// admin-only viewing, so HEIC/PDF are fine there.
+const PERMIT_FILE_TYPES = new Set([
+  ...IMAGE_TYPES,
   "image/heic",
   "image/heif",
+  "application/pdf",
 ]);
 const MAX_PHOTO_MB = 8;
 const MAX_PERMIT_MB = 10;
 
-// Returns an error string, or null if the file is an acceptable photo.
+// Returns an error string, or null if the file is an acceptable public photo.
+// An EMPTY type is allowed (some browsers omit the MIME type; the upload falls
+// back to image/jpeg) — only a wrong declared type is rejected.
 function photoProblem(file: File): string | null {
-  if (!IMAGE_TYPES.has(file.type)) {
-    return "Photos must be a JPEG, PNG, WebP, or HEIC image.";
+  if (file.type && !IMAGE_TYPES.has(file.type)) {
+    return "Photos must be a JPEG, PNG, or WebP image.";
   }
   if (file.size > MAX_PHOTO_MB * 1024 * 1024) {
     return `Photos must be under ${MAX_PHOTO_MB}MB.`;
+  }
+  return null;
+}
+
+// Same idea for the (optional) permit photo — exported so the wizard can
+// reject a bad file LOUDLY before writing anything, instead of silently
+// dropping it while the cook believes it was submitted.
+export function permitFileProblem(file: File): string | null {
+  if (file.type && !PERMIT_FILE_TYPES.has(file.type)) {
+    return "The permit photo must be an image (JPEG, PNG, WebP, HEIC) or a PDF.";
+  }
+  if (file.size > MAX_PERMIT_MB * 1024 * 1024) {
+    return `The permit photo must be under ${MAX_PERMIT_MB}MB.`;
   }
   return null;
 }
@@ -171,9 +194,7 @@ export async function uploadPermitPhoto(
 ): Promise<string | null> {
   const file = formData.get("permit_photo");
   if (!(file instanceof File) || file.size === 0) return null;
-  const okType =
-    IMAGE_TYPES.has(file.type) || file.type === "application/pdf";
-  if (!okType || file.size > MAX_PERMIT_MB * 1024 * 1024) return null;
+  if (permitFileProblem(file)) return null; // wizard pre-checks this loudly
   const ext =
     (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
   const path = `${cookId}/permit-${crypto.randomUUID()}.${ext}`;

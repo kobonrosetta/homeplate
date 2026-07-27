@@ -5,7 +5,7 @@ _July 2026 · reviewed against the working codebase, not from memory_
 
 The full marketplace loop works end to end: discover → pay (real Stripe test) → cook sees the order with contact → advance to completed → buyer reviews → rating shows → inventory counts down and sells out. Fee math is correct and unit-tested, client prices can't be tampered with, the photo gate and order confirmation are solid. That is genuinely further than most ideas ever get.
 
-**But what exists is a working demo on localhost, with one test kitchen and 5 fake permits.** The distance from here to "a stranger buys real food from a real cook" is not more features — it's a handful of safety/money fixes plus the unglamorous launch work. The tech is now ahead of the business.
+**What exists is live on Render with the real Santa Clara County MEHKO permit list loaded (174 permits) — verification is genuine for MEHKO kitchens.** The distance from here to "a stranger buys real food from a real cook" is not more features — it's recruiting one real cook, replacing the fake demo kitchens, rotating the shared secrets, and switching Stripe from test to live. The tech is now well ahead of the business.
 
 ---
 
@@ -54,7 +54,10 @@ All fixed in code the same day; the DB items go live when migration #16 runs.
 - [ ] `cooks.latitude/longitude` are never read — the distance search doesn't exist yet (scrub them in the address fix regardless).
 - [ ] README "What's built" checkboxes are stale/unchecked and still say "Stripe Connect" (not built). Fix before anyone does due diligence.
 - [x] Run `supabase/one-kitchen-per-user.sql` ✅ applied (Jul 2026) — no dupes existed; unique constraint added, verified a second-kitchen insert now returns 409.
-- [ ] Purge test kitchens/junk data (e.g. the dragon-photo / "THC" test listing).
+- [ ] Purge test kitchens/junk data (e.g. the dragon-photo / "THC" test listing). (Partial Jul 27 2026: all fake permits deleted — the three demo kitchens are now UNVERIFIED since their badges rode on a fake permit; kitchens/listings themselves still need replacing.)
+- [ ] **Verification is a signup-time snapshot** — 🅵 DEFERRED (Jul 2026, fine at pilot scale where the admin reviews every kitchen). Re-running the importer doesn't re-match existing cooks, and an expired/revoked county permit never un-verifies an approved kitchen. When cook count grows: make the importer a reconciliation pass (re-match + un-verify expired) and surface it in admin.
+- [ ] **`cook_private.permit_photo_path` is owner-writable** — 🅵 DEFERRED (low). A cook could point it at another cook's storage path; the admin console would then sign+show the wrong photo to the ADMIN only (no data reaches the attacker). Fix with a column-guard trigger (like `enforce_cook_update_rules`) in the next migration batch.
+- [ ] **Cottage-food county list not imported** — cottage bakers are hand-reviewed against their registration; the sell wizard + /verified copy say so honestly. Import it like the MEHKO list when a cottage cook shows up.
 
 ---
 
@@ -63,9 +66,9 @@ All fixed in code the same day; the DB items go live when migration #16 runs.
 |---|---|
 | 1–4 Scaffold, auth/roles, cook side, buyer side | Done |
 | 5 Checkout | Done — but **plain** Stripe, **not** Connect (label is misleading) |
-| 6 Orders, reviews, notifications | Orders + reviews done; **notifications not built** |
+| 6 Orders, reviews, notifications | Done — incl. order emails + "I'm on it" + reminder cron (Jul 2026) |
 | Inventory (made-to-order / set number) | Done |
-| 7 Test e2e + deploy | Not started — **still on localhost** |
+| 7 Test e2e + deploy | Done — **live on Render** (Jul 2026); Stripe still test mode |
 
 ## What only you (CEO) can do — the real bottleneck
 1. ~~Get the real Santa Clara County approved-operator list~~ ✅ Done (Jul 2026) — 174 real MEHKO permits loaded; verification is genuine for MEHKO kitchens.

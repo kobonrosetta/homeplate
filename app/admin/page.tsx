@@ -223,11 +223,24 @@ export default async function AdminPage() {
                           </a>
                         );
                       }
-                      return (
+                      if (p) {
+                        return (
+                          <p className="mt-1 text-xs text-faint">
+                            Permit photo on file — refresh to view
+                          </p>
+                        );
+                      }
+                      // The county list is public, so a green match alone
+                      // proves nothing about WHO is signing up — without a
+                      // permit photo, identity rests entirely on this review.
+                      return c.status === "pending" ? (
+                        <p className="mt-1 text-xs font-medium text-amber-700">
+                          ⚠ No permit photo — confirm this account is really
+                          the operator before approving
+                        </p>
+                      ) : (
                         <p className="mt-1 text-xs text-faint">
-                          {p
-                            ? "Permit photo on file — refresh to view"
-                            : "No permit photo uploaded"}
+                          No permit photo uploaded
                         </p>
                       );
                     })()}

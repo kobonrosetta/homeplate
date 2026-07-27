@@ -51,11 +51,21 @@ export function nameMatchTier(
   brand: string,
   permitName: string
 ): "exact" | "partial" | "none" {
-  const nb = normalizeName(brand);
-  if (nb.length > 0 && nb === normalizeName(permitName)) return "exact";
-  const brandTokens = new Set(distinctiveTokens(brand));
-  const shared = distinctiveTokens(permitName).filter((t) => brandTokens.has(t));
-  return shared.length > 0 ? "partial" : "none";
+  if (namesMatch(brand, permitName)) return "exact";
+  const brandTokens = distinctiveTokens(brand);
+  const permitTokens = distinctiveTokens(permitName);
+  // Degenerate case: a name made entirely of generic/short words ("The Cake
+  // Co") has no distinctive tokens — fall back to comparing all normalized
+  // tokens so near-identical generic names don't read as a scary "none".
+  if (brandTokens.length === 0 || permitTokens.length === 0) {
+    const all = new Set(normalizeName(brand).split(" ").filter(Boolean));
+    const shared = normalizeName(permitName)
+      .split(" ")
+      .filter((t) => all.has(t));
+    return shared.length > 0 ? "partial" : "none";
+  }
+  const brandSet = new Set(brandTokens);
+  return permitTokens.some((t) => brandSet.has(t)) ? "partial" : "none";
 }
 
 // A permit with no expiry recorded is treated as current (some county rows omit

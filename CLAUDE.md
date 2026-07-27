@@ -14,10 +14,12 @@ County**. Positioning: the best home kitchens near you, verified against the cou
 approved-operator list — *not* a sketchy Facebook group. Cooks keep 100% of their listed
 price; buyers pay a service fee (8% + $0.30) on top at checkout.
 
-Current reality: a **complete, working marketplace loop on localhost** — discover → pay
-(real Stripe test mode) → cook sees the order + buyer contact → advances status → buyer
-reviews → inventory deducts and sells out. It has **not** been deployed and has no real
-cooks or real permit data yet. The tech is ahead of the business.
+Current reality: a **complete, working marketplace loop, deployed and live on Render**
+(Stripe still test mode) — discover → pay → cook sees the order + buyer contact →
+advances status ("I'm on it" → ready → completed) → buyer reviews → inventory deducts
+and sells out. The **real Santa Clara County MEHKO permit list is loaded** and signup
+verification runs against it. There are still **zero real cooks** — the demo kitchens
+are fake data. The tech is ahead of the business.
 
 ## Stack
 
@@ -120,8 +122,18 @@ them re-opens real vulnerabilities:
   `cook_private` RLS. (Verified: anon read returns empty; server-side reveal still works.)
 - **Reviews RLS** requires a *completed* order owned by the reviewer for the matching cook —
   blocks forged/ bombed reviews. (Verified: forged insert → 403.)
-- **Storage RLS** scopes photo writes to the owner's `{cook.id}/` folder. (Verified:
-  cross-kitchen upload → 403.)
+- **Photo uploads are server-side only** (`lib/listings.ts`): every storage write —
+  listing photos, avatars, permit photos — goes through the **service role**, with the
+  destination path always derived in code from the authenticated caller's own cook id
+  (never from form input) and MIME/size validated first. Do NOT "restore" client-credential
+  uploads: bucket RLS is defense-in-depth now, and Storage-side verification of ES256 user
+  JWTs has been broken platform-wide since Supabase's Jul 2026 signing-key migration —
+  client uploads would silently fail. (Verified live: owner upload works, cross-kitchen +
+  anon writes 400.)
+- **The `permits` bucket is private and strictly server-controlled** (migration 21): no
+  SELECT policy and no end-user write policies at all — a permit photo shows the holder's
+  name/address. Admins view via short-lived signed URLs only. Never make this bucket
+  public or add end-user policies to it.
 - **Orders RLS**: buyers see only their orders; cooks update only their kitchen's.
 - **AI routes** require a signed-in user (401 otherwise).
 - `lib/supabase/admin.ts` (service-role, god-mode) is **server-only** — never import it into

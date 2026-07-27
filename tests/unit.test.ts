@@ -74,6 +74,10 @@ check("nameMatchTier: only a generic word in common → none", () =>
   assert.equal(nameMatchTier("Sunrise Kitchen", "Mountain View Kitchen"), "none"));
 check("nameMatchTier: totally different → none", () =>
   assert.equal(nameMatchTier("Joe's Tacos", "Raffin Bakery"), "none"));
+check("nameMatchTier: generic-only names still compare (The Cake Co vs Cake Co) → partial", () =>
+  assert.equal(nameMatchTier("The Cake Co", "Cake Co"), "partial"));
+check("nameMatchTier: generic-only vs unrelated generic → none", () =>
+  assert.equal(nameMatchTier("The Cake Co", "Home Eats"), "none"));
 
 console.log("\n" + pass + " passed, " + fail + " failed");
 if (fail > 0) process.exit(1);

@@ -21,7 +21,8 @@ create table profiles (
 );
 
 -- ---------- approved_operators ----------
--- The county's PUBLIC approved-operator list, scraped + refreshed daily.
+-- The county's PUBLIC approved-operator list (Santa Clara MEHKO permits),
+-- loaded via scripts/import-mehko.mjs — re-run manually to refresh (no scraper).
 -- This is the "verified supply" hook: we check cook signups against it.
 create table approved_operators (
   id              uuid primary key default gen_random_uuid(),
