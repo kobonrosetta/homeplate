@@ -44,7 +44,7 @@ export default async function SellPage({
 
       {step === 1 && <Step1 cook={cook} />}
       {step === 2 && <Step2 />}
-      {step === 3 && <Step3 />}
+      {step === 3 && <Step3 cottage={cook?.operation_type === "cottage"} />}
 
       <p className="mt-8 flex items-center justify-center gap-1.5 text-xs text-faint">
         <SaveIcon />
@@ -189,22 +189,22 @@ function Step2() {
   );
 }
 
-function Step3() {
+function Step3({ cottage }: { cottage?: boolean }) {
   return (
     <div>
       <h1 className="text-2xl font-semibold text-ink">Get verified &amp; go live</h1>
       <div className="mt-3 rounded-lg border border-line bg-card p-3 text-sm text-muted">
-        Last step. We match your permit to Santa Clara County&rsquo;s approved
-        list, and your address stays private. You&rsquo;ll hear back by email
-        within about a day.
+        {cottage
+          ? "Last step. Our team reviews your Cottage Food registration with the county by hand, and your address stays private. You'll hear back by email within about a day."
+          : "Last step. We match your permit to Santa Clara County's published MEHKO list, and your address stays private. You'll hear back by email within about a day."}
       </div>
 
       <form action={wizardFinalize} className="mt-6 space-y-5">
         <TextField
-          label="Permit number"
+          label={cottage ? "Cottage Food registration number" : "Permit number"}
           name="permit_number"
           required
-          placeholder="e.g. MEHKO-2025-001"
+          placeholder={cottage ? "Your county registration #" : "e.g. PT0503912"}
         />
         <TextField
           label="Street address"
@@ -219,6 +219,20 @@ function Step3() {
           <TextField label="City" name="city" required placeholder="Sunnyvale" />
           <TextField label="ZIP" name="zip" placeholder="94086" />
         </div>
+        <label className="block">
+          <span className="text-sm font-medium text-ink">
+            Photo of your permit (optional)
+          </span>
+          <input
+            name="permit_photo"
+            type="file"
+            accept="image/*,application/pdf"
+            className="mt-1 block w-full text-sm text-muted file:mr-4 file:rounded-full file:border-0 file:bg-line file:px-4 file:py-2 file:text-sm file:font-medium hover:file:bg-line"
+          />
+          <p className="mt-1 text-xs text-faint">
+            Speeds up your review. Kept private — only the HomePlate team sees it.
+          </p>
+        </label>
         <SubmitButton>Submit application</SubmitButton>
       </form>
 

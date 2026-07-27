@@ -20,10 +20,11 @@ export default function VerifiedPage() {
       </p>
 
       <div className="mt-8 space-y-6">
-        <Point n="1" title="Matched to the county&rsquo;s approved list">
-          We check each cook&rsquo;s permit number against Santa Clara
-          County&rsquo;s public list of approved home-food operators. If a kitchen
-          isn&rsquo;t on the county&rsquo;s list, it can&rsquo;t sell on HomePlate.
+        <Point n="1" title="Checked against the county&rsquo;s records">
+          MEHKO kitchens (hot, home-cooked meals) are matched against Santa
+          Clara County&rsquo;s published list of approved home-kitchen operators.
+          Cottage-food bakers are reviewed against their county registration by
+          hand. Either way, no valid permit means no selling on HomePlate.
         </Point>
         <Point n="2" title="A real health permit on file">
           Every kitchen holds a valid county permit — either a MEHKO permit (for

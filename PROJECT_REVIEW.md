@@ -5,7 +5,7 @@ _July 2026 · reviewed against the working codebase, not from memory_
 
 The full marketplace loop works end to end: discover → pay (real Stripe test) → cook sees the order with contact → advance to completed → buyer reviews → rating shows → inventory counts down and sells out. Fee math is correct and unit-tested, client prices can't be tampered with, the photo gate and order confirmation are solid. That is genuinely further than most ideas ever get.
 
-**But what exists is a working demo on localhost, with one test kitchen and 5 fake permits.** The distance from here to "a stranger buys real food from a real cook" is not more features — it's a handful of safety/money fixes plus the unglamorous launch work. The tech is now ahead of the business.
+**What exists is live on Render with the real Santa Clara County MEHKO permit list loaded (174 permits) — verification is genuine for MEHKO kitchens.** The distance from here to "a stranger buys real food from a real cook" is not more features — it's recruiting one real cook, replacing the fake demo kitchens, rotating the shared secrets, and switching Stripe from test to live. The tech is now well ahead of the business.
 
 ---
 
@@ -26,7 +26,7 @@ The full marketplace loop works end to end: discover → pay (real Stripe test) 
 
 ## HIGH
 
-- [ ] **"County-verified" is backed by 5 fake permits** (`seed.sql`), and signup auto-approves anyone whose permit number string-matches — no name check, no human review (`app/sell/actions.ts`). Load the real Santa Clara County list and add a name match + review step before the verified badge goes public. There is no "refreshed daily" scraper despite the README.
+- [x] **"County-verified" was backed by 5 fake permits** with no name check. ✅ FIXED (Jul 2026) — the real Santa Clara County MEHKO list (174 permits) is imported via `scripts/import-mehko.mjs` (fake seeds removed from the live DB); auto-verify requires a live, non-expired permit match; the kitchen name is a tiered *advisory* signal for the reviewer (never a disqualifier — cooks brand differently from their permit name); an optional permit-photo upload (private bucket, admin-only signed-URL view) backs the human review; and migration 17 makes admin approval the unforgeable gate. Cottage-food list still not imported (bakers reviewed by hand); refresh remains manual re-run, no scraper.
 - [x] **Reviews can be forged / review-bombed via the API.** ✅ FIXED (Jul 2026) — stricter RLS requires a completed order owned by the reviewer with matching cook; verified a live forged-review attempt returns HTTP 403. RLS only checks `buyer_id = auth.uid()` on review insert — not that the order is real, completed, or the reviewer's, and a user can spawn free orders against any `cook_id`. A competitor could 1-star bomb a kitchen. Fix with a stricter RLS policy (or a SECURITY DEFINER function).
   - [x] **REOPENED + REFIXED (Jul 23 2026 review):** the fix above was bypassable — the orders INSERT policy didn't pin `status`, so an attacker could mint their own "completed" order and review it (proven live: 201 + 201 with a fresh anonymous session). `supabase/harden-orders.sql` closes it: orders must be born `pending` with consistent amounts, and a DB trigger makes `pending → completed` server-only. ✅ **Applied + verified live Jul 23 2026** — forged completed-order insert → 403; cook editing money columns → 400; cook completing an unpaid order → 400; legit flow + guest checkout unaffected. (Trigger needed one fix: role detection via `current_user`, not the plural JWT-claims GUC, which is empty on this instance.)
 
@@ -54,7 +54,10 @@ All fixed in code the same day; the DB items go live when migration #16 runs.
 - [ ] `cooks.latitude/longitude` are never read — the distance search doesn't exist yet (scrub them in the address fix regardless).
 - [ ] README "What's built" checkboxes are stale/unchecked and still say "Stripe Connect" (not built). Fix before anyone does due diligence.
 - [x] Run `supabase/one-kitchen-per-user.sql` ✅ applied (Jul 2026) — no dupes existed; unique constraint added, verified a second-kitchen insert now returns 409.
-- [ ] Purge test kitchens/junk data (e.g. the dragon-photo / "THC" test listing).
+- [ ] Purge test kitchens/junk data (e.g. the dragon-photo / "THC" test listing). (Partial Jul 27 2026: all fake permits deleted — the three demo kitchens are now UNVERIFIED since their badges rode on a fake permit; kitchens/listings themselves still need replacing.)
+- [ ] **Verification is a signup-time snapshot** — 🅵 DEFERRED (Jul 2026, fine at pilot scale where the admin reviews every kitchen). Re-running the importer doesn't re-match existing cooks, and an expired/revoked county permit never un-verifies an approved kitchen. When cook count grows: make the importer a reconciliation pass (re-match + un-verify expired) and surface it in admin.
+- [ ] **`cook_private.permit_photo_path` is owner-writable** — 🅵 DEFERRED (low). A cook could point it at another cook's storage path; the admin console would then sign+show the wrong photo to the ADMIN only (no data reaches the attacker). Fix with a column-guard trigger (like `enforce_cook_update_rules`) in the next migration batch.
+- [ ] **Cottage-food county list not imported** — cottage bakers are hand-reviewed against their registration; the sell wizard + /verified copy say so honestly. Import it like the MEHKO list when a cottage cook shows up.
 
 ---
 
@@ -63,13 +66,13 @@ All fixed in code the same day; the DB items go live when migration #16 runs.
 |---|---|
 | 1–4 Scaffold, auth/roles, cook side, buyer side | Done |
 | 5 Checkout | Done — but **plain** Stripe, **not** Connect (label is misleading) |
-| 6 Orders, reviews, notifications | Orders + reviews done; **notifications not built** |
+| 6 Orders, reviews, notifications | Done — incl. order emails + "I'm on it" + reminder cron (Jul 2026) |
 | Inventory (made-to-order / set number) | Done |
-| 7 Test e2e + deploy | Not started — **still on localhost** |
+| 7 Test e2e + deploy | Done — **live on Render** (Jul 2026); Stripe still test mode |
 
 ## What only you (CEO) can do — the real bottleneck
-1. **Get the real Santa Clara County approved-operator list** into `approved_operators`. Until this exists, no real cook can verify and the whole trust pitch is fake.
-2. **Recruit one real cook.** That single "yes" tests the actual risk (will cooks join?) and will teach us more than any feature.
+1. ~~Get the real Santa Clara County approved-operator list~~ ✅ Done (Jul 2026) — 174 real MEHKO permits loaded; verification is genuine for MEHKO kitchens.
+2. **Recruit one real cook.** That single "yes" tests the actual risk (will cooks join?) and will teach us more than any feature. This is now THE bottleneck.
 
 ## Suggested sequence
 1. Safety batch (I build): Stripe webhook, address-column lockdown, review + storage + AI-route hardening.

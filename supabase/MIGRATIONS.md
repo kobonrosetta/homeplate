@@ -4,10 +4,13 @@ Every schema change to the HomePlate Supabase project has been applied **by hand
 the Supabase SQL editor — this project does not use the Supabase CLI migration system.
 This file is the canonical record of what was run, in what order, and whether it's live.
 
-**Status: 16 of 18 applied — #17 (`harden-cooks.sql`) and #18
-(`add-order-in-progress.sql`) are written but NOT yet run.** Run both (17 first) in the
-SQL editor before deploying the kitchen-pause / "I'm on it" / order-reminder changes.
-#16 (`harden-orders.sql`) applied and verified
+**Status: all 21 migrations applied.** #21 (`harden-permits-bucket.sql`) applied +
+verified live 2026-07-27 (anon write to permits → 400; bucket MIME allowlist actively
+rejecting untyped uploads; service-role path works). #19 + #20 applied 2026-07-24; real
+county data imported the same day (174 MEHKO permits; ALL fake permits deleted from the
+live DB by 2026-07-27, incl. the hand-entered "Los Gatos Cookie Co"). #17
+(`harden-cooks.sql`) and #18 (`add-order-in-progress.sql`) applied
+2026-07-24. #16 (`harden-orders.sql`) applied and verified
 live on **2026-07-23** (forged `completed` order insert → 403; cook editing money
 columns → 400; cook completing an unpaid order → 400; legit `confirmed→ready→completed`
 and guest checkout still work). Migrations 1–15 verified against the live database on
@@ -36,8 +39,11 @@ Project ref: `jycefrvkqybadwupokdn` (Santa Clara County pilot)
 | 14 | `orders-policies.sql` | RLS — buyer can add items to own order; cook can update own kitchen's orders | ✅ |
 | 15 | `storage-policies.sql` | Storage RLS — a cook can only write/delete photos in their own folder | ✅ |
 | 16 | `harden-orders.sql` | Orders hardening — orders must be born `pending` with consistent amounts (blocks forged completed orders → forged reviews); status-only, legal-transition updates for end-user sessions (protects the payout ledger); `order_items.listing_id` nulls out on listing delete | ✅ |
-| 17 | `harden-cooks.sql` | Cooks hardening + kitchen pause — closes REST self-approval (a cook's session could set `status='active'` + `permit_verified=true` on their own row, or insert a kitchen born active); end-user sessions may only edit profile columns and toggle `active↔paused` (the dashboard pause button); adds `suspended` status for admin suspension; permit columns become server-written (sell wizard now uses the service role) | ⬜ |
-| 18 | `add-order-in-progress.sql` | "Never miss an order" — `in_progress` order status (the cook's "I'm on it" acknowledgment), `orders.reminder_sent_at` (at-most-once reminder emails from the cron endpoint), re-issues the orders transition trigger with the new legal moves | ⬜ |
+| 17 | `harden-cooks.sql` | Cooks hardening + kitchen pause — closes REST self-approval (a cook's session could set `status='active'` + `permit_verified=true` on their own row, or insert a kitchen born active); end-user sessions may only edit profile columns and toggle `active↔paused` (the dashboard pause button); adds `suspended` status for admin suspension; permit columns become server-written (sell wizard now uses the service role) | ✅ |
+| 18 | `add-order-in-progress.sql` | "Never miss an order" — `in_progress` order status (the cook's "I'm on it" acknowledgment), `orders.reminder_sent_at` (at-most-once reminder emails from the cron endpoint), re-issues the orders transition trigger with the new legal moves | ✅ |
+| 19 | `add-operator-expiry.sql` | Real county permit data — adds `approved_operators.expires_at` + a unique index on `permit_number` (integrity + upsert target). Rows loaded by `scripts/import-mehko.mjs` from the Santa Clara County MEHKO open-data API. Signup auto-flags verified on a live (non-expired) **permit** match; the kitchen name is advisory only (shown to the admin), since cooks brand differently from their permit name | ✅ |
+| 20 | `add-permit-photo.sql` | Optional permit-photo upload — private `permits` storage bucket (no public read), `cook_private.permit_photo_path`. Admin views it via a short-lived signed URL. The real evidence behind the human review, since the county list is public | ✅ |
+| 21 | `harden-permits-bucket.sql` | Permits bucket server-writes-only — drops the end-user write policies (uploads moved to the service role in `lib/listings.ts`, path always derived server-side from the caller's own kitchen) + bucket-level 10MB / image-or-PDF limits that bind even service-role uploads | ✅ |
 
 ## Replaying on a fresh database
 
@@ -51,8 +57,13 @@ with "policy already exists" — fixed 2026-07-23.
 - **Files 4 and 5 are historical.** The address split is already baked into `schema.sql`,
   so on a fresh database #4 adds the columns and #5 immediately removes them — a harmless
   round-trip. You can skip #4 if you like.
+- **After the SQL files, run `node scripts/import-mehko.mjs`.** `seed.sql` (#2) inserts
+  *fake* demo permits; the importer loads the real county MEHKO list and deletes the fakes
+  (they match `*2025-*`). A replayed database without this step would let cooks "verify"
+  against made-up permits.
 - **Sanity check after running everything:** `cook_private` exists, `cooks.street_address`
-  is gone, and `payouts` exists.
+  is gone, `payouts` exists, and `approved_operators` holds ~174 `PT…` permits with zero
+  `*2025-*` rows.
 
 ## Adding a new migration (going forward)
 

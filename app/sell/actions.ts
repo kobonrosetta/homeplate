@@ -5,8 +5,14 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify } from "@/lib/slug";
-import { insertListingFromForm, uploadCookAvatar } from "@/lib/listings";
+import {
+  insertListingFromForm,
+  uploadCookAvatar,
+  uploadPermitPhoto,
+  permitFileProblem,
+} from "@/lib/listings";
 import { sendEmail, wrapEmail } from "@/lib/email";
+import { normalizePermit, isExpired } from "@/lib/match";
 
 async function requireCookUser() {
   const supabase = createClient();
@@ -26,6 +32,7 @@ async function myCookId(supabase: any, userId: string): Promise<string | null> {
     .limit(1);
   return data?.[0]?.id ?? null;
 }
+
 
 // STEP 1 — create (or update) the kitchen basics. No permit/address yet, so the
 // cook is committed and productive before we ask for the hard stuff.
@@ -148,13 +155,55 @@ export async function wizardFinalize(formData: FormData) {
     );
   }
 
-  // Match the permit against the county approved-operator list (a signal for
-  // the admin; the kitchen still waits for approval either way).
+  // If a permit photo was attached, reject a bad file LOUDLY before writing
+  // anything — a silent drop would leave the cook believing it was submitted.
+  const permitPhotoFile = formData.get("permit_photo");
+  const hasPermitPhoto =
+    permitPhotoFile instanceof File && permitPhotoFile.size > 0;
+  if (hasPermitPhoto) {
+    const bad = permitFileProblem(permitPhotoFile as File);
+    if (bad) redirect("/sell?step=3&error=" + encodeURIComponent(bad));
+  }
+
+  // Match the permit against the county approved-operator list. The permit is
+  // the county-verifiable fact, so the auto-flag keys on a live (non-expired)
+  // permit match. The kitchen name is NOT a gate — cooks legitimately brand
+  // differently from the name on their permit (a DBA, or a typo on the paper
+  // application). The admin console shows the reviewer how the names line up
+  // (nameMatchTier) as an advisory signal, and admin approval — plus, when
+  // provided, the permit photo below — is the real gate.
+  const normalizedPermit = normalizePermit(permitNumber);
   const { data: match } = await supabase
     .from("approved_operators")
-    .select("id")
-    .ilike("permit_number", permitNumber)
+    .select("id, name, expires_at")
+    .eq("permit_number", normalizedPermit)
     .maybeSingle();
+
+  const today = new Date().toISOString().slice(0, 10);
+  const verified = !!match && !isExpired(match.expires_at, today);
+
+  // Optional: a photo of the physical permit — the one piece of evidence the
+  // public county list can't provide, so it's what makes the admin's review
+  // meaningful against someone copying a stranger's public permit number.
+  const permitPhotoPath = await uploadPermitPhoto(supabase, cookId, formData);
+  if (hasPermitPhoto && !permitPhotoPath) {
+    redirect(
+      "/sell?step=3&error=" +
+        encodeURIComponent(
+          "Your permit photo couldn't be uploaded — try again with a smaller image, or leave it off for now."
+        )
+    );
+  }
+
+  // A re-submitted photo supersedes the old one — remember it so the orphan
+  // can be removed from the private bucket after the new path is saved.
+  const { data: oldPriv } = permitPhotoPath
+    ? await createAdminClient()
+        .from("cook_private")
+        .select("permit_photo_path")
+        .eq("cook_id", cookId)
+        .maybeSingle()
+    : { data: null };
 
   // Permit columns are protected from end-user sessions (see
   // supabase/harden-cooks.sql), so this write goes through the service
@@ -162,23 +211,35 @@ export async function wizardFinalize(formData: FormData) {
   await createAdminClient()
     .from("cooks")
     .update({
-      permit_number: permitNumber,
-      permit_verified: Boolean(match),
+      permit_number: normalizedPermit,
+      permit_verified: verified,
       approved_operator_id: match?.id ?? null,
       city: city || null,
       zip: zip || null,
     })
     .eq("id", cookId);
 
-  // Home address lives in the locked-down private table.
+  // Home address (and the private permit photo path) live in the locked-down
+  // owner-only table.
   await supabase.from("cook_private").upsert(
     {
       cook_id: cookId,
       street_address: streetAddress,
+      ...(permitPhotoPath ? { permit_photo_path: permitPhotoPath } : {}),
       updated_at: new Date().toISOString(),
     },
     { onConflict: "cook_id" }
   );
+
+  // Best-effort: clear the superseded photo (never the one just saved).
+  const oldPath = oldPriv?.permit_photo_path;
+  if (permitPhotoPath && oldPath && oldPath !== permitPhotoPath) {
+    try {
+      await createAdminClient().storage.from("permits").remove([oldPath]);
+    } catch {
+      /* orphan is harmless; the new path is what's on file */
+    }
+  }
 
   // Best-effort: tell the admins a kitchen is waiting for review.
   try {
@@ -199,8 +260,12 @@ export async function wizardFinalize(formData: FormData) {
         }`,
         html: wrapEmail(
           `<h2>A kitchen is waiting for approval</h2>
-           <p><strong>${cook?.business_name ?? "A kitchen"}</strong> submitted permit ${permitNumber} ${
-             match ? "(matched the county list)" : "(no county match)"
+           <p><strong>${cook?.business_name ?? "A kitchen"}</strong> submitted permit ${normalizedPermit} ${
+             verified
+               ? "(matched the county list)"
+               : match
+                 ? `(matched the county list but the permit EXPIRED ${match.expires_at})`
+                 : "(no county match)"
            }.</p>
            <p>Review it in the admin console.</p>`
         ),

@@ -28,7 +28,7 @@ Nine tables, and how they connect:
 - **profiles** — one row per person, whether they're a buyer or a cook.
 - **cooks** — a kitchen's public profile (business name, permit, city, pickup/delivery). Belongs to a profile.
 - **cook_private** — a cook's home address + geo, split into an owner-only table for safety (never exposed to buyers).
-- **approved_operators** — the county's approved-operator list. We match a cook's permit against this to flip `permit_verified` to true. *This is the trust hook.* (Currently seeded with sample rows — loading the real Santa Clara County list is a pre-launch task.)
+- **approved_operators** — the county's approved-operator list. *This is the trust hook.* Holds the **real Santa Clara County MEHKO list** (174 permits, imported via `node scripts/import-mehko.mjs` — re-runnable). A cook's permit auto-flags `permit_verified` only if it's on the list and unexpired; the kitchen name is an advisory signal for the human reviewer, and admin approval is the real gate. (Cottage-food list not imported yet — those are reviewed by hand.)
 - **listings** — the items a cook sells (title, price, photos, allergens, inventory, an out-of-office toggle). Belong to a cook.
 - **orders** — a purchase. Records `subtotal` (the cook keeps 100%), `service_fee` (your 8% + $0.30), `total` (what the buyer pays), and buyer contact.
 - **order_items** — the individual lines inside an order.
@@ -110,8 +110,8 @@ HomePlate/
 - [x] Security hardening (incl. a Jul 2026 batch: order-forgery + payout-ledger + checkout-trust fixes) + visual polish
 - [x] **Deployed live on Render** — env wired, Stripe webhook verified against the live URL
 
-**Still to launch (not features):** load the real Santa Clara County permit data · recruit
-one real cook · rotate secrets and switch Stripe from test to live mode. See
+**Still to launch (not features):** recruit one real cook · rotate secrets and switch
+Stripe from test to live mode. (Real county permit data: ✅ loaded Jul 2026.) See
 [`CLAUDE.md`](./CLAUDE.md) and [`PROJECT_REVIEW.md`](./PROJECT_REVIEW.md) for the full picture.
 
 > Note: Stripe **Connect** (automated cook payouts) isn't built yet — payouts are manual

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getAdminUser } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatUsd } from "@/lib/constants";
+import { nameMatchTier, isExpired } from "@/lib/match";
 import {
   approveCook,
   rejectCook,
@@ -38,13 +39,14 @@ export default async function AdminPage() {
       (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9)
   );
   const nameById = new Map(list.map((c: any) => [c.id, c.business_name]));
+  const today = new Date().toISOString().slice(0, 10);
 
   // County matches.
   const opIds = list.map((c: any) => c.approved_operator_id).filter(Boolean);
   const { data: ops } = opIds.length
     ? await db
         .from("approved_operators")
-        .select("id, name, permit_number, city")
+        .select("id, name, permit_number, city, expires_at")
         .in("id", opIds)
     : { data: [] as any[] };
   const opById = new Map((ops ?? []).map((o: any) => [o.id, o]));
@@ -87,6 +89,28 @@ export default async function AdminPage() {
   );
   const { data: profs } = await db.from("profiles").select("id, phone");
   const phoneById = new Map((profs ?? []).map((p: any) => [p.id, p.phone]));
+
+  // Permit photos live in the private "permits" bucket — turn each stored path
+  // into a short-lived signed URL (service role) so the reviewer can open it.
+  const { data: privRows } = await db
+    .from("cook_private")
+    .select("cook_id, permit_photo_path")
+    .in("cook_id", list.map((c: any) => c.id));
+  const photoPathByCook = new Map(
+    (privRows ?? [])
+      .filter((r: any) => r.permit_photo_path)
+      .map((r: any) => [r.cook_id, r.permit_photo_path])
+  );
+  const signedByPath = new Map<string, string>();
+  const photoPaths = [...photoPathByCook.values()] as string[];
+  if (photoPaths.length) {
+    const { data: signed } = await db.storage
+      .from("permits")
+      .createSignedUrls(photoPaths, 600);
+    for (const s of signed ?? []) {
+      if (s.signedUrl && s.path) signedByPath.set(s.path, s.signedUrl);
+    }
+  }
 
   // Marketplace pulse.
   const gmv = paidOrders.reduce((n, o: any) => n + o.total_cents, 0);
@@ -184,22 +208,48 @@ export default async function AdminPage() {
                       {c.permit_number || "—"} · {c.operation_type}
                       {c.city ? ` · ${c.city}` : ""}
                     </p>
+                    {(() => {
+                      const p = photoPathByCook.get(c.id);
+                      const url = p ? signedByPath.get(p as string) : undefined;
+                      if (url) {
+                        return (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1 inline-block text-xs font-medium text-brand underline hover:no-underline"
+                          >
+                            View permit photo →
+                          </a>
+                        );
+                      }
+                      if (p) {
+                        return (
+                          <p className="mt-1 text-xs text-faint">
+                            Permit photo on file — refresh to view
+                          </p>
+                        );
+                      }
+                      // The county list is public, so a green match alone
+                      // proves nothing about WHO is signing up — without a
+                      // permit photo, identity rests entirely on this review.
+                      return c.status === "pending" ? (
+                        <p className="mt-1 text-xs font-medium text-amber-700">
+                          ⚠ No permit photo — confirm this account is really
+                          the operator before approving
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-xs text-faint">
+                          No permit photo uploaded
+                        </p>
+                      );
+                    })()}
                   </div>
                   <div>
                     <p className="text-xs uppercase tracking-wide text-faint">
                       County list match
                     </p>
-                    <p
-                      className={`mt-0.5 ${
-                        c.permit_verified ? "text-emerald-700" : "text-red-600"
-                      }`}
-                    >
-                      {op
-                        ? `✓ ${op.name} (${op.permit_number})`
-                        : c.permit_verified
-                          ? "✓ matched"
-                          : "✗ no match in the county list"}
-                    </p>
+                    <MatchNote cook={c} op={op} today={today} />
                   </div>
                 </div>
 
@@ -307,6 +357,55 @@ function Stat({
       >
         {value}
       </p>
+    </div>
+  );
+}
+
+// Tells the reviewer how the entered permit lines up with the county list. The
+// permit match (found + not expired) is what verifies a kitchen; the NAME is
+// advisory only — cooks brand differently from their permit name, so a name
+// gap is a "look closer," never a disqualifier. Green = permit is live; the
+// name line just points the reviewer's attention.
+function MatchNote({
+  cook,
+  op,
+  today,
+}: {
+  cook: any;
+  op: any;
+  today: string;
+}) {
+  if (!op) {
+    return (
+      <p className="mt-0.5 text-red-600">
+        ✗ {cook.permit_number ? "permit not on the county list" : "no permit entered"}
+      </p>
+    );
+  }
+  if (isExpired(op.expires_at, today)) {
+    return (
+      <p className="mt-0.5 text-red-600">
+        ✗ permit {op.permit_number} expired {op.expires_at} — {op.name}
+      </p>
+    );
+  }
+  const tier = nameMatchTier(cook.business_name, op.name);
+  return (
+    <div className="mt-0.5">
+      <p className="text-emerald-700">
+        ✓ permit {op.permit_number} — {op.name}
+      </p>
+      {tier === "none" && (
+        <p className="mt-0.5 text-amber-700">
+          ⚠ brand “{cook.business_name}” doesn’t resemble the permit name —
+          confirm it’s the same operator
+        </p>
+      )}
+      {tier === "partial" && (
+        <p className="mt-0.5 text-muted">
+          brand “{cook.business_name}” partly matches — likely a DBA or typo
+        </p>
+      )}
     </div>
   );
 }

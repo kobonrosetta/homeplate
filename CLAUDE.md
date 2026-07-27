@@ -14,10 +14,12 @@ County**. Positioning: the best home kitchens near you, verified against the cou
 approved-operator list — *not* a sketchy Facebook group. Cooks keep 100% of their listed
 price; buyers pay a service fee (8% + $0.30) on top at checkout.
 
-Current reality: a **complete, working marketplace loop on localhost** — discover → pay
-(real Stripe test mode) → cook sees the order + buyer contact → advances status → buyer
-reviews → inventory deducts and sells out. It has **not** been deployed and has no real
-cooks or real permit data yet. The tech is ahead of the business.
+Current reality: a **complete, working marketplace loop, deployed and live on Render**
+(Stripe still test mode) — discover → pay → cook sees the order + buyer contact →
+advances status ("I'm on it" → ready → completed) → buyer reviews → inventory deducts
+and sells out. The **real Santa Clara County MEHKO permit list is loaded** and signup
+verification runs against it. There are still **zero real cooks** — the demo kitchens
+are fake data. The tech is ahead of the business.
 
 ## Stack
 
@@ -81,9 +83,13 @@ lib/
   stripe.ts               # fetch-based createCheckoutSession / retrieveSession / verifyStripeSignature
   orders.ts               # confirmPaidOrder(): idempotent, deducts stock, emails the cook
   email.ts                # sendEmail (Resend REST, key-safe no-op) + wrapEmail (branded HTML)
-  listings.ts             # insertListingFromForm (photo gate + extra photos + allergens), uploadCookAvatar
+  listings.ts             # insertListingFromForm (photo gate + extra photos + allergens), uploadCookAvatar,
+                          #   uploadPermitPhoto — ALL storage writes via the service role (paths derived
+                          #   server-side from the caller's own cook; Storage-side user-JWT verification
+                          #   broke with Supabase's ES256 key migration, Jul 2026)
   ai.ts                   # Groq calls
   cook.ts                 # getCurrentCook()
+  match.ts                # county-list matching: normalizePermit, nameMatchTier (advisory), isExpired — unit-tested
   admin.ts                # isAdminEmail / getAdminUser (ADMIN_EMAILS env)
   slug.ts                 # slug helper
   supabase/               # client.ts (browser), server.ts (RSC), admin.ts (service-role, SERVER ONLY), middleware.ts
@@ -116,8 +122,18 @@ them re-opens real vulnerabilities:
   `cook_private` RLS. (Verified: anon read returns empty; server-side reveal still works.)
 - **Reviews RLS** requires a *completed* order owned by the reviewer for the matching cook —
   blocks forged/ bombed reviews. (Verified: forged insert → 403.)
-- **Storage RLS** scopes photo writes to the owner's `{cook.id}/` folder. (Verified:
-  cross-kitchen upload → 403.)
+- **Photo uploads are server-side only** (`lib/listings.ts`): every storage write —
+  listing photos, avatars, permit photos — goes through the **service role**, with the
+  destination path always derived in code from the authenticated caller's own cook id
+  (never from form input) and MIME/size validated first. Do NOT "restore" client-credential
+  uploads: bucket RLS is defense-in-depth now, and Storage-side verification of ES256 user
+  JWTs has been broken platform-wide since Supabase's Jul 2026 signing-key migration —
+  client uploads would silently fail. (Verified live: owner upload works, cross-kitchen +
+  anon writes 400.)
+- **The `permits` bucket is private and strictly server-controlled** (migration 21): no
+  SELECT policy and no end-user write policies at all — a permit photo shows the holder's
+  name/address. Admins view via short-lived signed URLs only. Never make this bucket
+  public or add end-user policies to it.
 - **Orders RLS**: buyers see only their orders; cooks update only their kitchen's.
 - **AI routes** require a signed-in user (401 otherwise).
 - `lib/supabase/admin.ts` (service-role, god-mode) is **server-only** — never import it into
@@ -125,11 +141,16 @@ them re-opens real vulnerabilities:
 
 ## Gotchas & deliberate decisions
 
-1. **"County-verified" is currently manual and not backed by real data.** `seed.sql` has
-   ~6 *fake* permits; signup auto-approves on a permit-number string match with no name
-   check. There is **no "refreshed daily" scraper** (older README copy implied one — it's
-   false). Loading the real Santa Clara County approved-operator list + a name match/review
-   step is the #1 real blocker. This is the whole trust pitch; treat claims about it honestly.
+1. **"County-verified" is real for MEHKO, manual for cottage food.** `approved_operators`
+   holds the real Santa Clara County MEHKO list (174 permits, imported 2026-07-24 via
+   `scripts/import-mehko.mjs` — re-runnable, upserts on permit number; fake seeds removed
+   from the live DB). Signup auto-flags `permit_verified` on a live (non-expired) permit
+   match only; the kitchen NAME is deliberately advisory (cooks brand differently from
+   their permit name — the admin console shows an exact/partial/none tier), and an optional
+   permit-photo upload (private bucket) backs the human review. Cooks can never self-activate
+   (migration 17); admin approval is the real gate. The cottage-food county list is NOT
+   loaded yet — bakers are reviewed by hand. There is still **no scheduled refresh**: re-run
+   the importer manually; say "checked periodically", never "refreshed daily".
 2. **Stripe Connect is not built.** 100% of every charge lands in the platform account;
    cooks are paid **by hand** for the pilot (the payouts pages track who's owed). `stripe_account_id` is an unused column. Don't assume automated payouts exist.
 3. **Payment confirmation has two paths:** the success-page redirect *and* the webhook.
@@ -155,7 +176,9 @@ redirects configured. A second security batch (Jul 23 2026) closed a reopened
 review-forgery hole + payout-ledger tampering + checkout-trust bugs — see
 `PROJECT_REVIEW.md` and `supabase/harden-orders.sql`. What remains is **not more features**:
 
-1. **Load real Santa Clara County permit data** into `approved_operators` (+ name-match/review).
+1. ~~Load real Santa Clara County permit data~~ ✅ **Done 2026-07-24** (174 MEHKO permits,
+   permit-gated auto-verify + advisory name tiers + optional permit photo + admin review).
+   Remaining data nice-to-have: import the county's cottage-food list the same way.
 2. **Recruit one real cook.** The only thing that tests whether cooks will actually join.
 3. **Go fully live:** rotate all secrets (they were shared in chat / a screenshot — still on
    Stripe **test** mode), then switch Stripe to live keys + a live-mode webhook and decide
