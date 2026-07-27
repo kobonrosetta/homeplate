@@ -26,7 +26,7 @@ The full marketplace loop works end to end: discover → pay (real Stripe test) 
 
 ## HIGH
 
-- [ ] **"County-verified" is backed by 5 fake permits** (`seed.sql`), and signup auto-approves anyone whose permit number string-matches — no name check, no human review (`app/sell/actions.ts`). Load the real Santa Clara County list and add a name match + review step before the verified badge goes public. There is no "refreshed daily" scraper despite the README.
+- [x] **"County-verified" was backed by 5 fake permits** with no name check. ✅ FIXED (Jul 2026) — the real Santa Clara County MEHKO list (174 permits) is imported via `scripts/import-mehko.mjs` (fake seeds removed from the live DB); auto-verify requires a live, non-expired permit match; the kitchen name is a tiered *advisory* signal for the reviewer (never a disqualifier — cooks brand differently from their permit name); an optional permit-photo upload (private bucket, admin-only signed-URL view) backs the human review; and migration 17 makes admin approval the unforgeable gate. Cottage-food list still not imported (bakers reviewed by hand); refresh remains manual re-run, no scraper.
 - [x] **Reviews can be forged / review-bombed via the API.** ✅ FIXED (Jul 2026) — stricter RLS requires a completed order owned by the reviewer with matching cook; verified a live forged-review attempt returns HTTP 403. RLS only checks `buyer_id = auth.uid()` on review insert — not that the order is real, completed, or the reviewer's, and a user can spawn free orders against any `cook_id`. A competitor could 1-star bomb a kitchen. Fix with a stricter RLS policy (or a SECURITY DEFINER function).
   - [x] **REOPENED + REFIXED (Jul 23 2026 review):** the fix above was bypassable — the orders INSERT policy didn't pin `status`, so an attacker could mint their own "completed" order and review it (proven live: 201 + 201 with a fresh anonymous session). `supabase/harden-orders.sql` closes it: orders must be born `pending` with consistent amounts, and a DB trigger makes `pending → completed` server-only. ✅ **Applied + verified live Jul 23 2026** — forged completed-order insert → 403; cook editing money columns → 400; cook completing an unpaid order → 400; legit flow + guest checkout unaffected. (Trigger needed one fix: role detection via `current_user`, not the plural JWT-claims GUC, which is empty on this instance.)
 
@@ -68,8 +68,8 @@ All fixed in code the same day; the DB items go live when migration #16 runs.
 | 7 Test e2e + deploy | Not started — **still on localhost** |
 
 ## What only you (CEO) can do — the real bottleneck
-1. **Get the real Santa Clara County approved-operator list** into `approved_operators`. Until this exists, no real cook can verify and the whole trust pitch is fake.
-2. **Recruit one real cook.** That single "yes" tests the actual risk (will cooks join?) and will teach us more than any feature.
+1. ~~Get the real Santa Clara County approved-operator list~~ ✅ Done (Jul 2026) — 174 real MEHKO permits loaded; verification is genuine for MEHKO kitchens.
+2. **Recruit one real cook.** That single "yes" tests the actual risk (will cooks join?) and will teach us more than any feature. This is now THE bottleneck.
 
 ## Suggested sequence
 1. Safety batch (I build): Stripe webhook, address-column lockdown, review + storage + AI-route hardening.

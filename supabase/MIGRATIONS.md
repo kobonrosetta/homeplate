@@ -57,8 +57,13 @@ with "policy already exists" — fixed 2026-07-23.
 - **Files 4 and 5 are historical.** The address split is already baked into `schema.sql`,
   so on a fresh database #4 adds the columns and #5 immediately removes them — a harmless
   round-trip. You can skip #4 if you like.
+- **After the SQL files, run `node scripts/import-mehko.mjs`.** `seed.sql` (#2) inserts
+  *fake* demo permits; the importer loads the real county MEHKO list and deletes the fakes
+  (they match `*2025-*`). A replayed database without this step would let cooks "verify"
+  against made-up permits.
 - **Sanity check after running everything:** `cook_private` exists, `cooks.street_address`
-  is gone, and `payouts` exists.
+  is gone, `payouts` exists, and `approved_operators` holds ~174 `PT…` permits with zero
+  `*2025-*` rows.
 
 ## Adding a new migration (going forward)
 
