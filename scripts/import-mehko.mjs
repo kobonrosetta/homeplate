@@ -55,10 +55,12 @@ async function main() {
   console.log("Fetching county MEHKO list…");
   const raw = await fetchAll();
 
-  // Map + dedupe by permit number (last one wins).
+  // Map + dedupe by permit number (last one wins). Normalization must mirror
+  // lib/match.ts normalizePermit (uppercase, ALL whitespace stripped) so the
+  // signup lookup always hits what the importer stored.
   const byPermit = new Map();
   for (const r of raw) {
-    const permit = (r.permit_ ?? "").trim().toUpperCase();
+    const permit = (r.permit_ ?? "").toUpperCase().replace(/\s+/g, "");
     const name = (r.facility ?? "").trim();
     if (!permit || !name) continue;
     byPermit.set(permit, {

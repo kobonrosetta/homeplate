@@ -208,18 +208,29 @@ export default async function AdminPage() {
                       {c.permit_number || "—"} · {c.operation_type}
                       {c.city ? ` · ${c.city}` : ""}
                     </p>
-                    {photoPathByCook.has(c.id) ? (
-                      <a
-                        href={signedByPath.get(photoPathByCook.get(c.id) as string)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-1 inline-block text-xs font-medium text-brand underline hover:no-underline"
-                      >
-                        View permit photo →
-                      </a>
-                    ) : (
-                      <p className="mt-1 text-xs text-faint">No permit photo uploaded</p>
-                    )}
+                    {(() => {
+                      const p = photoPathByCook.get(c.id);
+                      const url = p ? signedByPath.get(p as string) : undefined;
+                      if (url) {
+                        return (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1 inline-block text-xs font-medium text-brand underline hover:no-underline"
+                          >
+                            View permit photo →
+                          </a>
+                        );
+                      }
+                      return (
+                        <p className="mt-1 text-xs text-faint">
+                          {p
+                            ? "Permit photo on file — refresh to view"
+                            : "No permit photo uploaded"}
+                        </p>
+                      );
+                    })()}
                   </div>
                   <div>
                     <p className="text-xs uppercase tracking-wide text-faint">

@@ -4,12 +4,13 @@ Every schema change to the HomePlate Supabase project has been applied **by hand
 the Supabase SQL editor — this project does not use the Supabase CLI migration system.
 This file is the canonical record of what was run, in what order, and whether it's live.
 
-**Status: 18 of 20 applied — #19 (`add-operator-expiry.sql`) and #20
-(`add-permit-photo.sql`) are written but NOT yet run.** Run #19, then load real data
-with `node scripts/import-mehko.mjs` (pulls the live Santa Clara County MEHKO list into
-`approved_operators`); run #20 for the optional permit-photo upload. #17
-(`harden-cooks.sql`) and #18 (`add-order-in-progress.sql`) applied 2026-07-24.
-#16 (`harden-orders.sql`) applied and verified
+**Status: 20 of 21 applied — #21 (`harden-permits-bucket.sql`) is written but NOT yet
+run.** (Its bucket-limit half — 10MB cap + image/PDF MIME allowlist — was already
+applied live via the storage API on 2026-07-27; running the file also drops the
+now-unneeded end-user write policies and makes the replay complete.) #19 + #20 applied
+2026-07-24; real county data imported the same day (174 MEHKO permits; fake seeds
+removed). #17 (`harden-cooks.sql`) and #18 (`add-order-in-progress.sql`) applied
+2026-07-24. #16 (`harden-orders.sql`) applied and verified
 live on **2026-07-23** (forged `completed` order insert → 403; cook editing money
 columns → 400; cook completing an unpaid order → 400; legit `confirmed→ready→completed`
 and guest checkout still work). Migrations 1–15 verified against the live database on
@@ -40,8 +41,9 @@ Project ref: `jycefrvkqybadwupokdn` (Santa Clara County pilot)
 | 16 | `harden-orders.sql` | Orders hardening — orders must be born `pending` with consistent amounts (blocks forged completed orders → forged reviews); status-only, legal-transition updates for end-user sessions (protects the payout ledger); `order_items.listing_id` nulls out on listing delete | ✅ |
 | 17 | `harden-cooks.sql` | Cooks hardening + kitchen pause — closes REST self-approval (a cook's session could set `status='active'` + `permit_verified=true` on their own row, or insert a kitchen born active); end-user sessions may only edit profile columns and toggle `active↔paused` (the dashboard pause button); adds `suspended` status for admin suspension; permit columns become server-written (sell wizard now uses the service role) | ⬜ |
 | 18 | `add-order-in-progress.sql` | "Never miss an order" — `in_progress` order status (the cook's "I'm on it" acknowledgment), `orders.reminder_sent_at` (at-most-once reminder emails from the cron endpoint), re-issues the orders transition trigger with the new legal moves | ✅ |
-| 19 | `add-operator-expiry.sql` | Real county permit data — adds `approved_operators.expires_at` + a unique index on `permit_number` (integrity + upsert target). Rows loaded by `scripts/import-mehko.mjs` from the Santa Clara County MEHKO open-data API. Signup auto-flags verified on a live (non-expired) **permit** match; the kitchen name is advisory only (shown to the admin), since cooks brand differently from their permit name | ⬜ |
-| 20 | `add-permit-photo.sql` | Optional permit-photo upload — private `permits` storage bucket (owner-only writes, no public read), `cook_private.permit_photo_path`. Admin views it via a short-lived signed URL. The real evidence behind the human review, since the county list is public | ⬜ |
+| 19 | `add-operator-expiry.sql` | Real county permit data — adds `approved_operators.expires_at` + a unique index on `permit_number` (integrity + upsert target). Rows loaded by `scripts/import-mehko.mjs` from the Santa Clara County MEHKO open-data API. Signup auto-flags verified on a live (non-expired) **permit** match; the kitchen name is advisory only (shown to the admin), since cooks brand differently from their permit name | ✅ |
+| 20 | `add-permit-photo.sql` | Optional permit-photo upload — private `permits` storage bucket (no public read), `cook_private.permit_photo_path`. Admin views it via a short-lived signed URL. The real evidence behind the human review, since the county list is public | ✅ |
+| 21 | `harden-permits-bucket.sql` | Permits bucket server-writes-only — drops the end-user write policies (uploads moved to the service role in `lib/listings.ts`, path always derived server-side from the caller's own kitchen) + bucket-level 10MB / image-or-PDF limits that bind even service-role uploads | ⬜ |
 
 ## Replaying on a fresh database
 
