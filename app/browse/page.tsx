@@ -10,7 +10,7 @@ export default async function BrowsePage() {
   const { data: cooksData } = await supabase
     .from("cooks")
     .select(
-      "id, business_name, slug, city, permit_verified, cuisine_tags, listings(id, photo_url, is_available, price_cents, limited_quantity, quantity_available), reviews(rating)"
+      "id, business_name, slug, city, permit_verified, cuisine_tags, listings(id, photo_url, is_available, price_cents, limited_quantity, quantity_available, kind), reviews(rating)"
     )
     .eq("status", "active")
     .order("business_name", { ascending: true })
@@ -19,9 +19,12 @@ export default async function BrowsePage() {
   // One card per kitchen — only kitchens that actually have items for sale.
   const kitchens = (cooksData ?? [])
     .map((c: any) => {
+      // Extras (bags, lettering) don't make a kitchen "open" or its thumbnail.
       const avail = (c.listings ?? []).filter(
         (l: any) =>
-          l.is_available && (!l.limited_quantity || l.quantity_available > 0)
+          l.is_available &&
+          (l.kind ?? "dish") === "dish" &&
+          (!l.limited_quantity || l.quantity_available > 0)
       );
       const prices = avail
         .map((l: any) => l.price_cents)

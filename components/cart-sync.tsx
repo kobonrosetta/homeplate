@@ -20,22 +20,36 @@ export default function CartSync() {
     ran.current = true;
 
     const ids = cart.items.map((i) => i.listingId);
+    const optionIds = [...new Set(cart.items.flatMap((i) => i.optionIds ?? []))];
     const supabase = createClient();
-    supabase
+    const listingsQ = supabase
       .from("listings")
       .select("id, title, price_cents")
       .in("id", ids)
-      .eq("is_available", true)
-      .then(({ data, error }) => {
-        if (error || !data) return; // offline etc. — the server still re-checks
-        const { changed, removed } = reconcile(data as LiveListing[]);
+      .eq("is_available", true);
+    // Option deltas are public menu data — lines with options heal their
+    // price as base + deltas, same math the server re-derives at checkout.
+    const optionsQ = optionIds.length
+      ? supabase
+          .from("listing_options")
+          .select("id, price_delta_cents")
+          .in("id", optionIds)
+      : Promise.resolve({ data: [], error: null });
+    Promise.all([listingsQ, optionsQ]).then(
+      ([{ data, error }, opts]: [any, any]) => {
+        if (error || !data || opts?.error) return; // offline etc. — the server still re-checks
+        const { changed, removed } = reconcile(
+          data as LiveListing[],
+          (opts?.data ?? []) as { id: string; price_delta_cents: number }[]
+        );
         const parts: string[] = [];
         if (removed.length)
           parts.push(`no longer available: ${removed.join(", ")}`);
         if (changed.length)
           parts.push(`price updated: ${changed.join(", ")}`);
         if (parts.length) setNotice(`We updated your cart — ${parts.join("; ")}.`);
-      });
+      }
+    );
   }, [loaded, cart, reconcile]);
 
   if (!notice) return null;

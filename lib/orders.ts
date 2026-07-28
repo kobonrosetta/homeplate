@@ -21,8 +21,19 @@ export async function confirmPaidOrder(
     .update({ status: "confirmed", stripe_payment_intent_id: paymentIntentId })
     .eq("id", orderId)
     .eq("status", "pending")
-    .select("id");
+    .select("id, custom_request_id");
   if (!confirmed || confirmed.length === 0) return; // already handled
+
+  // A paid payment-link order retires its link (idempotent — the pending
+  // guard above means this runs at most once per order).
+  const requestId = confirmed[0].custom_request_id;
+  if (requestId) {
+    await admin
+      .from("custom_requests")
+      .update({ status: "paid" })
+      .eq("id", requestId)
+      .eq("status", "open");
+  }
 
   const { data: lines } = await admin
     .from("order_items")

@@ -49,6 +49,7 @@ export default function CheckoutForm({
     quantity: i.quantity,
     priceCents: i.priceCents,
     title: i.title,
+    optionIds: i.optionIds ?? [],
   }));
 
   // Plain server-action form: clicking Pay calls startCheckout directly (React

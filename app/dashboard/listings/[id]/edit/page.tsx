@@ -2,15 +2,17 @@ import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentCook } from "@/lib/cook";
-import { updateListing } from "../../actions";
+import { updateListing, saveListingOptions } from "../../actions";
 import NewListingForm from "@/components/new-listing-form";
+import OptionsEditor from "@/components/options-editor";
+import { MAX_GROUPS_PER_LISTING, MAX_OPTIONS_PER_GROUP } from "@/lib/options";
 
 export default async function EditListingPage({
   params,
   searchParams,
 }: {
   params: { id: string };
-  searchParams: { error?: string };
+  searchParams: { error?: string; saved?: string };
 }) {
   const { cook } = await getCurrentCook();
   if (!cook) redirect("/sell");
@@ -24,6 +26,12 @@ export default async function EditListingPage({
     .maybeSingle();
 
   if (!listing) notFound();
+
+  const { data: groups } = await supabase
+    .from("listing_option_groups")
+    .select("id, name, sort_order, listing_options(id, name, price_delta_cents, sort_order)")
+    .eq("listing_id", listing.id)
+    .order("sort_order", { ascending: true });
 
   return (
     <div className="max-w-xl">
@@ -62,6 +70,34 @@ export default async function EditListingPage({
           leadTime: listing.lead_time_note ?? "",
         }}
       />
+
+      <div className="mt-10 border-t border-line pt-6">
+        <h3 className="text-lg font-semibold text-ink">Item options</h3>
+        <p className="mt-1 text-sm text-muted">
+          Add dropdowns buyers choose from — sizes, characters, stamps — each
+          choice can add to the price. Your item price above is the base.
+        </p>
+        {searchParams.saved === "options" && (
+          <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            ✓ Options saved
+          </p>
+        )}
+        <OptionsEditor
+          listingId={listing.id}
+          action={saveListingOptions}
+          maxGroups={MAX_GROUPS_PER_LISTING}
+          maxOptions={MAX_OPTIONS_PER_GROUP}
+          initial={(groups ?? []).map((g: any) => ({
+            name: g.name,
+            options: [...(g.listing_options ?? [])]
+              .sort((a: any, b: any) => a.sort_order - b.sort_order)
+              .map((o: any) => ({
+                name: o.name,
+                priceDelta: (o.price_delta_cents / 100).toFixed(2).replace(/\.00$/, ""),
+              })),
+          }))}
+        />
+      </div>
     </div>
   );
 }

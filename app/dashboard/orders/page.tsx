@@ -1,7 +1,10 @@
+import Link from "next/link";
 import { getCurrentCook } from "@/lib/cook";
 import { createClient } from "@/lib/supabase/server";
 import { formatUsd } from "@/lib/constants";
 import { advanceOrder } from "./actions";
+import { cancelPaymentRequest } from "./request-actions";
+import CopyLink from "@/components/copy-link";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +16,28 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   cancelled: { label: "Cancelled", cls: "bg-red-100 text-red-800" },
 };
 
-export default async function OrdersPage() {
+export default async function OrdersPage({
+  searchParams,
+}: {
+  searchParams: { created?: string };
+}) {
   const { cook } = await getCurrentCook();
   const supabase = createClient();
+
+  // Open payment links (custom orders awaiting payment).
+  const { data: requests } = await supabase
+    .from("custom_requests")
+    .select("id, token, title, price_cents, full_price_cents, charge_kind, status, expires_at, created_at")
+    .eq("cook_id", cook!.id)
+    .eq("status", "open")
+    .order("created_at", { ascending: false });
+  const openRequests = (requests ?? []).filter(
+    (r: any) => new Date(r.expires_at) > new Date()
+  );
+  const justCreated = searchParams.created
+    ? openRequests.find((r: any) => r.token === searchParams.created)
+    : null;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
   const { data: orders } = await supabase
     .from("orders")
@@ -34,21 +56,92 @@ export default async function OrdersPage() {
     (o: any) => o.status === "completed" || o.status === "cancelled"
   );
 
+  const requestsUi = (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-muted">Orders customers placed with your kitchen.</p>
+        <Link
+          href="/dashboard/orders/request"
+          className="rounded-full border border-brand px-4 py-2 text-sm font-medium text-brand hover:bg-brand/10"
+        >
+          + New payment request
+        </Link>
+      </div>
+
+      {justCreated && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+          <p className="text-sm font-medium text-emerald-900">
+            ✓ Link ready — send it to your buyer
+          </p>
+          <div className="mt-2">
+            <CopyLink url={`${siteUrl}/pay/${justCreated.token}`} />
+          </div>
+          <p className="mt-2 text-xs text-emerald-800">
+            {justCreated.title} · you receive {formatUsd(justCreated.price_cents)} ·
+            the buyer pays the service fee · expires in 7 days
+          </p>
+        </div>
+      )}
+
+      {openRequests.length > 0 && (
+        <section>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-faint">
+            Awaiting payment
+          </h3>
+          <div className="mt-3 space-y-3">
+            {openRequests.map((r: any) => (
+              <div key={r.id} className="rounded-xl border border-line p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-ink">{r.title}</p>
+                    <p className="text-sm text-muted">
+                      {formatUsd(r.price_cents)}
+                      {r.charge_kind === "deposit" && r.full_price_cents
+                        ? ` deposit (of ${formatUsd(r.full_price_cents)})`
+                        : ""}{" "}
+                      · expires{" "}
+                      {new Date(r.expires_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </div>
+                  <form action={cancelPaymentRequest}>
+                    <input type="hidden" name="request_id" value={r.id} />
+                    <button className="rounded-full border border-line px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
+                      Cancel link
+                    </button>
+                  </form>
+                </div>
+                <div className="mt-2">
+                  <CopyLink url={`${siteUrl}/pay/${r.token}`} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </>
+  );
+
   if (list.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-line px-6 py-16 text-center">
-        <p className="font-medium text-ink">No orders yet</p>
-        <p className="mx-auto mt-1 max-w-md text-sm text-muted">
-          The moment a buyer pays, their order shows up here — what they bought,
-          their pickup time or delivery address, and how to reach them.
-        </p>
+      <div className="space-y-8">
+        {requestsUi}
+        <div className="rounded-xl border border-dashed border-line px-6 py-16 text-center">
+          <p className="font-medium text-ink">No orders yet</p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-muted">
+            The moment a buyer pays, their order shows up here — what they bought,
+            their pickup time or delivery address, and how to reach them.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-8">
-      <p className="text-muted">Orders customers placed with your kitchen.</p>
+      {requestsUi}
       <section>
         <h3 className="text-xs font-semibold uppercase tracking-wide text-faint">
           Active

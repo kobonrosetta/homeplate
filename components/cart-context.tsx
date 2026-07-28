@@ -13,10 +13,21 @@ import {
 export type CartItem = {
   listingId: string;
   title: string;
-  priceCents: number;
+  priceCents: number; // display only — checkout re-derives from the DB
   photoUrl: string | null;
   quantity: number;
+  optionIds?: string[]; // chosen item options (size, character, …)
+  optionsLabel?: string; // e.g. '7" · Bear' — display only
 };
+
+// Same listing + same option choices = same cart line.
+export function lineKey(i: {
+  listingId: string;
+  optionIds?: string[];
+}): string {
+  const opts = [...(i.optionIds ?? [])].sort();
+  return opts.length ? `${i.listingId}|${opts.join(",")}` : i.listingId;
+}
 export type CartCook = {
   id: string;
   name: string;
@@ -27,6 +38,7 @@ export type CartCook = {
 type Cart = { cook: CartCook; items: CartItem[] } | null;
 
 export type LiveListing = { id: string; title: string; price_cents: number };
+export type LiveOption = { id: string; price_delta_cents: number };
 
 type CartContextValue = {
   cart: Cart;
@@ -34,9 +46,12 @@ type CartContextValue = {
   count: number;
   subtotalCents: number;
   addItem: (cook: CartCook, item: Omit<CartItem, "quantity">, qty?: number) => void;
-  removeItem: (listingId: string) => void;
-  setQty: (listingId: string, qty: number) => void;
-  reconcile: (live: LiveListing[]) => { changed: string[]; removed: string[] };
+  removeItem: (key: string) => void;
+  setQty: (key: string, qty: number) => void;
+  reconcile: (
+    live: LiveListing[],
+    liveOptions?: LiveOption[]
+  ) => { changed: string[]; removed: string[] };
   clear: () => void;
 };
 
@@ -76,12 +91,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
         if (!prev || prev.cook.id !== cook.id) {
           return { cook, items: [{ ...item, quantity: qty }] };
         }
-        const existing = prev.items.find((i) => i.listingId === item.listingId);
+        const key = lineKey(item);
+        const existing = prev.items.find((i) => lineKey(i) === key);
         const items = existing
           ? prev.items.map((i) =>
-              i.listingId === item.listingId
-                ? { ...i, quantity: i.quantity + qty }
-                : i
+              lineKey(i) === key ? { ...i, quantity: i.quantity + qty } : i
             )
           : [...prev.items, { ...item, quantity: qty }];
         return { cook: prev.cook, items };
@@ -90,20 +104,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const removeItem = useCallback((listingId: string) => {
+  const removeItem = useCallback((key: string) => {
     setCart((prev) => {
       if (!prev) return prev;
-      const items = prev.items.filter((i) => i.listingId !== listingId);
+      const items = prev.items.filter((i) => lineKey(i) !== key);
       return items.length ? { cook: prev.cook, items } : null;
     });
   }, []);
 
-  const setQty = useCallback((listingId: string, qty: number) => {
+  const setQty = useCallback((key: string, qty: number) => {
     setCart((prev) => {
       if (!prev) return prev;
       const items = prev.items
         .map((i) =>
-          i.listingId === listingId ? { ...i, quantity: Math.max(0, qty) } : i
+          lineKey(i) === key ? { ...i, quantity: Math.max(0, qty) } : i
         )
         .filter((i) => i.quantity > 0);
       return items.length ? { cook: prev.cook, items } : null;
@@ -114,28 +128,44 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // stale titles/prices, drop items that are gone or unavailable, and report
   // what happened so the caller can tell the buyer. Prices in the cart are
   // display-only either way — checkout re-reads them from the database.
-  const reconcile = useCallback((live: LiveListing[]) => {
-    const changed: string[] = [];
-    const removed: string[] = [];
-    setCart((prev) => {
-      if (!prev) return prev;
-      const liveById = new Map(live.map((l) => [l.id, l]));
-      const items: CartItem[] = [];
-      for (const i of prev.items) {
-        const now = liveById.get(i.listingId);
-        if (!now) {
-          removed.push(i.title);
-          continue;
+  const reconcile = useCallback(
+    (live: LiveListing[], liveOptions?: LiveOption[]) => {
+      const changed: string[] = [];
+      const removed: string[] = [];
+      setCart((prev) => {
+        if (!prev) return prev;
+        const liveById = new Map(live.map((l) => [l.id, l]));
+        const deltaById = new Map(
+          (liveOptions ?? []).map((o) => [o.id, o.price_delta_cents])
+        );
+        const items: CartItem[] = [];
+        for (const i of prev.items) {
+          const now = liveById.get(i.listingId);
+          if (!now) {
+            removed.push(i.title);
+            continue;
+          }
+          // A line's live price = listing base + its chosen option deltas. If
+          // any chosen option vanished, drop the line (its price is unknowable).
+          const opts = i.optionIds ?? [];
+          if (opts.length && !opts.every((id) => deltaById.has(id))) {
+            removed.push(i.title);
+            continue;
+          }
+          const livePrice =
+            now.price_cents +
+            opts.reduce((n, id) => n + (deltaById.get(id) ?? 0), 0);
+          if (livePrice !== i.priceCents) changed.push(now.title);
+          items.push({ ...i, title: now.title, priceCents: livePrice });
         }
-        if (now.price_cents !== i.priceCents) changed.push(now.title);
-        items.push({ ...i, title: now.title, priceCents: now.price_cents });
-      }
-      if (!changed.length && !removed.length) return prev;
-      return items.length ? { cook: prev.cook, items } : null;
-    });
-    // De-dupe: React may run the updater twice in dev (strict mode).
-    return { changed: [...new Set(changed)], removed: [...new Set(removed)] };
-  }, []);
+        if (!changed.length && !removed.length) return prev;
+        return items.length ? { cook: prev.cook, items } : null;
+      });
+      // De-dupe: React may run the updater twice in dev (strict mode).
+      return { changed: [...new Set(changed)], removed: [...new Set(removed)] };
+    },
+    []
+  );
 
   const clear = useCallback(() => setCart(null), []);
 

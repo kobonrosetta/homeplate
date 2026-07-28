@@ -5,6 +5,7 @@ import { formatUsd } from "@/lib/constants";
 import AddToCart from "@/components/add-to-cart";
 import FeeNote from "@/components/fee-note";
 import PhotoGallery from "@/components/photo-gallery";
+import OptionsPicker from "@/components/options-picker";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,23 @@ export default async function ListingPage({
   const cook = Array.isArray(listing.cooks) ? listing.cooks[0] : listing.cooks;
   if (!cook || cook.status !== "active") notFound();
 
+  // Cook-defined options (size, character, …) — buyers pick before adding.
+  const { data: groupRows } = await supabase
+    .from("listing_option_groups")
+    .select("id, name, sort_order, listing_options(id, name, price_delta_cents, sort_order)")
+    .eq("listing_id", listing.id)
+    .order("sort_order", { ascending: true });
+  const optionGroups = (groupRows ?? [])
+    .map((g: any) => ({
+      id: g.id,
+      name: g.name,
+      options: [...(g.listing_options ?? [])].sort(
+        (a: any, b: any) => a.sort_order - b.sort_order
+      ),
+    }))
+    .filter((g: any) => g.options.length > 0);
+  const hasOptions = optionGroups.length > 0;
+
   const soldOut = listing.limited_quantity && listing.quantity_available <= 0;
   const galleryUrls = [listing.photo_url, ...(listing.photo_urls ?? [])].filter(
     Boolean
@@ -43,10 +61,19 @@ export default async function ListingPage({
 
         <div>
           <h1 className="text-2xl font-semibold text-ink">{listing.title}</h1>
-          <p className="mt-1 text-xl font-semibold text-ink">
-            {formatUsd(listing.price_cents)}
-          </p>
-          <FeeNote priceCents={listing.price_cents} className="mt-1" />
+          {!hasOptions && (
+            <>
+              <p className="mt-1 text-xl font-semibold text-ink">
+                {formatUsd(listing.price_cents)}
+              </p>
+              <FeeNote priceCents={listing.price_cents} className="mt-1" />
+            </>
+          )}
+          {hasOptions && (
+            <p className="mt-1 text-sm text-muted">
+              from {formatUsd(listing.price_cents)} — choose your options below
+            </p>
+          )}
           {listing.limited_quantity &&
             listing.quantity_available > 0 &&
             listing.quantity_available <= 3 && (
@@ -91,6 +118,21 @@ export default async function ListingPage({
               <span className="inline-block rounded-full bg-line px-5 py-2.5 text-sm font-medium text-faint">
                 Sold out
               </span>
+            ) : hasOptions ? (
+              <OptionsPicker
+                cook={{
+                  id: cook.id,
+                  name: cook.business_name,
+                  slug: cook.slug,
+                  pickupAvailable: cook.pickup_available,
+                  deliveryAvailable: cook.delivery_available,
+                }}
+                listingId={listing.id}
+                title={listing.title}
+                basePriceCents={listing.price_cents}
+                photoUrl={listing.photo_url}
+                groups={optionGroups}
+              />
             ) : (
               <AddToCart
                 cook={{
