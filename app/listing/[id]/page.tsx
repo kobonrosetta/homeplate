@@ -105,6 +105,9 @@ export default async function ListingPage({
           )}
 
           <div className="mt-3 flex flex-wrap gap-2 text-sm text-muted">
+            {listing.served_hot && (
+              <span className="rounded-full bg-line px-3 py-1">Served hot</span>
+            )}
             {cook.pickup_available && (
               <span className="rounded-full bg-line px-3 py-1">Pickup</span>
             )}

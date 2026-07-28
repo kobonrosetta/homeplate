@@ -2,6 +2,8 @@
 
 import { useState, type ChangeEvent } from "react";
 import { useFormStatus } from "react-dom";
+import { formatUsd } from "@/lib/constants";
+import { formatRate, netOfTaxCents } from "@/lib/tax";
 
 const inputClass =
   "mt-1 w-full rounded-lg border border-line px-4 py-2.5 text-ink outline-none focus:border-muted focus:ring-2 focus:ring-line";
@@ -42,6 +44,8 @@ type Defaults = {
   allergens?: string;
   description?: string;
   leadTime?: string;
+  servedHot?: boolean;
+  isExtra?: boolean;
 };
 
 export default function NewListingForm({
@@ -50,12 +54,19 @@ export default function NewListingForm({
   defaults,
   submitLabel = "Add listing",
   hiddenId,
+  servedHotUI = false,
+  taxRate,
+  taxPlace,
 }: {
   action: (formData: FormData) => void;
   error?: string;
   defaults?: Defaults;
   submitLabel?: string;
   hiddenId?: string;
+  /** MEHKO kitchens only — cottage bakers never see any tax UI. */
+  servedHotUI?: boolean;
+  taxRate?: number;
+  taxPlace?: string;
 }) {
   const [description, setDescription] = useState(defaults?.description ?? "");
   const [generating, setGenerating] = useState(false);
@@ -66,8 +77,14 @@ export default function NewListingForm({
   const [score, setScore] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [photoOk, setPhotoOk] = useState(true);
-  const [isExtra, setIsExtra] = useState(false);
+  const [isExtra, setIsExtra] = useState(defaults?.isExtra ?? false);
   const [limited, setLimited] = useState(defaults?.limited ?? false);
+  const [servedHot, setServedHot] = useState(defaults?.servedHot ?? true);
+  const [priceStr, setPriceStr] = useState(defaults?.price ?? "");
+
+  // The CA taxability flag, phrased as menu info. Extras aren't food, so the
+  // control disappears (and the flag goes false) when "extra" is checked.
+  const showServedHot = servedHotUI && !isExtra;
 
   async function runDescribe(image: string | null) {
     const title =
@@ -217,6 +234,46 @@ export default function NewListingForm({
         </select>
       </label>
 
+      {showServedHot && (
+        <div>
+          <span className="text-sm font-medium text-ink">How is it served?</span>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setServedHot(true)}
+              className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                servedHot
+                  ? "border-brand bg-brand text-white"
+                  : "border-line text-ink hover:border-muted"
+              }`}
+            >
+              Served hot
+            </button>
+            <button
+              type="button"
+              onClick={() => setServedHot(false)}
+              className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                !servedHot
+                  ? "border-brand bg-brand text-white"
+                  : "border-line text-ink hover:border-muted"
+              }`}
+            >
+              Cold or room-temp
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-faint">
+            {servedHot
+              ? "Buyers see this on your menu."
+              : "Buyers see this on your menu. Cold to-go food generally isn't taxed in California."}
+          </p>
+        </div>
+      )}
+      <input
+        type="hidden"
+        name="served_hot"
+        value={String(showServedHot && servedHot)}
+      />
+
       <label className="block">
         <span className="text-sm font-medium text-ink">Price (USD)</span>
         <input
@@ -224,9 +281,16 @@ export default function NewListingForm({
           type="number"
           step="0.01"
           required
-          defaultValue={defaults?.price}
+          value={priceStr}
+          onChange={(e) => setPriceStr(e.target.value)}
           placeholder="12.00"
           className={inputClass}
+        />
+        <TaxHint
+          show={showServedHot && servedHot}
+          priceStr={priceStr}
+          taxRate={taxRate}
+          taxPlace={taxPlace}
         />
       </label>
 
@@ -419,6 +483,32 @@ export default function NewListingForm({
         }
       />
     </form>
+  );
+}
+
+// One calm sentence of price honesty for hot items: the cook sees their real
+// take BEFORE publishing, and hears the dashboard does the tracking. (Prices
+// are tax-included for the pilot — see lib/tax.ts.)
+function TaxHint({
+  show,
+  priceStr,
+  taxRate,
+  taxPlace,
+}: {
+  show: boolean;
+  priceStr: string;
+  taxRate?: number;
+  taxPlace?: string;
+}) {
+  if (!show || !taxRate) return null;
+  const cents = Math.round(parseFloat(priceStr) * 100);
+  if (!Number.isFinite(cents) || cents <= 0) return null;
+  return (
+    <p className="mt-1 text-xs text-faint">
+      Includes {taxPlace ?? "your area"}&rsquo;s {formatRate(taxRate)} sales tax
+      — you keep about {formatUsd(netOfTaxCents(cents, taxRate))}. Your Taxes
+      card tracks what you&rsquo;ll owe; nothing to do now.
+    </p>
   );
 }
 

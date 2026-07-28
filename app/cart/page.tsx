@@ -116,6 +116,9 @@ export default function CartPage() {
         <div className="border-t border-line pt-2">
           <Row label="Total" value={formatUsd(total)} bold />
         </div>
+        <p className="text-xs text-faint">
+          Prices include any California sales tax.
+        </p>
       </div>
 
       <button

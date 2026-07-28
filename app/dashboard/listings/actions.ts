@@ -18,7 +18,7 @@ async function requireCook() {
 
   const { data: cooks } = await supabase
     .from("cooks")
-    .select("id")
+    .select("id, operation_type")
     .eq("profile_id", user.id)
     .order("created_at", { ascending: false })
     .limit(1);
@@ -72,6 +72,11 @@ export async function updateListing(formData: FormData) {
     limited_quantity: limited,
     lead_time_note: leadTime || null,
     allergens: allergens || null,
+    // CA taxability flag — same server-side guard as inserts: only MEHKO
+    // kitchens can flag hot food, and the form sends false for extras.
+    served_hot:
+      cook.operation_type === "mehko" &&
+      String(formData.get("served_hot") ?? "") === "true",
   };
 
   // Optional new photo — same AI quality gate as creating.

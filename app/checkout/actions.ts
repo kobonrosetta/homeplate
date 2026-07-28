@@ -77,7 +77,7 @@ export async function startCheckout(formData: FormData) {
   const { data: listings } = await supabase
     .from("listings")
     .select(
-      "id, title, price_cents, cook_id, is_available, limited_quantity, quantity_available"
+      "id, title, price_cents, cook_id, is_available, limited_quantity, quantity_available, served_hot"
     )
     .in("id", ids);
 
@@ -160,7 +160,9 @@ export async function startCheckout(formData: FormData) {
     err("/checkout", "This kitchen doesn't offer delivery.");
 
   // One order line per CART line (the same listing can appear twice with
-  // different option choices).
+  // different option choices). served_hot is snapshotted like title/price:
+  // the cook's quarterly tax numbers must not change when a listing is
+  // later edited or deleted.
   const items = priced.map((r) => {
     const qty = Math.max(1, Math.floor(r.quantity || 1));
     return {
@@ -169,6 +171,7 @@ export async function startCheckout(formData: FormData) {
       unit_price_cents: r.unitPriceCents,
       quantity: qty,
       line_total_cents: r.unitPriceCents * qty,
+      served_hot: !!rowById.get(r.listingId)?.served_hot,
     };
   });
   // Stock guard for limited items — total quantity per LISTING across lines.
