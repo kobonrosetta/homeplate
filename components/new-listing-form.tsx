@@ -66,6 +66,7 @@ export default function NewListingForm({
   const [score, setScore] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [photoOk, setPhotoOk] = useState(true);
+  const [isExtra, setIsExtra] = useState(false);
   const [limited, setLimited] = useState(defaults?.limited ?? false);
 
   async function runDescribe(image: string | null) {
@@ -121,6 +122,16 @@ export default function NewListingForm({
       setPhotoOk(true);
       return;
     }
+    // Extras aren't food — show the preview, skip the food-quality check.
+    if (isExtra) {
+      setPhotoOk(true);
+      try {
+        setPreview(await resizeToDataUrl(file));
+      } catch {
+        /* preview is best-effort */
+      }
+      return;
+    }
     setChecking(true);
     setPhotoOk(true);
     try {
@@ -150,7 +161,7 @@ export default function NewListingForm({
     }
   }
 
-  const blockSubmit = checking || !photoOk;
+  const blockSubmit = checking || (!photoOk && !isExtra);
 
   return (
     <form action={action} className="mt-6 space-y-5">
@@ -168,6 +179,25 @@ export default function NewListingForm({
           placeholder="Sourdough loaf"
           className={inputClass}
         />
+      </label>
+
+      <label className="flex items-start gap-2 rounded-lg border border-line p-3">
+        <input
+          type="checkbox"
+          name="kind"
+          value="extra"
+          checked={isExtra}
+          onChange={(e) => setIsExtra(e.target.checked)}
+          className="mt-0.5"
+        />
+        <span className="text-sm text-ink">
+          This is an <strong>extra</strong>, not a dish
+          <span className="mt-0.5 block text-xs text-muted">
+            Packaging, cake lettering, gift wrap, upgrades — shown in its own
+            &ldquo;Extras&rdquo; section, and the photo doesn&rsquo;t need to be
+            food.
+          </span>
+        </span>
       </label>
 
       <label className="block">

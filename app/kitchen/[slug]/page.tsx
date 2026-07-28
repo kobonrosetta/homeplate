@@ -32,7 +32,22 @@ export default async function KitchenPage({
     .eq("is_available", true)
     .order("created_at", { ascending: false });
 
-  const items = listings ?? [];
+  const all = listings ?? [];
+  const items = all.filter((l: any) => (l.kind ?? "dish") === "dish");
+  const extras = all.filter((l: any) => l.kind === "extra");
+
+  // Listings with cook-defined options send the buyer to the item page to
+  // choose (size, character, …) instead of one-tap adding a base item.
+  const { data: groupRows } = all.length
+    ? await supabase
+        .from("listing_option_groups")
+        .select("listing_id")
+        .in(
+          "listing_id",
+          all.map((l: any) => l.id)
+        )
+    : { data: [] as any[] };
+  const hasOptions = new Set((groupRows ?? []).map((g: any) => g.listing_id));
 
   const { data: reviews } = await supabase
     .from("reviews")
@@ -163,12 +178,21 @@ export default async function KitchenPage({
                   )}
                   <div className="mt-auto flex items-center justify-between pt-2">
                     <span className="font-semibold text-ink">
-                      {formatUsd(l.price_cents)}
+                      {hasOptions.has(l.id)
+                        ? `from ${formatUsd(l.price_cents)}`
+                        : formatUsd(l.price_cents)}
                     </span>
                     {soldOut ? (
                       <span className="rounded-full bg-line px-3 py-1.5 text-sm font-medium text-faint">
                         Sold out
                       </span>
+                    ) : hasOptions.has(l.id) ? (
+                      <Link
+                        href={`/listing/${l.id}`}
+                        className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90"
+                      >
+                        Choose options
+                      </Link>
                     ) : (
                       <AddToCart
                         cook={{
@@ -192,6 +216,68 @@ export default async function KitchenPage({
             );
           })}
         </div>
+      )}
+
+      {extras.length > 0 && (
+        <>
+          <h2 className="mt-10 text-lg font-semibold text-ink">Extras</h2>
+          <p className="mt-1 text-sm text-muted">
+            Add-ons from this kitchen — added to your cart like anything else.
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {extras.map((l: any) => {
+              const soldOut = l.limited_quantity && l.quantity_available <= 0;
+              return (
+                <div
+                  key={l.id}
+                  className={`flex items-center gap-3 rounded-xl border border-line bg-card p-3 ${
+                    soldOut ? "opacity-60" : ""
+                  }`}
+                >
+                  {l.photo_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={l.photo_url}
+                      alt={l.title}
+                      className="h-14 w-14 shrink-0 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-line text-xl text-faint">
+                      🎀
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-ink">
+                      {l.title}
+                    </p>
+                    <p className="text-sm text-muted">{formatUsd(l.price_cents)}</p>
+                  </div>
+                  {soldOut ? (
+                    <span className="shrink-0 text-xs font-medium text-faint">
+                      Sold out
+                    </span>
+                  ) : (
+                    <AddToCart
+                      cook={{
+                        id: cook.id,
+                        name: cook.business_name,
+                        slug: cook.slug,
+                        pickupAvailable: cook.pickup_available,
+                        deliveryAvailable: cook.delivery_available,
+                      }}
+                      item={{
+                        listingId: l.id,
+                        title: l.title,
+                        priceCents: l.price_cents,
+                        photoUrl: l.photo_url,
+                      }}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       <ReviewsSection reviews={revs} />

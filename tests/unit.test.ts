@@ -11,6 +11,7 @@ import {
   nameMatchTier,
   isExpired,
 } from "../lib/match";
+import { deriveUnitPrice, cartLineKey } from "../lib/options";
 
 let pass = 0;
 let fail = 0;
@@ -78,6 +79,45 @@ check("nameMatchTier: generic-only names still compare (The Cake Co vs Cake Co) 
   assert.equal(nameMatchTier("The Cake Co", "Cake Co"), "partial"));
 check("nameMatchTier: generic-only vs unrelated generic → none", () =>
   assert.equal(nameMatchTier("The Cake Co", "Home Eats"), "none"));
+
+// --- item-option pricing (server-side derivation — the money path) ---
+const G = [{ id: "g1", listing_id: "L1" }, { id: "g2", listing_id: "L1" }];
+const O = [
+  { id: "o6", group_id: "g1", name: '6"', price_delta_cents: 0 },
+  { id: "o7", group_id: "g1", name: '7"', price_delta_cents: 1300 },
+  { id: "bear", group_id: "g2", name: "Bear", price_delta_cents: 1000 },
+  { id: "none", group_id: "g2", name: "None", price_delta_cents: 0 },
+  { id: "other", group_id: "gX", name: "Alien", price_delta_cents: 500 },
+];
+check("options: base + deltas derive correctly", () => {
+  const r = deriveUnitPrice(6000, "L1", G, O, ["o7", "bear"]);
+  assert.deepEqual(r, { unitPriceCents: 8300, optionNames: ['7"', "Bear"] });
+});
+check("options: zero-delta choices keep base price", () => {
+  const r = deriveUnitPrice(6000, "L1", G, O, ["o6", "none"]);
+  assert.equal((r as any).unitPriceCents, 6000);
+});
+check("options: missing a group's choice → error", () =>
+  assert.ok("error" in deriveUnitPrice(6000, "L1", G, O, ["o7"])));
+check("options: two choices from one group → error", () =>
+  assert.ok("error" in deriveUnitPrice(6000, "L1", G, O, ["o6", "o7", "none"])));
+check("options: option from ANOTHER listing's group → error", () =>
+  assert.ok("error" in deriveUnitPrice(6000, "L1", G, O, ["o7", "other"])));
+check("options: unknown option id → error", () =>
+  assert.ok("error" in deriveUnitPrice(6000, "L1", G, O, ["o7", "nope"])));
+check("options: listing with no groups accepts no options", () => {
+  assert.equal(
+    (deriveUnitPrice(500, "L2", G, O, []) as any).unitPriceCents,
+    500
+  );
+  assert.ok("error" in deriveUnitPrice(500, "L2", G, O, ["o6"]));
+});
+check("cartLineKey: same options in any order = same line", () =>
+  assert.equal(cartLineKey("L1", ["b", "a"]), cartLineKey("L1", ["a", "b"])));
+check("cartLineKey: different options = different lines", () =>
+  assert.notEqual(cartLineKey("L1", ["a"]), cartLineKey("L1", ["b"])));
+check("cartLineKey: no options = plain listing id", () =>
+  assert.equal(cartLineKey("L1"), "L1"));
 
 console.log("\n" + pass + " passed, " + fail + " failed");
 if (fail > 0) process.exit(1);

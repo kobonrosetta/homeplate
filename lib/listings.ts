@@ -82,6 +82,9 @@ export async function insertListingFromForm(
   const { limited, quantity } = readQuantity(formData);
   const leadTime = String(formData.get("lead_time_note") ?? "").trim();
   const allergens = String(formData.get("allergens") ?? "").trim();
+  // Extras (packaging, lettering, upgrades) aren't food — they skip the AI
+  // food-photo gate below and render in their own strip on the kitchen page.
+  const kind = formData.get("kind") === "extra" ? "extra" : "dish";
 
   if (!title || Number.isNaN(priceDollars) || priceDollars <= 0) {
     return "A title and a price above $0 are required.";
@@ -111,13 +114,16 @@ export async function insertListingFromForm(
       const url: string = pub.publicUrl;
       photoUrl = url;
 
-      const check = await checkPhotoImage(url);
-      qualityScore = check?.score ?? null;
-      if (qualityScore !== null && qualityScore < MIN_PHOTO_SCORE) {
-        await storage.from("listing-photos").remove([path]);
-        return `Photo scored ${qualityScore}/100${
-          check?.feedback ? ` — ${check.feedback}` : ""
-        }. Please upload a clear photo of the actual food.`;
+      // The food-quality gate only makes sense for food.
+      if (kind === "dish") {
+        const check = await checkPhotoImage(url);
+        qualityScore = check?.score ?? null;
+        if (qualityScore !== null && qualityScore < MIN_PHOTO_SCORE) {
+          await storage.from("listing-photos").remove([path]);
+          return `Photo scored ${qualityScore}/100${
+            check?.feedback ? ` — ${check.feedback}` : ""
+          }. Please upload a clear photo of the actual food.`;
+        }
       }
     }
   }
@@ -134,10 +140,12 @@ export async function insertListingFromForm(
     if (upErr) continue;
     const eurl: string = storage.from("listing-photos").getPublicUrl(path).data
       .publicUrl;
-    const chk = await checkPhotoImage(eurl);
-    if (chk && chk.score < MIN_PHOTO_SCORE) {
-      await storage.from("listing-photos").remove([path]);
-      continue;
+    if (kind === "dish") {
+      const chk = await checkPhotoImage(eurl);
+      if (chk && chk.score < MIN_PHOTO_SCORE) {
+        await storage.from("listing-photos").remove([path]);
+        continue;
+      }
     }
     extraUrls.push(eurl);
   }
@@ -146,6 +154,7 @@ export async function insertListingFromForm(
     cook_id: cookId,
     title,
     category,
+    kind,
     price_cents: Math.round(priceDollars * 100),
     description: description || null,
     allergens: allergens || null,

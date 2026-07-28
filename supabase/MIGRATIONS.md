@@ -4,7 +4,10 @@ Every schema change to the HomePlate Supabase project has been applied **by hand
 the Supabase SQL editor — this project does not use the Supabase CLI migration system.
 This file is the canonical record of what was run, in what order, and whether it's live.
 
-**Status: all 21 migrations applied.** #21 (`harden-permits-bucket.sql`) applied +
+**Status: 21 of 22 applied — #22 (`raffin-ready.sql`) is written but NOT yet run.**
+Run it before deploying the payment-links / extras / item-options batch (the app
+degrades gracefully without it — those features just don't appear — but don't ship
+half-states). #21 (`harden-permits-bucket.sql`) applied +
 verified live 2026-07-27 (anon write to permits → 400; bucket MIME allowlist actively
 rejecting untyped uploads; service-role path works). #19 + #20 applied 2026-07-24; real
 county data imported the same day (174 MEHKO permits; ALL fake permits deleted from the
@@ -44,6 +47,7 @@ Project ref: `jycefrvkqybadwupokdn` (Santa Clara County pilot)
 | 19 | `add-operator-expiry.sql` | Real county permit data — adds `approved_operators.expires_at` + a unique index on `permit_number` (integrity + upsert target). Rows loaded by `scripts/import-mehko.mjs` from the Santa Clara County MEHKO open-data API. Signup auto-flags verified on a live (non-expired) **permit** match; the kitchen name is advisory only (shown to the admin), since cooks brand differently from their permit name | ✅ |
 | 20 | `add-permit-photo.sql` | Optional permit-photo upload — private `permits` storage bucket (no public read), `cook_private.permit_photo_path`. Admin views it via a short-lived signed URL. The real evidence behind the human review, since the county list is public | ✅ |
 | 21 | `harden-permits-bucket.sql` | Permits bucket server-writes-only — drops the end-user write policies (uploads moved to the service role in `lib/listings.ts`, path always derived server-side from the caller's own kitchen) + bucket-level 10MB / image-or-PDF limits that bind even service-role uploads | ✅ |
+| 22 | `raffin-ready.sql` | "Raffin-ready" batch — (a) `custom_requests` (cook-minted payment links for DM-negotiated customs; token-capability access, no public read, cancel-only guard trigger for end users, paid/expired service-role-only) + `orders.custom_request_id`; (b) `listings.kind` (`dish`/`extra` — extras skip the AI food gate); (c) `listing_option_groups` + `listing_options` (cook-defined single-select dropdowns with price deltas; public read, owner-only writes; checkout re-derives every line's price server-side) | ⬜ |
 
 ## Replaying on a fresh database
 

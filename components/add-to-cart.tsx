@@ -8,7 +8,14 @@ export default function AddToCart({
   item,
 }: {
   cook: CartCook;
-  item: { listingId: string; title: string; priceCents: number; photoUrl: string | null };
+  item: {
+    listingId: string;
+    title: string;
+    priceCents: number;
+    photoUrl: string | null;
+    optionIds?: string[];
+    optionsLabel?: string;
+  };
 }) {
   const { cart, addItem } = useCart();
   const [added, setAdded] = useState(false);

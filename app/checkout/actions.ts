@@ -5,14 +5,22 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { calcServiceFeeCents } from "@/lib/constants";
 import { createCheckoutSession } from "@/lib/stripe";
+import {
+  deriveUnitPrice,
+  type OptionGroupRow,
+  type OptionRow,
+} from "@/lib/options";
 
 // priceCents/title are what the buyer's cart DISPLAYED — used only to detect
 // drift against the authoritative DB prices, never to price the order.
+// optionIds are the buyer's item-option choices; their price effect is
+// re-derived server-side from listing_options, never trusted.
 type CartLine = {
   listingId: string;
   quantity: number;
   priceCents?: number;
   title?: string;
+  optionIds?: string[];
 };
 
 export async function startCheckout(formData: FormData) {
@@ -86,14 +94,54 @@ export async function startCheckout(formData: FormData) {
     const names = gone.map((g) => g.title?.trim() || "an item").join(", ");
     err("/cart", `No longer available: ${names}. We've updated your cart.`);
   }
-  const drifted = requested.some((r) => {
-    const row = rowById.get(r.listingId);
-    return (
-      typeof r.priceCents === "number" &&
-      row &&
-      row.price_cents !== r.priceCents
+  // Item options: re-derive each line's real unit price from the DB (base +
+  // chosen option deltas). The client's optionIds pick WHICH options; the
+  // price always comes from listing_options rows.
+  const { data: groupRows } = await supabase
+    .from("listing_option_groups")
+    .select("id, listing_id")
+    .in("listing_id", ids);
+  const groups = (groupRows ?? []) as OptionGroupRow[];
+  const { data: optionRows } = groups.length
+    ? await supabase
+        .from("listing_options")
+        .select("id, group_id, name, price_delta_cents")
+        .in(
+          "group_id",
+          groups.map((g) => g.id)
+        )
+    : { data: [] as OptionRow[] };
+  const options = (optionRows ?? []) as OptionRow[];
+
+  type PricedLine = CartLine & {
+    unitPriceCents: number;
+    titleSnapshot: string;
+  };
+  const priced: PricedLine[] = [];
+  for (const r of requested) {
+    const row = rowById.get(r.listingId)!;
+    const derived = deriveUnitPrice(
+      row.price_cents,
+      r.listingId,
+      groups,
+      options,
+      r.optionIds ?? []
     );
-  });
+    if ("error" in derived) err("/cart", derived.error);
+    const d = derived as Exclude<typeof derived, { error: string }>;
+    priced.push({
+      ...r,
+      unitPriceCents: d.unitPriceCents,
+      titleSnapshot: d.optionNames.length
+        ? `${row.title} (${d.optionNames.join(", ")})`
+        : row.title,
+    });
+  }
+
+  const drifted = priced.some(
+    (r) =>
+      typeof r.priceCents === "number" && r.unitPriceCents !== r.priceCents
+  );
   if (drifted) {
     err(
       "/cart",
@@ -111,24 +159,31 @@ export async function startCheckout(formData: FormData) {
   if (fulfillment === "delivery" && !cook!.delivery_available)
     err("/checkout", "This kitchen doesn't offer delivery.");
 
-  const qtyById = new Map(
-    requested.map((r) => [r.listingId, Math.max(1, Math.floor(r.quantity || 1))])
-  );
-  const items = rows.map((l) => {
-    const qty = qtyById.get(l.id) ?? 1;
+  // One order line per CART line (the same listing can appear twice with
+  // different option choices).
+  const items = priced.map((r) => {
+    const qty = Math.max(1, Math.floor(r.quantity || 1));
     return {
-      listing_id: l.id,
-      title: l.title,
-      unit_price_cents: l.price_cents,
+      listing_id: r.listingId,
+      title: r.titleSnapshot,
+      unit_price_cents: r.unitPriceCents,
       quantity: qty,
-      line_total_cents: l.price_cents * qty,
+      line_total_cents: r.unitPriceCents * qty,
     };
   });
-  // Stock guard for limited items — don't let a buyer pay for what isn't there.
-  const short = rows.find((l) => {
-    const qty = qtyById.get(l.id) ?? 1;
-    return l.limited_quantity && (l.quantity_available ?? 0) < qty;
-  });
+  // Stock guard for limited items — total quantity per LISTING across lines.
+  const qtyByListing = new Map<string, number>();
+  for (const i of items) {
+    qtyByListing.set(
+      i.listing_id,
+      (qtyByListing.get(i.listing_id) ?? 0) + i.quantity
+    );
+  }
+  const short = rows.find(
+    (l) =>
+      l.limited_quantity &&
+      (l.quantity_available ?? 0) < (qtyByListing.get(l.id) ?? 0)
+  );
   if (short) {
     err(
       "/checkout",

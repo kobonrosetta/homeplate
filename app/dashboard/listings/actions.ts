@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { checkPhotoImage } from "@/lib/ai";
 import { MIN_PHOTO_SCORE } from "@/lib/constants";
 import { insertListingFromForm, readQuantity } from "@/lib/listings";
+import { MAX_GROUPS_PER_LISTING, MAX_OPTIONS_PER_GROUP } from "@/lib/options";
 
 // Make sure the caller is a logged-in cook, and return their kitchen.
 async function requireCook() {
@@ -107,6 +108,88 @@ export async function updateListing(formData: FormData) {
   await supabase.from("listings").update(update).eq("id", id).eq("cook_id", cook.id);
   revalidatePath("/dashboard", "layout");
   redirect("/dashboard/menu");
+}
+
+// Replace a listing's option dropdowns wholesale. Ownership is checked here
+// AND enforced by RLS on both option tables (listing -> cook -> profile chain).
+export async function saveListingOptions(formData: FormData) {
+  const { supabase, cook } = await requireCook();
+  const listingId = String(formData.get("listing_id") ?? "");
+
+  const { data: owned } = await supabase
+    .from("listings")
+    .select("id")
+    .eq("id", listingId)
+    .eq("cook_id", cook.id)
+    .maybeSingle();
+  if (!owned) redirect("/dashboard/menu");
+
+  type DraftGroup = { name: string; options: { name: string; priceDelta: string }[] };
+  let drafts: DraftGroup[] = [];
+  try {
+    drafts = JSON.parse(String(formData.get("groups") ?? "[]"));
+  } catch {
+    drafts = [];
+  }
+
+  const backTo = `/dashboard/listings/${listingId}/edit`;
+  const err = (msg: string) =>
+    redirect(`${backTo}?error=${encodeURIComponent(msg)}`);
+
+  // Normalize + validate before touching anything.
+  const cleaned = drafts
+    .map((g) => ({
+      name: String(g.name ?? "").trim(),
+      options: (g.options ?? [])
+        .map((o) => ({
+          name: String(o.name ?? "").trim(),
+          deltaCents: Math.round(parseFloat(String(o.priceDelta ?? "0") || "0") * 100),
+        }))
+        .filter((o) => o.name),
+    }))
+    .filter((g) => g.name || g.options.length);
+  if (cleaned.length > MAX_GROUPS_PER_LISTING)
+    err(`At most ${MAX_GROUPS_PER_LISTING} dropdowns per item.`);
+  for (const g of cleaned) {
+    if (!g.name) err("Every dropdown needs a name.");
+    if (g.options.length === 0) err(`"${g.name}" needs at least one choice.`);
+    if (g.options.length > MAX_OPTIONS_PER_GROUP)
+      err(`"${g.name}" has too many choices (max ${MAX_OPTIONS_PER_GROUP}).`);
+    for (const o of g.options) {
+      if (Number.isNaN(o.deltaCents) || o.deltaCents < 0)
+        err(`"${o.name}" has an invalid price.`);
+      if (o.deltaCents > 1000000) err(`"${o.name}" price is too high.`);
+    }
+  }
+
+  // Replace-all: delete old groups (options cascade), insert the new set.
+  const { error: delErr } = await supabase
+    .from("listing_option_groups")
+    .delete()
+    .eq("listing_id", listingId);
+  if (delErr) err("Couldn't save options — please try again.");
+
+  for (let gi = 0; gi < cleaned.length; gi++) {
+    const g = cleaned[gi];
+    const { data: group, error: gErr } = await supabase
+      .from("listing_option_groups")
+      .insert({ listing_id: listingId, name: g.name, sort_order: gi })
+      .select("id")
+      .single();
+    if (gErr || !group) err("Couldn't save options — please try again.");
+    const { error: oErr } = await supabase.from("listing_options").insert(
+      g.options.map((o, oi) => ({
+        group_id: group!.id,
+        name: o.name,
+        price_delta_cents: o.deltaCents,
+        sort_order: oi,
+      }))
+    );
+    if (oErr) err("Couldn't save options — please try again.");
+  }
+
+  revalidatePath("/dashboard", "layout");
+  redirect(backTo + "?saved=options");
 }
 
 export async function toggleListing(formData: FormData) {

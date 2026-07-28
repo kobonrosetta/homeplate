@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCart } from "@/components/cart-context";
+import { useCart, lineKey } from "@/components/cart-context";
 import CartSync from "@/components/cart-sync";
 import { formatUsd, calcServiceFeeCents } from "@/lib/constants";
 
@@ -68,7 +68,7 @@ export default function CartPage() {
 
       <ul className="mt-6 divide-y divide-line rounded-lg border border-line">
         {cart.items.map((i) => (
-          <li key={i.listingId} className="flex items-center gap-4 px-4 py-4">
+          <li key={lineKey(i)} className="flex items-center gap-4 px-4 py-4">
             {i.photoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -83,6 +83,9 @@ export default function CartPage() {
             )}
             <div className="min-w-0 flex-1">
               <p className="font-medium text-ink">{i.title}</p>
+              {i.optionsLabel && (
+                <p className="text-xs text-faint">{i.optionsLabel}</p>
+              )}
               <p className="text-sm text-muted">{formatUsd(i.priceCents)}</p>
             </div>
             <input
@@ -93,12 +96,12 @@ export default function CartPage() {
                 // Ignore transient empty/garbage keystrokes so clearing the
                 // field doesn't delete the item — that's the Remove button.
                 const v = parseInt(e.target.value, 10);
-                if (!Number.isNaN(v)) setQty(i.listingId, Math.max(1, v));
+                if (!Number.isNaN(v)) setQty(lineKey(i), Math.max(1, v));
               }}
               className="w-16 rounded-lg border border-line px-2 py-1 text-center"
             />
             <button
-              onClick={() => removeItem(i.listingId)}
+              onClick={() => removeItem(lineKey(i))}
               className="text-sm text-red-600 hover:underline"
             >
               Remove
