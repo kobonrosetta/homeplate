@@ -280,6 +280,38 @@ function Step3({ cottage }: { cottage?: boolean }) {
             Speeds up your review. Kept private — only the HomePlate team sees it.
           </p>
         </label>
+
+        <div className="text-xs text-faint">
+          <p>
+            By submitting, you agree to the{" "}
+            <details className="inline">
+              <summary className="inline cursor-pointer underline hover:text-ink">
+                Cook Agreement
+              </summary>
+              <span className="mt-2 block space-y-2 rounded-lg border border-line bg-card p-3 text-muted">
+                <span className="block">
+                  <span className="font-medium text-ink">
+                    Your prices include tax.
+                  </span>{" "}
+                  The price you set for each item includes any California sales
+                  tax due on it. Reporting and paying that tax is yours to do —
+                  your dashboard adds it up for you each quarter.
+                </span>
+                <span className="block">
+                  <span className="font-medium text-ink">
+                    How you get paid.
+                  </span>{" "}
+                  You appoint HomePlate to collect payment from buyers on your
+                  behalf. A buyer&apos;s payment to HomePlate settles what they
+                  owe you, and HomePlate passes your full listed price on to
+                  you.
+                </span>
+              </span>
+            </details>
+            .
+          </p>
+        </div>
+
         <SubmitButton>Submit application</SubmitButton>
       </form>
 
