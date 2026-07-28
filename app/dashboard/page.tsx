@@ -70,25 +70,37 @@ export default async function DashboardOverview() {
   // never see tax chrome.
   const taxRate = taxRateForCity(cook.city);
   const taxPlace = cook.city?.trim() || "Santa Clara County";
-  const hotByQuarterMonth = new Map<string, Map<number, number>>();
+  // Tax is rounded PER LINE (not on month totals) so this card and the CSV
+  // export — which shows the tax inside each line — agree to the cent.
+  type MonthTally = { sales: number; tax: number };
+  const hotByQuarterMonth = new Map<string, Map<number, MonthTally>>();
   for (const o of taxOrders ?? []) {
-    const hotCents = ((o as any).order_items ?? [])
-      .filter((i: any) => i.served_hot)
-      .reduce((n: number, i: any) => n + (i.line_total_cents ?? 0), 0);
-    if (hotCents <= 0) continue;
+    const hotItems = ((o as any).order_items ?? []).filter(
+      (i: any) => i.served_hot
+    );
+    const sales = hotItems.reduce(
+      (n: number, i: any) => n + (i.line_total_cents ?? 0),
+      0
+    );
+    if (sales <= 0) continue;
+    const tax = hotItems.reduce(
+      (n: number, i: any) => n + taxPortionCents(i.line_total_cents ?? 0, taxRate),
+      0
+    );
     const d = new Date(o.created_at);
     const label = quarterOf(d).label;
-    const byMonth = hotByQuarterMonth.get(label) ?? new Map<number, number>();
-    byMonth.set(d.getMonth(), (byMonth.get(d.getMonth()) ?? 0) + hotCents);
+    const byMonth = hotByQuarterMonth.get(label) ?? new Map<number, MonthTally>();
+    const prev = byMonth.get(d.getMonth()) ?? { sales: 0, tax: 0 };
+    byMonth.set(d.getMonth(), { sales: prev.sales + sales, tax: prev.tax + tax });
     hotByQuarterMonth.set(label, byMonth);
   }
   const monthRows = (label: string) =>
-    [...(hotByQuarterMonth.get(label) ?? new Map<number, number>())]
+    [...(hotByQuarterMonth.get(label) ?? new Map<number, MonthTally>())]
       .sort((a, b) => a[0] - b[0])
-      .map(([m, cents]) => ({
+      .map(([m, t]) => ({
         name: MONTH_NAMES[m],
-        salesCents: cents,
-        taxCents: taxPortionCents(cents, taxRate),
+        salesCents: t.sales,
+        taxCents: t.tax,
       }));
   const currentRows = monthRows(qtr.label);
   const currentHot = currentRows.reduce((n, r) => n + r.salesCents, 0);
