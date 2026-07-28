@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentCook } from "@/lib/cook";
+import { taxRateForCity } from "@/lib/tax";
 import { wizardSaveKitchen, wizardAddDish, wizardFinalize } from "./actions";
 import NewListingForm from "@/components/new-listing-form";
 import {
@@ -43,7 +44,13 @@ export default async function SellPage({
       </div>
 
       {step === 1 && <Step1 cook={cook} />}
-      {step === 2 && <Step2 />}
+      {step === 2 && (
+        <Step2
+          mehko={cook?.operation_type === "mehko"}
+          taxRate={taxRateForCity(cook?.city)}
+          taxPlace={cook?.city?.trim() || "Santa Clara County"}
+        />
+      )}
       {step === 3 && <Step3 cottage={cook?.operation_type === "cottage"} />}
 
       <p className="mt-8 flex items-center justify-center gap-1.5 text-xs text-faint">
@@ -169,7 +176,15 @@ function Step1({ cook }: { cook: any }) {
   );
 }
 
-function Step2() {
+function Step2({
+  mehko,
+  taxRate,
+  taxPlace,
+}: {
+  mehko: boolean;
+  taxRate: number;
+  taxPlace: string;
+}) {
   return (
     <div>
       <h1 className="text-2xl font-semibold text-ink">Add your first dish</h1>
@@ -179,6 +194,9 @@ function Step2() {
       <NewListingForm
         action={wizardAddDish}
         submitLabel="Continue to verification"
+        servedHotUI={mehko}
+        taxRate={taxRate}
+        taxPlace={taxPlace}
       />
       <div className="mt-4 text-center">
         <Link href="/sell?step=3" className="text-sm text-muted hover:text-ink">
@@ -219,6 +237,35 @@ function Step3({ cottage }: { cottage?: boolean }) {
           <TextField label="City" name="city" required placeholder="Sunnyvale" />
           <TextField label="ZIP" name="zip" placeholder="94086" />
         </div>
+        <div className="space-y-3 rounded-lg border border-line p-4">
+          <div>
+            <p className="text-sm font-medium text-ink">Sales tax, handled</p>
+            <p className="mt-1 text-xs text-muted">
+              {cottage
+                ? "Selling only cold baked goods? You usually don't need this — cold to-go food generally isn't taxed in California. Skip it unless you'll sell anything served hot."
+                : "California taxes hot food sales. Your prices will include it, and your dashboard tracks exactly what you'll owe — you just need a free seller's permit from the state."}
+            </p>
+          </div>
+          <TextField
+            label="CDTFA seller's permit number (add it later if you like)"
+            name="cdtfa_permit"
+            placeholder="e.g. 123-456789"
+          />
+          <p className="text-xs text-faint">
+            Free at{" "}
+            <a
+              href="https://www.cdtfa.ca.gov"
+              target="_blank"
+              rel="noreferrer"
+              className="underline hover:text-ink"
+            >
+              cdtfa.ca.gov
+            </a>{" "}
+            — about 15 minutes online.
+            {cottage ? "" : " Required before your kitchen goes live; we'll remind you."}
+          </p>
+        </div>
+
         <label className="block">
           <span className="text-sm font-medium text-ink">
             Photo of your permit (optional)

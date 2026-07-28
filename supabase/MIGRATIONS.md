@@ -4,10 +4,12 @@ Every schema change to the HomePlate Supabase project has been applied **by hand
 the Supabase SQL editor — this project does not use the Supabase CLI migration system.
 This file is the canonical record of what was run, in what order, and whether it's live.
 
-**Status: 21 of 22 applied — #22 (`raffin-ready.sql`) is written but NOT yet run.**
-Run it before deploying the payment-links / extras / item-options batch (the app
-degrades gracefully without it — those features just don't appear — but don't ship
-half-states). #21 (`harden-permits-bucket.sql`) applied +
+**Status: 21 of 23 applied — #22 (`raffin-ready.sql`) and #23 (`tax-pilot.sql`) are
+written but NOT yet run.** Run #22 before deploying the payment-links / extras /
+item-options batch and #23 before deploying the sales-tax pilot (both are safe to run
+ahead of their deploys; #23 is additive-only, and without it the tax UI simply doesn't
+appear — but checkout's listing select includes `served_hot`, so do NOT deploy the tax
+code without #23 applied). #21 (`harden-permits-bucket.sql`) applied +
 verified live 2026-07-27 (anon write to permits → 400; bucket MIME allowlist actively
 rejecting untyped uploads; service-role path works). #19 + #20 applied 2026-07-24; real
 county data imported the same day (174 MEHKO permits; ALL fake permits deleted from the
@@ -48,6 +50,7 @@ Project ref: `jycefrvkqybadwupokdn` (Santa Clara County pilot)
 | 20 | `add-permit-photo.sql` | Optional permit-photo upload — private `permits` storage bucket (no public read), `cook_private.permit_photo_path`. Admin views it via a short-lived signed URL. The real evidence behind the human review, since the county list is public | ✅ |
 | 21 | `harden-permits-bucket.sql` | Permits bucket server-writes-only — drops the end-user write policies (uploads moved to the service role in `lib/listings.ts`, path always derived server-side from the caller's own kitchen) + bucket-level 10MB / image-or-PDF limits that bind even service-role uploads | ✅ |
 | 22 | `raffin-ready.sql` | "Raffin-ready" batch — (a) `custom_requests` (cook-minted payment links for DM-negotiated customs; token-capability access, no public read, cancel-only guard trigger for end users, paid/expired service-role-only) + `orders.custom_request_id`; (b) `listings.kind` (`dish`/`extra` — extras skip the AI food gate); (c) `listing_option_groups` + `listing_options` (cook-defined single-select dropdowns with price deltas; public read, owner-only writes; checkout re-derives every line's price server-side) | ⬜ |
+| 23 | `tax-pilot.sql` | Sales-tax pilot (prices tax-INCLUDED; each cook remits on their own CDTFA seller's permit) — `listings.served_hot` (the CA taxability flag, asked as "How is it served?"; MEHKO-only UI, cottage always false), `order_items.served_hot` (snapshot at purchase, like title/price, so listing edits can't rewrite tax history), `cook_private.cdtfa_permit` (seller's-permit number — private table because `cooks` is publicly readable). Additive-only; safe to run before the code deploy | ⬜ |
 
 ## Replaying on a fresh database
 

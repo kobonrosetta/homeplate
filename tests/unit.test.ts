@@ -12,6 +12,15 @@ import {
   isExpired,
 } from "../lib/match";
 import { deriveUnitPrice, cartLineKey } from "../lib/options";
+import {
+  SANTA_CLARA_COUNTY_RATE,
+  taxRateForCity,
+  taxPortionCents,
+  netOfTaxCents,
+  formatRate,
+  quarterOf,
+  previousQuarter,
+} from "../lib/tax";
 
 let pass = 0;
 let fail = 0;
@@ -118,6 +127,57 @@ check("cartLineKey: different options = different lines", () =>
   assert.notEqual(cartLineKey("L1", ["a"]), cartLineKey("L1", ["b"])));
 check("cartLineKey: no options = plain listing id", () =>
   assert.equal(cartLineKey("L1"), "L1"));
+
+// --- CA sales tax (pilot: prices are tax-included; cook remits) ---
+check("tax: most cities fall on the county rate", () =>
+  assert.equal(taxRateForCity("Sunnyvale"), SANTA_CLARA_COUNTY_RATE));
+check("tax: San José city rate (accent + case + spacing folded)", () =>
+  assert.equal(taxRateForCity("  San  JOSÉ "), 0.1));
+check("tax: Campbell district rate", () =>
+  assert.equal(taxRateForCity("Campbell"), 0.105));
+check("tax: unknown or missing city -> county rate", () => {
+  assert.equal(taxRateForCity("Narnia"), SANTA_CLARA_COUNTY_RATE);
+  assert.equal(taxRateForCity(null), SANTA_CLARA_COUNTY_RATE);
+  assert.equal(taxRateForCity(""), SANTA_CLARA_COUNTY_RATE);
+});
+check("tax: $20.00 tax-included at 9.75% contains $1.78 (not $1.95)", () =>
+  assert.equal(taxPortionCents(2000, 0.0975), 178));
+check("tax: net + tax portion always equals the listed price", () =>
+  assert.equal(
+    netOfTaxCents(2000, 0.0975) + taxPortionCents(2000, 0.0975),
+    2000
+  ));
+check("tax: zero and negative prices contain no tax", () => {
+  assert.equal(taxPortionCents(0, 0.0975), 0);
+  assert.equal(taxPortionCents(-500, 0.0975), 0);
+});
+check("tax: formatRate trims trailing zeros", () => {
+  assert.equal(formatRate(0.0975), "9.75%");
+  assert.equal(formatRate(0.1), "10%");
+  assert.equal(formatRate(0.09875), "9.875%");
+  assert.equal(formatRate(0.105), "10.5%");
+});
+check("tax: Q3 return is due Oct 31", () => {
+  const q = quarterOf(new Date(2026, 7, 15)); // Aug 15
+  assert.equal(q.label, "Q3 2026");
+  assert.equal(q.dueDate.getMonth(), 9);
+  assert.equal(q.dueDate.getDate(), 31);
+});
+check("tax: Q4 return is due Jan 31 of the NEXT year", () => {
+  const q = quarterOf(new Date(2026, 11, 2)); // Dec 2
+  assert.equal(q.dueDate.getFullYear(), 2027);
+  assert.equal(q.dueDate.getMonth(), 0);
+  assert.equal(q.dueDate.getDate(), 31);
+});
+check("tax: previousQuarter crosses the year boundary", () => {
+  const q = previousQuarter(new Date(2026, 0, 10)); // Jan 10
+  assert.equal(q.label, "Q4 2025");
+});
+check("tax: quarter ranges are exclusive at the boundary", () => {
+  const q = quarterOf(new Date(2026, 6, 1)); // Jul 1
+  assert.ok(q.start.getTime() === new Date(2026, 6, 1).getTime());
+  assert.ok(q.end.getTime() === new Date(2026, 9, 1).getTime());
+});
 
 console.log("\n" + pass + " passed, " + fail + " failed");
 if (fail > 0) process.exit(1);

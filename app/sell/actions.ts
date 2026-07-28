@@ -145,6 +145,7 @@ export async function wizardFinalize(formData: FormData) {
   const streetAddress = String(formData.get("street_address") ?? "").trim();
   const city = String(formData.get("city") ?? "").trim();
   const zip = String(formData.get("zip") ?? "").trim();
+  const cdtfaPermit = String(formData.get("cdtfa_permit") ?? "").trim();
 
   if (!permitNumber || !streetAddress || !city) {
     redirect(
@@ -219,13 +220,15 @@ export async function wizardFinalize(formData: FormData) {
     })
     .eq("id", cookId);
 
-  // Home address (and the private permit photo path) live in the locked-down
-  // owner-only table.
+  // Home address (and the private permit photo path + CDTFA seller's-permit
+  // number) live in the locked-down owner-only table. The CDTFA field is
+  // optional — an empty resubmit must not clobber a previously saved number.
   await supabase.from("cook_private").upsert(
     {
       cook_id: cookId,
       street_address: streetAddress,
       ...(permitPhotoPath ? { permit_photo_path: permitPhotoPath } : {}),
+      ...(cdtfaPermit ? { cdtfa_permit: cdtfaPermit } : {}),
       updated_at: new Date().toISOString(),
     },
     { onConflict: "cook_id" }

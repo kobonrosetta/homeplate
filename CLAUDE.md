@@ -90,6 +90,7 @@ lib/
   ai.ts                   # Groq calls
   cook.ts                 # getCurrentCook()
   match.ts                # county-list matching: normalizePermit, nameMatchTier (advisory), isExpired — unit-tested
+  tax.ts                  # CA sales-tax helpers: tax-INCLUDED math, Santa Clara city rates, CDTFA quarters — unit-tested
   admin.ts                # isAdminEmail / getAdminUser (ADMIN_EMAILS env)
   slug.ts                 # slug helper
   supabase/               # client.ts (browser), server.ts (RSC), admin.ts (service-role, SERVER ONLY), middleware.ts
@@ -164,6 +165,20 @@ them re-opens real vulnerabilities:
 7. **Known deferred / cleanup** (see `PROJECT_REVIEW.md`): limited-inventory oversell race
    (low priority at pilot scale) and unused `cooks.latitude/longitude`. (Dead
    `browse-filters.tsx` and the committed `.fuse_hidden*` junk were removed Jul 2026.)
+8. **Sales tax is tax-INCLUDED for the pilot** (migration 23, Jul 2026). Hot prepared
+   food is CA-taxable (CDTFA Reg. 1603); each cook remits on their own CDTFA seller's
+   permit (collected in the wizard, stored on `cook_private` — never move it to the
+   public `cooks` table). The taxability flag is `listings.served_hot`, asked as "How
+   is it served?" and shown to **MEHKO cooks only** — cottage bakers see zero tax UI
+   (cottage law covers only shelf-stable foods). It's snapshotted onto
+   `order_items.served_hot` at checkout so later listing edits can't rewrite tax
+   history. The dashboard Taxes card + `/dashboard/taxes/export` CSV derive the cook's
+   quarterly numbers via `lib/tax.ts`, whose Santa Clara city rates were hand-verified
+   against CDTFA on 2026-07-28 — re-check when CDTFA reposts (Jan/Apr/Jul/Oct). Buyers
+   see one checkout footnote ("Prices include any California sales tax"), never a tax
+   line. The marketplace-facilitator flip (HomePlate collecting tax at checkout) is
+   deliberately NOT built — it needs the CPA answer on whether a Santa Clara-based
+   facilitator must register regardless of the $500k remote-seller threshold.
 
 ## Current status & what's left to launch
 

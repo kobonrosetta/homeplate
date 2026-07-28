@@ -86,6 +86,20 @@ export async function insertListingFromForm(
   // food-photo gate below and render in their own strip on the kitchen page.
   const kind = formData.get("kind") === "extra" ? "extra" : "dish";
 
+  // CA taxability flag ("How is it served?"). Server-derived guard, never
+  // trusted from the form alone: only MEHKO kitchens can flag hot food
+  // (cottage-food law covers only shelf-stable items), and extras are never
+  // food. Cottage listings therefore always store false.
+  const { data: cookRow } = await supabase
+    .from("cooks")
+    .select("operation_type")
+    .eq("id", cookId)
+    .maybeSingle();
+  const servedHot =
+    kind === "dish" &&
+    cookRow?.operation_type === "mehko" &&
+    String(formData.get("served_hot") ?? "") === "true";
+
   if (!title || Number.isNaN(priceDollars) || priceDollars <= 0) {
     return "A title and a price above $0 are required.";
   }
@@ -155,6 +169,7 @@ export async function insertListingFromForm(
     title,
     category,
     kind,
+    served_hot: servedHot,
     price_cents: Math.round(priceDollars * 100),
     description: description || null,
     allergens: allergens || null,

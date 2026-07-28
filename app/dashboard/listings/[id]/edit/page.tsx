@@ -6,6 +6,7 @@ import { updateListing, saveListingOptions } from "../../actions";
 import NewListingForm from "@/components/new-listing-form";
 import OptionsEditor from "@/components/options-editor";
 import { MAX_GROUPS_PER_LISTING, MAX_OPTIONS_PER_GROUP } from "@/lib/options";
+import { taxRateForCity } from "@/lib/tax";
 
 export default async function EditListingPage({
   params,
@@ -59,6 +60,9 @@ export default async function EditListingPage({
         error={searchParams.error}
         hiddenId={listing.id}
         submitLabel="Save changes"
+        servedHotUI={cook.operation_type === "mehko"}
+        taxRate={taxRateForCity(cook.city)}
+        taxPlace={cook.city?.trim() || "Santa Clara County"}
         defaults={{
           title: listing.title,
           category: listing.category,
@@ -68,6 +72,8 @@ export default async function EditListingPage({
           allergens: listing.allergens ?? "",
           description: listing.description ?? "",
           leadTime: listing.lead_time_note ?? "",
+          servedHot: !!listing.served_hot,
+          isExtra: listing.kind === "extra",
         }}
       />
 

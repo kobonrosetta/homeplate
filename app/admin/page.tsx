@@ -92,10 +92,27 @@ export default async function AdminPage() {
 
   // Permit photos live in the private "permits" bucket — turn each stored path
   // into a short-lived signed URL (service role) so the reviewer can open it.
-  const { data: privRows } = await db
-    .from("cook_private")
-    .select("cook_id, permit_photo_path")
-    .in("cook_id", list.map((c: any) => c.id));
+  // (cdtfa_permit rides along; the fallback select keeps permit-photo review
+  // working if migration 23 hasn't been applied yet.)
+  let privRows: any[] | null = (
+    await db
+      .from("cook_private")
+      .select("cook_id, permit_photo_path, cdtfa_permit")
+      .in("cook_id", list.map((c: any) => c.id))
+  ).data;
+  if (!privRows) {
+    privRows = (
+      await db
+        .from("cook_private")
+        .select("cook_id, permit_photo_path")
+        .in("cook_id", list.map((c: any) => c.id))
+    ).data;
+  }
+  const cdtfaByCook = new Map(
+    (privRows ?? [])
+      .filter((r: any) => r.cdtfa_permit)
+      .map((r: any) => [r.cook_id, r.cdtfa_permit])
+  );
   const photoPathByCook = new Map(
     (privRows ?? [])
       .filter((r: any) => r.permit_photo_path)
@@ -208,6 +225,17 @@ export default async function AdminPage() {
                       {c.permit_number || "—"} · {c.operation_type}
                       {c.city ? ` · ${c.city}` : ""}
                     </p>
+                    {c.operation_type === "mehko" &&
+                      (cdtfaByCook.get(c.id) ? (
+                        <p className="mt-0.5 text-xs text-emerald-700">
+                          ✓ CDTFA seller&apos;s permit {cdtfaByCook.get(c.id)}
+                        </p>
+                      ) : (
+                        <p className="mt-0.5 text-xs text-muted">
+                          – no CDTFA seller&apos;s permit yet (hot-food sales
+                          tax)
+                        </p>
+                      ))}
                     {(() => {
                       const p = photoPathByCook.get(c.id);
                       const url = p ? signedByPath.get(p as string) : undefined;
