@@ -28,5 +28,16 @@ export async function GET(request: Request) {
     }
   }
 
+  // A failed exchange on the password-reset path almost always means the link
+  // expired or was already used — send them back to request a fresh one, not to
+  // the login page they couldn't get past in the first place.
+  if (next === "/reset-password") {
+    return NextResponse.redirect(
+      `${base}/forgot-password?error=${encodeURIComponent(
+        "That reset link has expired or already been used — request a new one."
+      )}`
+    );
+  }
+
   return NextResponse.redirect(`${base}/login?error=Could not sign you in`);
 }

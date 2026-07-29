@@ -58,7 +58,10 @@ export default function SignupForm({
       {!selling && (
         <p className="pt-1 text-center text-sm text-muted">
           Run a permitted kitchen?{" "}
-          <Link href="/sell" className="font-medium text-brand hover:underline">
+          <Link
+            href="/signup?intent=sell"
+            className="font-medium text-brand hover:underline"
+          >
             Apply to sell →
           </Link>
         </p>

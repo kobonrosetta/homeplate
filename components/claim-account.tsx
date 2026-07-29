@@ -24,8 +24,8 @@ export default function ClaimAccount({ defaultEmail }: { defaultEmail: string })
   }
 
   async function claim() {
-    if (!email || password.length < 6) {
-      setErr("Enter your email and a password of at least 6 characters.");
+    if (!email || password.length < 8) {
+      setErr("Enter your email and a password of at least 8 characters.");
       return;
     }
     setBusy(true);
@@ -56,7 +56,7 @@ export default function ClaimAccount({ defaultEmail }: { defaultEmail: string })
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Create a password"
+          placeholder="Create a password (at least 8 characters)"
           className="w-full rounded-lg border border-line bg-card px-3 py-2 text-sm text-ink outline-none focus:border-muted"
         />
         <button
