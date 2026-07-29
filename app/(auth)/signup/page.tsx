@@ -24,7 +24,7 @@ export default function SignupPage({
       <p className="mt-1 text-muted">
         {selling
           ? "One quick account, then straight into your kitchen application."
-          : "Order from local kitchens — or start your own."}
+          : "Order from local kitchens near you."}
       </p>
 
       {searchParams.error && (

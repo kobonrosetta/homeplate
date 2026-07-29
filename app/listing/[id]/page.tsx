@@ -102,7 +102,7 @@ export default async function ListingPage({
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <Link href="/browse" className="text-sm text-muted hover:text-ink">
-        ← Back to browse
+        ← Back
       </Link>
 
       <div className="mt-4 grid gap-8 sm:grid-cols-2">

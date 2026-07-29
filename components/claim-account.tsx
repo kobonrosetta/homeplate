@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -16,9 +17,12 @@ export default function ClaimAccount({ defaultEmail }: { defaultEmail: string })
   if (done) {
     return (
       <div className="mt-6 rounded-xl border border-line bg-card p-4 text-sm text-ink">
-        ✓ Almost done — we sent a confirmation link to your email. Click it to
-        finish creating your account, then find this order anytime under
-        &ldquo;Purchases.&rdquo;
+        ✓ Your order is saved. We emailed you a link to confirm your account —
+        click it to finish, then find this and future orders under{" "}
+        <Link href="/orders" className="font-medium text-brand hover:underline">
+          Purchases
+        </Link>
+        .
       </div>
     );
   }
