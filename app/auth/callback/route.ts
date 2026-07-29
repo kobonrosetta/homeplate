@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { safeNext } from "@/lib/safe-next";
 
 // Handles the email-confirmation / magic-link redirect from Supabase.
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/";
+  // `next` can come from a public link (OAuth redirectTo), so validate it as
+  // an internal path — never redirect to an attacker-supplied absolute URL.
+  const next = safeNext(searchParams.get("next"), "/");
 
   // Behind a host like Render, request.url is the *internal* address
   // (e.g. http://localhost:10000), so redirecting to its origin sends the user

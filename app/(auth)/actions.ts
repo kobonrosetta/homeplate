@@ -4,8 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { safeNext } from "@/lib/safe-next";
 
 export async function login(formData: FormData) {
+  // Where to land after signing in (e.g. back to the kitchen a guest wanted
+  // to follow). Validated as an internal path; defaults home.
+  const next = safeNext(formData.get("next") as string | null, "/");
   const supabase = createClient();
   const { error } = await supabase.auth.signInWithPassword({
     email: String(formData.get("email")),
@@ -13,15 +17,25 @@ export async function login(formData: FormData) {
   });
 
   if (error) {
-    redirect("/login?error=" + encodeURIComponent(error.message));
+    redirect(
+      "/login?error=" +
+        encodeURIComponent(error.message) +
+        (next !== "/" ? `&next=${encodeURIComponent(next)}` : "")
+    );
   }
 
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect(next);
 }
 
 export async function signup(formData: FormData) {
   const intent = String(formData.get("intent") ?? "order");
+  // An explicit `next` (e.g. a kitchen a guest wanted to follow) wins over the
+  // intent-based default. Validated as an internal path.
+  const next = safeNext(
+    formData.get("next") as string | null,
+    intent === "sell" ? "/sell" : "/browse"
+  );
   const supabase = createClient();
   const { error } = await supabase.auth.signUp({
     email: String(formData.get("email")),
@@ -35,12 +49,15 @@ export async function signup(formData: FormData) {
     redirect(
       "/signup?error=" +
         encodeURIComponent(error.message) +
-        (intent === "sell" ? "&intent=sell" : "")
+        (intent === "sell" ? "&intent=sell" : "") +
+        (next !== "/browse" && next !== "/sell"
+          ? `&next=${encodeURIComponent(next)}`
+          : "")
     );
   }
 
   revalidatePath("/", "layout");
-  redirect(intent === "sell" ? "/sell" : "/browse");
+  redirect(next);
 }
 
 export async function signout() {

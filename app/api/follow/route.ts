@@ -8,9 +8,9 @@ import { createClient } from "@/lib/supabase/server";
 // confirmed" with the couldn't-verify fallback. A plain endpoint touches
 // nothing but the follows row.
 //
-// Same trust model as the kitchen page's toggleFollow: identity comes from
-// the session (guests rejected — no email to alert), the email snapshot from
-// the auth user, and RLS enforces owner-only rows + active-kitchen targets.
+// Trust model: identity comes from the session (guests rejected — no email to
+// alert), the email snapshot from the auth user, and RLS enforces owner-only
+// rows + active-kitchen targets.
 export async function POST(req: Request) {
   const supabase = createClient();
   const {
