@@ -1,7 +1,6 @@
 import { checkPhotoImage } from "@/lib/ai";
 import { MIN_PHOTO_SCORE } from "@/lib/constants";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notifyFollowersOfNewDish } from "@/lib/follows";
 
 // All storage writes go through the service role (this module is imported by
 // server actions only). The caller has already been authenticated and every
@@ -185,19 +184,10 @@ export async function insertListingFromForm(
     is_available: true,
   });
 
-  // A new dish is the thing worth announcing. Fire-and-forget: the cook's
-  // submit must not block on email round-trips. Safe because the notifier
-  // never throws (it logs its own failures) and Render runs a persistent
-  // Node process, so the promise finishes after the response is sent.
-  // Extras (packaging, lettering) aren't news.
-  if (!error && kind === "dish") {
-    void notifyFollowersOfNewDish(
-      cookId,
-      title,
-      Math.round(priceDollars * 100)
-    );
-  }
-
+  // Follower alerts are no longer sent inline. A new dish is created with
+  // announced_at = null (default) and the announce-dishes cron sweeps a
+  // posting session's dishes into ONE digest — so the 2nd–Nth dish of a
+  // session isn't lost the way the old 6h cooldown dropped them.
   return error ? error.message : null;
 }
 

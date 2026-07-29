@@ -4,7 +4,10 @@ Every schema change to the HomePlate Supabase project has been applied **by hand
 the Supabase SQL editor — this project does not use the Supabase CLI migration system.
 This file is the canonical record of what was run, in what order, and whether it's live.
 
-**Status: all 26 applied.** #26 applied + confirmed live 2026-07-29 (anon REST select
+**Status: 26 of 27 applied — #27 (`add-listing-announced.sql`) is NOT yet run.**
+Paste it into the SQL editor and run it *before* deploying the dish-digest code (the
+announce-dishes cron selects `listings.announced_at`). #26 applied + confirmed live
+2026-07-29 (anon REST select
 of `listings.ingredients` → 200 before the code merge). #25 applied + verified live 2026-07-29
 (nine REST checks: follow/unfollow, duplicate 409, pending-kitchen + forged-identity +
 anon-session blocked, cross-user read empty, guard column 400). #24 applied + verified
@@ -60,6 +63,7 @@ Project ref: `jycefrvkqybadwupokdn` (Santa Clara County pilot)
 | 24 | `pickup-windows.sql` | `cooks.pickup_windows text[]` — cook-defined pickup windows (edited in dashboard settings + the sell wizard), shown on the kitchen page and offered as the checkout pickup-time choices (the chosen window lands in the existing `orders.pickup_time`; no orders change). Also re-issues `enforce_cook_update_rules` (#17's trigger function) with `pickup_windows` on the editable allow-list — without that, the guard blocks a cook's own session from saving windows. Additive-only; run before deploying the code that selects it | ✅ |
 | 25 | `follows.sql` | Follow a kitchen + drop alerts — `follows` table (owner-only RLS: nobody can list a kitchen's followers; insert requires a non-anonymous session and an active target kitchen; `email` snapshotted server-side from the auth session since `profiles` has no email column) + `cooks.followers_notified_at` (service-role-written debounce stamp — one follower alert per 6h per kitchen, stamped before sending for at-most-once bias). Additive-only; run before deploying the code that uses it | ✅ |
 | 26 | `add-listing-ingredients.sql` | `listings.ingredients text` — optional cook-entered ingredient list, shown on the item page only when present. Buyer trust (allergy readers) + the one missing field for the future cottage-label generator. Additive-only; run before deploying the code that writes it | ✅ |
+| 27 | `add-listing-announced.sql` | `listings.announced_at timestamptz` — per-dish "announced to followers" flag for the digest sweep. Replaces the old inline alert whose 6h cooldown silently dropped the 2nd–Nth dish of a posting session; the `announce-dishes` cron now gathers a session's un-announced dishes into ONE digest. Backfills existing rows as announced so the first sweep doesn't blast the back catalogue. Additive-only; **run BEFORE deploying the digest code** | ⬜ |
 
 ## Replaying on a fresh database
 
