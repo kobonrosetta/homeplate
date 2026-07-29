@@ -25,25 +25,23 @@ export default async function Image({
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
+  // One round-trip: the cook plus their newest available photo as an embedded
+  // select — link-preview crawlers give this route only a few seconds, so
+  // every serial DB hop it doesn't make matters.
   const { data: cook } = await supabase
     .from("cooks")
-    .select("id, business_name, city, permit_verified")
+    .select("id, business_name, city, permit_verified, listings(photo_url)")
     .eq("slug", params.slug)
     .eq("status", "active")
+    .eq("listings.is_available", true)
+    .not("listings.photo_url", "is", null)
+    .order("created_at", { foreignTable: "listings", ascending: false })
+    .limit(1, { foreignTable: "listings" })
     .maybeSingle();
 
-  let photo: string | null = null;
-  if (cook) {
-    const { data: ls } = await supabase
-      .from("listings")
-      .select("photo_url")
-      .eq("cook_id", cook.id)
-      .eq("is_available", true)
-      .not("photo_url", "is", null)
-      .order("created_at", { ascending: false })
-      .limit(1);
-    photo = ls?.[0]?.photo_url ?? null;
-  }
+  const photo: string | null =
+    (cook?.listings as { photo_url: string }[] | undefined)?.[0]?.photo_url ??
+    null;
 
   const rawName = cook?.business_name ?? "HomePlate";
   const name =

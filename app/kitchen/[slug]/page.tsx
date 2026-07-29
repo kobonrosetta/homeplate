@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatUsd } from "@/lib/constants";
@@ -10,6 +11,22 @@ import { toggleFollow } from "./actions";
 
 export const dynamic = "force-dynamic";
 
+// One cook fetch per request, shared by generateMetadata and the page body —
+// they render in the same pass and used to issue two identical-row queries.
+// The active-only filter here IS the page's visibility rule; keep them one.
+const getActiveCook = cache(async (slug: string) => {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("cooks")
+    .select(
+      "id, business_name, slug, city, operation_type, permit_verified, bio, avatar_url, pickup_available, delivery_available, pickup_windows, cuisine_tags"
+    )
+    .eq("slug", slug)
+    .eq("status", "active")
+    .maybeSingle();
+  return data;
+});
+
 // The kitchen link IS the cook's storefront — when it lands in a WhatsApp
 // group or an Instagram bio it must unfurl like a real business: name,
 // description, and the branded card from ./opengraph-image (which Next wires
@@ -19,13 +36,7 @@ export async function generateMetadata({
 }: {
   params: { slug: string };
 }) {
-  const supabase = createClient();
-  const { data: cook } = await supabase
-    .from("cooks")
-    .select("business_name, bio, city, permit_verified")
-    .eq("slug", params.slug)
-    .eq("status", "active")
-    .maybeSingle();
+  const cook = await getActiveCook(params.slug);
   if (!cook) return {};
 
   const title = `${cook.business_name} — HomePlate`;
@@ -56,68 +67,69 @@ export default async function KitchenPage({
   params: { slug: string };
 }) {
   const supabase = createClient();
-  const { data: cook } = await supabase
-    .from("cooks")
-    .select(
-      "id, business_name, slug, city, operation_type, permit_verified, bio, avatar_url, pickup_available, delivery_available, pickup_windows, cuisine_tags"
-    )
-    .eq("slug", params.slug)
-    .eq("status", "active")
-    .maybeSingle();
-
+  const cook = await getActiveCook(params.slug);
   if (!cook) notFound();
 
-  const { data: listings } = await supabase
-    .from("listings")
-    .select("*")
-    .eq("cook_id", cook.id)
-    .eq("is_available", true)
-    .order("created_at", { ascending: false });
+  // Everything below depends only on cook.id — three independent chains
+  // (menu → options, reviews, viewer → follow state) run concurrently
+  // instead of as five back-to-back round-trips.
+  const [menu, reviewsRes, follow] = await Promise.all([
+    (async () => {
+      const { data: listings } = await supabase
+        .from("listings")
+        .select("*")
+        .eq("cook_id", cook.id)
+        .eq("is_available", true)
+        .order("created_at", { ascending: false });
+      const all = listings ?? [];
+      // Listings with cook-defined options send the buyer to the item page
+      // to choose (size, character, …) instead of one-tap adding a base item.
+      const { data: groupRows } = all.length
+        ? await supabase
+            .from("listing_option_groups")
+            .select("listing_id")
+            .in(
+              "listing_id",
+              all.map((l: any) => l.id)
+            )
+        : { data: [] as any[] };
+      return { all, groupRows: groupRows ?? [] };
+    })(),
+    supabase
+      .from("reviews")
+      .select("rating, comment, created_at")
+      .eq("cook_id", cook.id)
+      .order("created_at", { ascending: false }),
+    // Follow state for the viewer. Guests (anonymous checkout sessions)
+    // can't follow — there's no email to alert — so they get a sign-up link.
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const canFollow = Boolean(user && !user.is_anonymous);
+      if (!canFollow) return { canFollow, following: false };
+      const { data: f } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("profile_id", user!.id)
+        .eq("cook_id", cook.id)
+        .maybeSingle();
+      return { canFollow, following: Boolean(f) };
+    })(),
+  ]);
 
-  const all = listings ?? [];
+  const all = menu.all;
   const items = all.filter((l: any) => (l.kind ?? "dish") === "dish");
   const extras = all.filter((l: any) => l.kind === "extra");
+  const hasOptions = new Set(menu.groupRows.map((g: any) => g.listing_id));
 
-  // Listings with cook-defined options send the buyer to the item page to
-  // choose (size, character, …) instead of one-tap adding a base item.
-  const { data: groupRows } = all.length
-    ? await supabase
-        .from("listing_option_groups")
-        .select("listing_id")
-        .in(
-          "listing_id",
-          all.map((l: any) => l.id)
-        )
-    : { data: [] as any[] };
-  const hasOptions = new Set((groupRows ?? []).map((g: any) => g.listing_id));
-
-  const { data: reviews } = await supabase
-    .from("reviews")
-    .select("rating, comment, created_at")
-    .eq("cook_id", cook.id)
-    .order("created_at", { ascending: false });
-  const revs = reviews ?? [];
+  const revs = reviewsRes.data ?? [];
   const reviewCount = revs.length;
   const avgRating = reviewCount
     ? revs.reduce((n: number, r: any) => n + r.rating, 0) / reviewCount
     : 0;
 
-  // Follow state for the viewer. Guests (anonymous checkout sessions) can't
-  // follow — there's no email to alert — so they get a sign-up link instead.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const canFollow = Boolean(user && !user.is_anonymous);
-  let following = false;
-  if (canFollow) {
-    const { data: f } = await supabase
-      .from("follows")
-      .select("id")
-      .eq("profile_id", user!.id)
-      .eq("cook_id", cook.id)
-      .maybeSingle();
-    following = Boolean(f);
-  }
+  const { canFollow, following } = follow;
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
