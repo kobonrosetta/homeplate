@@ -185,11 +185,17 @@ export async function insertListingFromForm(
     is_available: true,
   });
 
-  // A new dish is the thing worth announcing. Debounced + active-kitchens-only
-  // inside the notifier, and best-effort — a failed alert never fails the post.
+  // A new dish is the thing worth announcing. Fire-and-forget: the cook's
+  // submit must not block on email round-trips. Safe because the notifier
+  // never throws (it logs its own failures) and Render runs a persistent
+  // Node process, so the promise finishes after the response is sent.
   // Extras (packaging, lettering) aren't news.
   if (!error && kind === "dish") {
-    await notifyFollowersOfNewDish(cookId, title, Math.round(priceDollars * 100));
+    void notifyFollowersOfNewDish(
+      cookId,
+      title,
+      Math.round(priceDollars * 100)
+    );
   }
 
   return error ? error.message : null;
