@@ -83,6 +83,20 @@ export default async function SettingsPage({
           />
 
           <div>
+            <TextField
+              label="Your name"
+              name="owner_name"
+              defaultValue={cook.owner_name ?? ""}
+              placeholder="e.g. Maria"
+            />
+            <p className="mt-1 text-xs text-faint">
+              Shown on your storefront as the person behind the kitchen (“Meet
+              the cook”). A first name is perfect — buyers trust a name and a
+              face far more than a logo.
+            </p>
+          </div>
+
+          <div>
             <SelectField
               label="Operation type"
               name="operation_type"
@@ -98,7 +112,20 @@ export default async function SettingsPage({
             </p>
           </div>
 
-          <TextArea label="Short bio" name="bio" rows={3} defaultValue={cook.bio ?? ""} />
+          <div>
+            <TextArea
+              label="Your story"
+              name="bio"
+              rows={4}
+              defaultValue={cook.bio ?? ""}
+              placeholder="How you got started, what you love to make, what makes your food yours…"
+            />
+            <p className="mt-1 text-xs text-faint">
+              This is what buyers read under “Meet the cook.” A few honest
+              sentences do more to win a first order than anything else on the
+              page.
+            </p>
+          </div>
 
           <div className="block">
             <span className="text-sm font-medium text-ink">Your photo</span>
@@ -120,6 +147,29 @@ export default async function SettingsPage({
               {cook.avatar_url
                 ? "Upload to replace your photo."
                 : "A friendly face builds trust with buyers."}
+            </p>
+          </div>
+
+          <div className="block">
+            <span className="text-sm font-medium text-ink">Cover photo</span>
+            {cook.cover_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={cook.cover_url}
+                alt=""
+                className="mt-1 aspect-[16/6] w-full rounded-lg object-cover"
+              />
+            )}
+            <input
+              name="cover"
+              type="file"
+              accept="image/*"
+              className="mt-2 block w-full text-sm text-muted file:mr-4 file:rounded-full file:border-0 file:bg-line file:px-4 file:py-2 file:text-sm file:font-medium hover:file:bg-line"
+            />
+            <p className="mt-1 text-xs text-faint">
+              {cook.cover_url
+                ? "Upload to replace the banner across the top of your storefront."
+                : "The wide banner across the top of your storefront — a bright, appetizing shot of your food or table sets the tone."}
             </p>
           </div>
 

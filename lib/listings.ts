@@ -225,6 +225,30 @@ export async function uploadCookAvatar(
   return storage.from("listing-photos").getPublicUrl(path).data.publicUrl;
 }
 
+// Upload a cook's storefront cover photo — the wide banner across the top of
+// their kitchen page. Same public bucket + validation as the avatar, no food
+// quality gate (it's a vibe shot — kitchen, table, a spread — not a single
+// dish to score). Returns the public URL, or null if no/invalid file.
+export async function uploadCookCover(
+  supabase: any,
+  cookId: string,
+  formData: FormData
+): Promise<string | null> {
+  const file = formData.get("cover");
+  if (!(file instanceof File) || file.size === 0 || photoProblem(file)) {
+    return null;
+  }
+  const storage = adminStorage();
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const path = `${cookId}/cover-${crypto.randomUUID()}.${ext}`;
+  const { error } = await storage.from("listing-photos").upload(path, file, {
+    contentType: file.type || "image/jpeg",
+    upsert: false,
+  });
+  if (error) return null;
+  return storage.from("listing-photos").getPublicUrl(path).data.publicUrl;
+}
+
 // Upload an (optional) photo of the cook's physical permit. Goes to the PRIVATE
 // "permits" bucket — it shows the holder's name/address, so it must never be
 // publicly readable. Returns the storage PATH (admins view it via a short-lived
