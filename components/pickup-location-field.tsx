@@ -24,7 +24,7 @@ export default function PickupLocationField({
   const [location, setLocation] = useState(defaultValue);
 
   return (
-    <div className="space-y-3 rounded-lg border border-line p-4">
+    <div className="space-y-3 border-t border-line pt-4">
       <p className="text-sm font-medium text-ink">
         Where do buyers pick up their order?
       </p>
