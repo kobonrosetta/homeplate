@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { createClient } from "@supabase/supabase-js";
+import { loadOgFonts } from "@/lib/og-font";
 
 // The share card for a kitchen — what unfurls when the cook's link lands in a
 // WhatsApp group or an Instagram bio. Split layout: warm-editorial brand panel
@@ -34,6 +35,8 @@ export default async function Image({
     .eq("slug", params.slug)
     .eq("status", "active")
     .eq("listings.is_available", true)
+    // Food only — an 'extra' (gift ribbon, tote) must never be the hero image.
+    .eq("listings.kind", "dish")
     .not("listings.photo_url", "is", null)
     .order("created_at", { foreignTable: "listings", ascending: false })
     .limit(1, { foreignTable: "listings" })
@@ -49,6 +52,13 @@ export default async function Image({
   const badge = cook?.permit_verified
     ? `County-verified${cook.city ? ` · ${cook.city}` : ""}`
     : cook?.city || "Santa Clara County";
+
+  // Load a non-Latin font subset if the name needs one (glyph fallback fills
+  // the tofu gaps); ASCII names get [] and keep the built-in face. Scoped to
+  // every string the card draws so all glyphs are covered.
+  const fonts = await loadOgFonts(
+    `${name}${badge}HomePlateOrder ahead · pick up nearby`
+  );
 
   const Badge = (
     <div style={{ display: "flex" }}>
@@ -184,6 +194,8 @@ export default async function Image({
         />
       </div>
     ),
-    { ...size }
+    // Only override fonts when we actually loaded one — passing `fonts: []`
+    // disables next/og's bundled Latin default and breaks ASCII cards.
+    { ...size, ...(fonts.length ? { fonts } : {}) }
   );
 }
