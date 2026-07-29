@@ -39,7 +39,7 @@ export default async function BuyerOrdersPage() {
   const { data: orders } = await supabase
     .from("orders")
     .select(
-      "id, status, fulfillment, pickup_time, delivery_address, total_cents, created_at, cook_id, cooks(business_name, slug, city, pickup_location, profile_id), order_items(title, quantity, line_total_cents), reviews(rating, comment)"
+      "id, status, fulfillment, pickup_time, delivery_address, total_cents, created_at, cook_id, cooks(business_name, slug, city, profile_id), order_items(title, quantity, line_total_cents), reviews(rating, comment)"
     )
     .eq("buyer_id", user.id)
     .neq("status", "pending")
@@ -47,20 +47,25 @@ export default async function BuyerOrdersPage() {
 
   const list = orders ?? [];
 
-  // The pickup street (owner-only cook_private) and the kitchen's contact phone
-  // (its profile) are assembled server-side with the admin client so a buyer's
-  // order carries the durable handoff details — batched over the cooks on the
-  // page, not per order.
+  // The pickup spot (home street, or a cook-chosen meetup point — both owner-
+  // only cook_private) and the kitchen's contact phone (its profile) are
+  // assembled server-side with the admin client so a buyer's order carries
+  // the durable handoff details, never shown pre-order — batched over the
+  // cooks on the page, not per order.
   const admin = createAdminClient();
   const cookIds = [...new Set(list.map((o: any) => o.cook_id).filter(Boolean))];
   const addrByCook = new Map<string, string | null>();
+  const spotByCook = new Map<string, string | null>();
   const phoneByProfile = new Map<string, string | null>();
   if (cookIds.length) {
     const { data: privs } = await admin
       .from("cook_private")
-      .select("cook_id, street_address")
+      .select("cook_id, street_address, pickup_location")
       .in("cook_id", cookIds);
-    for (const p of privs ?? []) addrByCook.set(p.cook_id, p.street_address);
+    for (const p of privs ?? []) {
+      addrByCook.set(p.cook_id, p.street_address);
+      spotByCook.set(p.cook_id, p.pickup_location);
+    }
     const profileIds = [
       ...new Set(
         list
@@ -106,7 +111,7 @@ export default async function BuyerOrdersPage() {
             const pickupAddr = pickupLocation(
               addrByCook.get(o.cook_id),
               cook?.city,
-              cook?.pickup_location
+              spotByCook.get(o.cook_id)
             );
             const kitchenPhone = cook?.profile_id
               ? phoneByProfile.get(cook.profile_id)?.trim() || null

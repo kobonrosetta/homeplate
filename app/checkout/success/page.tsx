@@ -70,21 +70,21 @@ export default async function CheckoutSuccessPage({
   if (order?.cook_id) {
     const { data: cook } = await admin
       .from("cooks")
-      .select("business_name, city, pickup_location")
+      .select("business_name, city")
       .eq("id", order.cook_id)
       .maybeSingle();
     kitchenName = cook?.business_name ?? "";
     if (order.fulfillment === "pickup") {
       const { data: priv } = await admin
         .from("cook_private")
-        .select("street_address")
+        .select("street_address, pickup_location")
         .eq("cook_id", order.cook_id)
         .maybeSingle();
-      // Cook-published spot wins; else the private home address (post-order).
+      // Cook-chosen spot wins; else the private home address (post-order).
       pickupAddress = pickupLocation(
         priv?.street_address,
         cook?.city,
-        cook?.pickup_location
+        priv?.pickup_location
       );
     }
   }

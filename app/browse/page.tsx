@@ -13,7 +13,7 @@ export default async function BrowsePage() {
   const { data: cooksData } = await supabase
     .from("cooks")
     .select(
-      "id, business_name, slug, city, neighborhood, pickup_location, permit_verified, cuisine_tags, listings(id, photo_url, is_available, price_cents, limited_quantity, quantity_available, kind), reviews(rating)"
+      "id, business_name, slug, city, neighborhood, permit_verified, cuisine_tags, listings(id, photo_url, is_available, price_cents, limited_quantity, quantity_available, kind), reviews(rating)"
     )
     .eq("status", "active")
     .order("business_name", { ascending: true })
@@ -39,7 +39,7 @@ export default async function BrowsePage() {
         name: c.business_name,
         slug: c.slug,
         city: c.city,
-        area: publicArea(c.pickup_location, c.neighborhood, c.city),
+        area: publicArea(c.neighborhood, c.city),
         verified: c.permit_verified,
         tags: (c.cuisine_tags ?? []) as string[],
         count: avail.length,
