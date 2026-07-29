@@ -68,155 +68,168 @@ export default async function SettingsPage({
         </form>
       )}
 
-      <form action={updateKitchen} className="mt-4 space-y-5">
+      <form action={updateKitchen} className="mt-4 space-y-8">
         <FormError message={searchParams.error} />
 
-        <TextField
-          label="Kitchen / business name"
-          name="business_name"
-          required
-          defaultValue={cook.business_name}
-        />
+        {/* ── The basics ─────────────────────────────────── */}
+        <section className="space-y-5">
+          <SectionHeader>The basics</SectionHeader>
 
-        <div>
-          <SelectField
-            label="Operation type"
-            name="operation_type"
-            defaultValue={cook.operation_type}
-            options={[
-              { value: "cottage", label: "Cottage food (baked goods, jams, shelf-stable)" },
-              { value: "mehko", label: "MEHKO (hot home-cooked meals)" },
-            ]}
+          <TextField
+            label="Kitchen / business name"
+            name="business_name"
+            required
+            defaultValue={cook.business_name}
           />
-          <p className="mt-1 text-xs text-faint">
-            This affects how sales tax is handled — only MEHKO (hot food) sees
-            the tax tools. Change it only if your permit type changed.
-          </p>
-        </div>
 
-        <TextArea label="Short bio" name="bio" rows={3} defaultValue={cook.bio ?? ""} />
-
-        <div className="block">
-          <span className="text-sm font-medium text-ink">Your photo</span>
-          {cook.avatar_url && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={cook.avatar_url}
-              alt=""
-              className="mt-1 h-16 w-16 rounded-full object-cover"
-            />
-          )}
-          <input
-            name="avatar"
-            type="file"
-            accept="image/*"
-            className="mt-2 block w-full text-sm text-muted file:mr-4 file:rounded-full file:border-0 file:bg-line file:px-4 file:py-2 file:text-sm file:font-medium hover:file:bg-line"
-          />
-          <p className="mt-1 text-xs text-faint">
-            {cook.avatar_url
-              ? "Upload to replace your photo."
-              : "A friendly face builds trust with buyers."}
-          </p>
-        </div>
-
-        <TextField
-          label="Street address"
-          name="street_address"
-          required
-          defaultValue={priv?.street_address ?? ""}
-        />
-        <p className="-mt-3 text-xs text-faint">
-          Kept private — buyers only see your city until they place an order.
-        </p>
-
-        {cook.operation_type === "mehko" && (
           <div>
-            <TextField
-              label="CDTFA seller's permit number (for sales tax)"
-              name="cdtfa_permit"
-              defaultValue={priv?.cdtfa_permit ?? ""}
-              placeholder="e.g. 123-456789"
+            <SelectField
+              label="Operation type"
+              name="operation_type"
+              defaultValue={cook.operation_type}
+              options={[
+                { value: "cottage", label: "Cottage food (baked goods, jams, shelf-stable)" },
+                { value: "mehko", label: "MEHKO (hot home-cooked meals)" },
+              ]}
             />
             <p className="mt-1 text-xs text-faint">
-              Kept private. Needed to collect and remit California sales tax on
-              hot food. Free at{" "}
-              <a
-                href="https://www.cdtfa.ca.gov"
-                target="_blank"
-                rel="noreferrer"
-                className="underline hover:text-ink"
-              >
-                cdtfa.ca.gov
-              </a>
-              .
+              Sets how sales tax works — only MEHKO (hot food) sees the tax
+              tools. Change it only if your permit type changed.
             </p>
           </div>
-        )}
 
-        <div className="grid grid-cols-2 gap-4">
-          <TextField label="City" name="city" required defaultValue={cook.city ?? ""} />
-          <TextField label="ZIP" name="zip" defaultValue={cook.zip ?? ""} />
-        </div>
+          <TextArea label="Short bio" name="bio" rows={3} defaultValue={cook.bio ?? ""} />
 
-        <div>
+          <div className="block">
+            <span className="text-sm font-medium text-ink">Your photo</span>
+            {cook.avatar_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={cook.avatar_url}
+                alt=""
+                className="mt-1 h-16 w-16 rounded-full object-cover"
+              />
+            )}
+            <input
+              name="avatar"
+              type="file"
+              accept="image/*"
+              className="mt-2 block w-full text-sm text-muted file:mr-4 file:rounded-full file:border-0 file:bg-line file:px-4 file:py-2 file:text-sm file:font-medium hover:file:bg-line"
+            />
+            <p className="mt-1 text-xs text-faint">
+              {cook.avatar_url
+                ? "Upload to replace your photo."
+                : "A friendly face builds trust with buyers."}
+            </p>
+          </div>
+
           <TextField
-            label="Neighborhood (optional)"
-            name="neighborhood"
-            defaultValue={cook.neighborhood ?? ""}
-            placeholder="e.g. West Sunnyvale"
+            label="Cuisine tags (comma separated)"
+            name="cuisine_tags"
+            defaultValue={tags}
           />
-          <p className="mt-1 text-xs text-faint">
-            Buyers see this so they can tell if you&apos;re nearby — never your
-            exact address.
-          </p>
-        </div>
+        </section>
 
-        <TextField
-          label="Cuisine tags (comma separated)"
-          name="cuisine_tags"
-          defaultValue={tags}
-        />
+        {/* ── Where you are ──────────────────────────────── */}
+        <section className="space-y-5">
+          <SectionHeader>Where you are</SectionHeader>
 
-        <div>
-          <TextField
-            label="Contact phone"
-            name="contact_phone"
-            type="tel"
-            defaultValue={profile?.phone ?? ""}
-            placeholder="(408) 555-0139"
-          />
-          <p className="mt-1 text-xs text-faint">
-            Shared with a buyer only after they order, so you can coordinate the
-            pickup or delivery. Leave blank to keep it private.
-          </p>
-        </div>
+          <div className="space-y-4">
+            <TextField
+              label="Street address"
+              name="street_address"
+              required
+              defaultValue={priv?.street_address ?? ""}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <TextField label="City" name="city" required defaultValue={cook.city ?? ""} />
+              <TextField label="ZIP" name="zip" defaultValue={cook.zip ?? ""} />
+            </div>
+            <TextField
+              label="Neighborhood (optional)"
+              name="neighborhood"
+              defaultValue={cook.neighborhood ?? ""}
+              placeholder="e.g. West Sunnyvale"
+            />
+            <p className="text-xs text-faint">
+              Shoppers only ever see your <span className="text-ink">city and neighborhood</span> —
+              never your street address. If you offer home pickup, your address is
+              shared with a buyer after they order; if you meet somewhere else, it&apos;s
+              never shared.
+            </p>
+          </div>
 
-        <div className="space-y-3 rounded-lg border border-line p-4">
-          <p className="text-sm font-medium text-ink">How do customers get their food?</p>
-          <CheckboxField
-            label="Pickup available"
-            name="pickup_available"
-            defaultChecked={cook.pickup_available}
-          />
-          <PickupWindowsField defaultValue={cook.pickup_windows ?? []} />
-          <CheckboxField
-            label="Delivery available"
-            name="delivery_available"
-            defaultChecked={cook.delivery_available}
-          />
-          <TextField
-            label="Delivery notes (optional)"
-            name="delivery_notes"
-            defaultValue={cook.delivery_notes ?? ""}
-          />
-        </div>
+          {cook.operation_type === "mehko" && (
+            <div>
+              <TextField
+                label="CDTFA seller's permit number"
+                name="cdtfa_permit"
+                defaultValue={priv?.cdtfa_permit ?? ""}
+                placeholder="e.g. 123-456789"
+              />
+              <p className="mt-1 text-xs text-faint">
+                Private — for remitting California sales tax on hot food. Free at{" "}
+                <a
+                  href="https://www.cdtfa.ca.gov"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline hover:text-ink"
+                >
+                  cdtfa.ca.gov
+                </a>
+                .
+              </p>
+            </div>
+          )}
+        </section>
 
-        <PickupLocationField
-          defaultValue={priv?.pickup_location ?? ""}
-          homeAddress={
-            [priv?.street_address, cook.city].filter(Boolean).join(", ") || ""
-          }
-        />
+        {/* ── How buyers get their food ──────────────────── */}
+        <section className="space-y-5">
+          <SectionHeader>How buyers get their food</SectionHeader>
+
+          <div className="space-y-4 rounded-lg border border-line p-4">
+            <div className="space-y-3">
+              <CheckboxField
+                label="Pickup available"
+                name="pickup_available"
+                defaultChecked={cook.pickup_available}
+              />
+              <PickupWindowsField defaultValue={cook.pickup_windows ?? []} />
+              <PickupLocationField
+                defaultValue={priv?.pickup_location ?? ""}
+                homeAddress={
+                  [priv?.street_address, cook.city].filter(Boolean).join(", ") || ""
+                }
+              />
+            </div>
+            <div className="space-y-3 border-t border-line pt-4">
+              <CheckboxField
+                label="Delivery available"
+                name="delivery_available"
+                defaultChecked={cook.delivery_available}
+              />
+              <TextField
+                label="Delivery notes (optional)"
+                name="delivery_notes"
+                defaultValue={cook.delivery_notes ?? ""}
+              />
+            </div>
+          </div>
+
+          <div>
+            <TextField
+              label="Contact phone"
+              name="contact_phone"
+              type="tel"
+              defaultValue={profile?.phone ?? ""}
+              placeholder="(408) 555-0139"
+            />
+            <p className="mt-1 text-xs text-faint">
+              Shared with a buyer only after they order, to coordinate the
+              handoff. Leave blank to keep it private.
+            </p>
+          </div>
+        </section>
 
         <SubmitButton>Save changes</SubmitButton>
       </form>
@@ -226,5 +239,13 @@ export default async function SettingsPage({
         update your permit.
       </p>
     </div>
+  );
+}
+
+function SectionHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <h3 className="text-xs font-semibold uppercase tracking-wide text-faint">
+      {children}
+    </h3>
   );
 }
