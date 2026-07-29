@@ -3,7 +3,11 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { uploadCookAvatar, readPickupWindows } from "@/lib/listings";
+import {
+  uploadCookAvatar,
+  uploadCookCover,
+  readPickupWindows,
+} from "@/lib/listings";
 
 export async function updateKitchen(formData: FormData) {
   const supabase = createClient();
@@ -13,6 +17,7 @@ export async function updateKitchen(formData: FormData) {
   if (!user) redirect("/login");
 
   const businessName = String(formData.get("business_name") ?? "").trim();
+  const ownerName = String(formData.get("owner_name") ?? "").trim();
   const operationType = String(formData.get("operation_type") ?? "cottage");
   const bio = String(formData.get("bio") ?? "").trim();
   const streetAddress = String(formData.get("street_address") ?? "").trim();
@@ -55,6 +60,7 @@ export async function updateKitchen(formData: FormData) {
     .from("cooks")
     .update({
       business_name: businessName,
+      owner_name: ownerName || null,
       operation_type: operationType,
       bio: bio || null,
       city: city || null,
@@ -101,6 +107,13 @@ export async function updateKitchen(formData: FormData) {
       await supabase
         .from("cooks")
         .update({ avatar_url: avatarUrl })
+        .eq("id", cookRow.id);
+    }
+    const coverUrl = await uploadCookCover(supabase, cookRow.id, formData);
+    if (coverUrl) {
+      await supabase
+        .from("cooks")
+        .update({ cover_url: coverUrl })
         .eq("id", cookRow.id);
     }
   }

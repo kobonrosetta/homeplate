@@ -21,7 +21,7 @@ const getActiveCook = cache(async (slug: string) => {
   const { data } = await supabase
     .from("cooks")
     .select(
-      "id, business_name, slug, city, neighborhood, operation_type, permit_verified, bio, avatar_url, pickup_available, delivery_available, pickup_windows, cuisine_tags"
+      "id, business_name, owner_name, slug, city, neighborhood, operation_type, permit_verified, bio, avatar_url, cover_url, created_at, pickup_available, delivery_available, pickup_windows, cuisine_tags"
     )
     .eq("slug", slug)
     .eq("status", "active")
@@ -133,51 +133,58 @@ export default async function KitchenPage({
 
   const { canFollow, following } = follow;
 
+  // The storefront leads with food: a cook-set cover photo if they have one,
+  // else the first dish photo (browse only surfaces kitchens with in-stock
+  // dishes, so there's essentially always one). Cook portrait + join month
+  // power the "Meet the cook" block below.
+  const heroImage =
+    cook.cover_url || items.find((l: any) => l.photo_url)?.photo_url || null;
+  const joined = cook.created_at ? new Date(cook.created_at) : null;
+  const joinedLabel = joined
+    ? joined.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    : null;
+
   return (
-    <main className="mx-auto max-w-4xl px-6 py-10">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-start gap-4">
-          {cook.avatar_url && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={cook.avatar_url}
-              alt={cook.business_name}
-              className="h-16 w-16 shrink-0 rounded-full object-cover"
-            />
-          )}
-          <div>
+    <main className="mx-auto max-w-5xl px-6 pt-8 pb-16">
+      {/* Cover hero — the storefront's first impression. A cook-set cover wins;
+          otherwise the first dish photo stands in, so every kitchen leads with
+          food, not text. */}
+      {heroImage && (
+        <div className="relative mb-6 aspect-[16/7] overflow-hidden rounded-3xl bg-line sm:aspect-[16/6]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={heroImage}
+            alt={cook.business_name}
+            className="h-full w-full object-cover"
+          />
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <h1 className="text-3xl font-semibold text-ink">
               {cook.business_name}
             </h1>
-            <p className="mt-1 text-muted">
-              {[cook.neighborhood, cook.city].filter(Boolean).join(", ")}
-              {cook.neighborhood || cook.city ? " · " : ""}
-              {cook.operation_type === "mehko" ? "Home kitchen" : "Cottage food"}
-            </p>
-            {reviewCount > 0 ? (
-              <p className="mt-1 text-sm font-medium text-amber-600">
-                ★ {avgRating.toFixed(1)}{" "}
-                <span className="font-normal text-faint">
-                  ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
-                </span>
-              </p>
-            ) : (
-              <p className="mt-1 text-sm text-faint">New kitchen</p>
-            )}
+            {cook.permit_verified && <VerifiedBadge />}
           </div>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          {cook.permit_verified && (
-            <div className="text-right">
-              <VerifiedBadge />
-              <Link
-                href="/verified"
-                className="mt-1 block text-xs text-muted hover:text-ink"
-              >
-                What this means
-              </Link>
-            </div>
+          <p className="mt-1.5 text-muted">
+            {[cook.neighborhood, cook.city].filter(Boolean).join(", ")}
+            {cook.neighborhood || cook.city ? " · " : ""}
+            {cook.operation_type === "mehko" ? "Home kitchen" : "Cottage food"}
+          </p>
+          {reviewCount > 0 ? (
+            <p className="mt-1 text-sm font-medium text-amber-600">
+              ★ {avgRating.toFixed(1)}{" "}
+              <span className="font-normal text-faint">
+                ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
+              </span>
+            </p>
+          ) : (
+            <p className="mt-1 text-sm text-faint">New kitchen</p>
           )}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
           {canFollow ? (
             // Client toggle (hits /api/follow) rather than a server action:
             // it surfaces a rejected follow (e.g. kitchen just paused) as a
@@ -192,17 +199,13 @@ export default async function KitchenPage({
               ♡ Follow
             </Link>
           )}
+          <p className="max-w-[11rem] text-right text-xs text-faint">
+            Followers get an email when new dishes are posted.
+          </p>
         </div>
       </div>
-      <p className="mt-1 text-right text-xs text-faint">
-        Followers get an email when new dishes are posted.
-      </p>
 
-      {cook.bio && (
-        <p className="mt-4 max-w-2xl leading-relaxed text-ink">{cook.bio}</p>
-      )}
-
-      <div className="mt-3 flex flex-wrap gap-2 text-sm text-muted">
+      <div className="mt-4 flex flex-wrap gap-2 text-sm text-muted">
         {cook.pickup_available && (
           <span className="rounded-full bg-line px-3 py-1">Pickup</span>
         )}
@@ -223,12 +226,12 @@ export default async function KitchenPage({
         </p>
       )}
 
-      <h2 className="mt-10 text-lg font-semibold text-ink">Menu</h2>
+      <h2 className="mt-12 text-lg font-semibold text-ink">Menu</h2>
       <FeeNote className="mt-1" />
       {items.length === 0 ? (
         <div className="mt-4"><EmptyState title="No items available right now." /></div>
       ) : (
-        <div className="mt-4 grid gap-5 sm:grid-cols-2">
+        <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((l: any) => {
             const soldOut = l.limited_quantity && l.quantity_available <= 0;
             const lowStock =
@@ -238,23 +241,28 @@ export default async function KitchenPage({
             return (
               <div
                 key={l.id}
-                className={`flex gap-4 rounded-2xl border border-line bg-card p-4 shadow-soft transition hover:shadow-lift ${
+                className={`group flex flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-soft transition hover:shadow-lift ${
                   soldOut ? "opacity-60" : ""
                 }`}
               >
-                {l.photo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={l.photo_url}
-                    alt={l.title}
-                    className="h-24 w-24 shrink-0 rounded-lg object-cover"
-                  />
-                ) : (
-                  <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg bg-line text-3xl text-faint">
-                    🍽️
-                  </div>
-                )}
-                <div className="flex min-w-0 flex-1 flex-col">
+                <Link
+                  href={`/listing/${l.id}`}
+                  className="block aspect-[4/3] overflow-hidden bg-line"
+                >
+                  {l.photo_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={l.photo_url}
+                      alt={l.title}
+                      className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-4xl text-faint">
+                      🍽️
+                    </div>
+                  )}
+                </Link>
+                <div className="flex flex-1 flex-col p-4">
                   <Link
                     href={`/listing/${l.id}`}
                     className="font-display text-[17px] font-semibold leading-tight text-ink hover:underline"
@@ -274,7 +282,7 @@ export default async function KitchenPage({
                       Only {l.quantity_available} left
                     </p>
                   )}
-                  <div className="mt-auto flex items-center justify-between pt-2">
+                  <div className="mt-auto flex items-center justify-between pt-3">
                     <span className="font-semibold text-ink">
                       {hasOptions.has(l.id)
                         ? `from ${formatUsd(l.price_cents)}`
@@ -375,6 +383,66 @@ export default async function KitchenPage({
           </div>
         </>
       )}
+
+      {/* Meet the cook — who's behind the kitchen, the trust story a home-food
+          buyer actually decides on. Degrades gracefully: a monogram when
+          there's no photo, and it still carries the name + credentials when
+          there's no story yet. */}
+      <section className="mt-14 border-t border-line pt-10">
+        <h2 className="text-lg font-semibold text-ink">Meet the cook</h2>
+        <div className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-start">
+          {cook.avatar_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={cook.avatar_url}
+              alt={cook.owner_name || cook.business_name}
+              className="h-20 w-20 shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-brand/10 font-display text-2xl font-semibold text-brand">
+              {(cook.owner_name || cook.business_name || "?")
+                .trim()
+                .charAt(0)
+                .toUpperCase()}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-lg font-semibold text-ink">
+              {cook.owner_name || `The cook behind ${cook.business_name}`}
+            </p>
+            <p className="mt-0.5 text-sm text-muted">
+              Home cook{cook.city ? ` in ${cook.city}` : ""}
+              {joinedLabel ? ` · on HomePlate since ${joinedLabel}` : ""}
+            </p>
+            {cook.bio && (
+              <p className="mt-3 max-w-2xl leading-relaxed text-ink">
+                {cook.bio}
+              </p>
+            )}
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+              {cook.permit_verified && (
+                <span className="inline-flex items-center gap-2">
+                  <VerifiedBadge />
+                  <Link
+                    href="/verified"
+                    className="text-xs text-muted hover:text-ink"
+                  >
+                    What this means
+                  </Link>
+                </span>
+              )}
+              {reviewCount > 0 && (
+                <span className="text-sm font-medium text-amber-600">
+                  ★ {avgRating.toFixed(1)}{" "}
+                  <span className="font-normal text-faint">
+                    ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
+                  </span>
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
 
       <ReviewsSection reviews={revs} />
     </main>
