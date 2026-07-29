@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getCurrentCook } from "@/lib/cook";
 import { taxRateForCity } from "@/lib/tax";
 import { wizardSaveKitchen, wizardAddDish, wizardFinalize } from "./actions";
+import CookPitch from "./pitch";
 import NewListingForm from "@/components/new-listing-form";
 import {
   TextField,
@@ -20,9 +21,10 @@ export default async function SellPage({
 }: {
   searchParams: { step?: string; error?: string };
 }) {
+  // Not signed in (or just a guest-checkout session)? This is a prospective
+  // cook clicking "Apply to sell" — show the pitch, not a login wall.
   const { user, cook } = await getCurrentCook();
-  if (!user) redirect("/login");
-  if (user.is_anonymous) redirect("/signup");
+  if (!user || user.is_anonymous) return <CookPitch />;
 
   // Wizard already finished (permit submitted) → straight to the dashboard.
   if (cook?.permit_number) redirect("/dashboard");

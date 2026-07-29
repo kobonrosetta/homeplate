@@ -21,6 +21,7 @@ export async function login(formData: FormData) {
 }
 
 export async function signup(formData: FormData) {
+  const intent = String(formData.get("intent") ?? "order");
   const supabase = createClient();
   const { error } = await supabase.auth.signUp({
     email: String(formData.get("email")),
@@ -31,10 +32,13 @@ export async function signup(formData: FormData) {
   });
 
   if (error) {
-    redirect("/signup?error=" + encodeURIComponent(error.message));
+    redirect(
+      "/signup?error=" +
+        encodeURIComponent(error.message) +
+        (intent === "sell" ? "&intent=sell" : "")
+    );
   }
 
-  const intent = String(formData.get("intent") ?? "order");
   revalidatePath("/", "layout");
   redirect(intent === "sell" ? "/sell" : "/browse");
 }
