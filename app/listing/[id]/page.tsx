@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatUsd } from "@/lib/constants";
@@ -9,6 +10,26 @@ import OptionsPicker from "@/components/options-picker";
 
 export const dynamic = "force-dynamic";
 
+// One listing fetch per request, shared by generateMetadata and the page body
+// (they render in the same pass and used to issue two identical queries).
+// Returns { listing, cook } with the page's visibility rule applied.
+const getListing = cache(async (id: string) => {
+  const supabase = createClient();
+  const { data: listing } = await supabase
+    .from("listings")
+    .select(
+      "*, cooks!inner(id, business_name, slug, city, permit_verified, status, pickup_available, delivery_available, pickup_windows)"
+    )
+    .eq("id", id)
+    .eq("is_available", true)
+    .maybeSingle();
+  const cook: any = Array.isArray(listing?.cooks)
+    ? listing?.cooks[0]
+    : listing?.cooks;
+  if (!listing || !cook || cook.status !== "active") return null;
+  return { listing, cook };
+});
+
 // A dish link shared in a group chat should unfurl as the dish: photo, name,
 // kitchen, price — a menu item, not a bare URL.
 export async function generateMetadata({
@@ -16,19 +37,9 @@ export async function generateMetadata({
 }: {
   params: { id: string };
 }) {
-  const supabase = createClient();
-  const { data: listing } = await supabase
-    .from("listings")
-    .select(
-      "title, description, price_cents, photo_url, cooks!inner(business_name, status)"
-    )
-    .eq("id", params.id)
-    .eq("is_available", true)
-    .maybeSingle();
-  const cook: any = Array.isArray(listing?.cooks)
-    ? listing?.cooks[0]
-    : listing?.cooks;
-  if (!listing || !cook || cook.status !== "active") return {};
+  const found = await getListing(params.id);
+  if (!found) return {};
+  const { listing, cook } = found;
 
   const title = `${listing.title} — ${cook.business_name}`;
   const description = (
@@ -61,18 +72,9 @@ export default async function ListingPage({
   params: { id: string };
 }) {
   const supabase = createClient();
-  const { data: listing } = await supabase
-    .from("listings")
-    .select(
-      "*, cooks!inner(id, business_name, slug, city, permit_verified, status, pickup_available, delivery_available, pickup_windows)"
-    )
-    .eq("id", params.id)
-    .eq("is_available", true)
-    .maybeSingle();
-
-  if (!listing) notFound();
-  const cook = Array.isArray(listing.cooks) ? listing.cooks[0] : listing.cooks;
-  if (!cook || cook.status !== "active") notFound();
+  const found = await getListing(params.id);
+  if (!found) notFound();
+  const { listing, cook } = found;
 
   // Cook-defined options (size, character, …) — buyers pick before adding.
   const { data: groupRows } = await supabase
