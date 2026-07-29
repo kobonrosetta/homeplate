@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentCook } from "@/lib/cook";
 import { restockOrderItems } from "@/lib/orders";
 import { escapeHtml, sendEmail, wrapEmail } from "@/lib/email";
+import { formatUsd } from "@/lib/constants";
 
 // Target status -> the statuses an order may come FROM. Pending never appears:
 // an unpaid order can't be advanced, completed, or cancelled by a cook — only
@@ -46,30 +47,79 @@ export async function advanceOrder(formData: FormData) {
   // A cancelled order's limited items go back on the shelf.
   if (status === "cancelled") await restockOrderItems(orderId);
 
-  // Best-effort: tell the buyer their order is ready for pickup.
-  if (status === "ready") {
+  // Buyer-facing notifications on the transitions they care about. Best-effort
+  // — a failed email must never break the cook's status update.
+  if (status === "ready" || status === "cancelled") {
     try {
       const { data: order } = await supabase
         .from("orders")
-        .select("contact_email")
+        .select("contact_email, contact_name, fulfillment, total_cents")
         .eq("id", orderId)
         .maybeSingle();
-      if (order?.contact_email) {
+      const kitchen = cook?.business_name ?? "The kitchen";
+
+      if (status === "ready" && order?.contact_email) {
+        // Delivery orders aren't "ready for pickup" — they're on the way.
+        const delivery = order.fulfillment === "delivery";
         await sendEmail({
           to: order.contact_email,
-          subject: `Your order is ready${
-            cook?.business_name ? ` — ${cook.business_name}` : ""
-          }`,
+          subject: `${delivery ? "On the way" : "Ready for pickup"} — ${kitchen}`,
           html: wrapEmail(
-            `<h2>Your order is ready</h2>
-             <p>${escapeHtml(
-               cook?.business_name ?? "The kitchen"
-             )} has your order ready. Check your confirmation email for the pickup details.</p>`
+            delivery
+              ? `<h2>Your order is on the way</h2>
+                 <p>${escapeHtml(kitchen)} is delivering your order now.
+                 Your confirmation email has the delivery address and the
+                 kitchen's contact.</p>`
+              : `<h2>Your order is ready for pickup</h2>
+                 <p>${escapeHtml(kitchen)} has your order ready. Your
+                 confirmation email (and Purchases) has the pickup address,
+                 time, and the kitchen's contact.</p>`
           ),
         });
       }
+
+      if (status === "cancelled") {
+        // Tell the buyer, and — because refunds are MANUAL in the pilot
+        // (Stripe Connect isn't built) — alert the admins that money is owed
+        // so nobody's silently out of pocket.
+        if (order?.contact_email) {
+          await sendEmail({
+            to: order.contact_email,
+            subject: `Order cancelled — ${kitchen}`,
+            html: wrapEmail(
+              `<h2>Your order was cancelled</h2>
+               <p>${escapeHtml(kitchen)} had to cancel your order${
+                 order.contact_name
+                   ? `, ${escapeHtml(order.contact_name)}`
+                   : ""
+               }. You'll be refunded the full ${formatUsd(
+                 order.total_cents ?? 0
+               )} — reach out if you don't see it within a few days.</p>`
+            ),
+          });
+        }
+        const admins = (process.env.ADMIN_EMAILS ?? "")
+          .split(",")
+          .map((e) => e.trim())
+          .filter(Boolean);
+        if (admins.length > 0) {
+          await sendEmail({
+            to: admins,
+            subject: `Refund owed — cancelled order ${String(orderId).slice(0, 8)}`,
+            html: wrapEmail(
+              `<h2>Manual refund needed</h2>
+               <p>${escapeHtml(kitchen)} cancelled order <strong>${escapeHtml(
+                 String(orderId)
+               )}</strong>. Refund <strong>${formatUsd(
+                 order?.total_cents ?? 0
+               )}</strong> to the buyer in the Stripe dashboard (Connect isn't
+               built, so this isn't automatic).</p>`
+            ),
+          });
+        }
+      }
     } catch {
-      /* ignore */
+      /* notifications must never break the status update */
     }
   }
 

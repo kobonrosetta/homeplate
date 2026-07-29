@@ -17,13 +17,20 @@ export default async function SettingsPage({
 }: {
   searchParams: { error?: string };
 }) {
-  const { cook } = await getCurrentCook();
+  const { user, cook } = await getCurrentCook();
   const supabase = createClient();
   const { data: priv } = await supabase
     .from("cook_private")
     .select("street_address, cdtfa_permit")
     .eq("cook_id", cook.id)
     .maybeSingle();
+  const { data: profile } = user
+    ? await supabase
+        .from("profiles")
+        .select("phone")
+        .eq("id", user.id)
+        .maybeSingle()
+    : { data: null as { phone: string | null } | null };
   const tags = (cook.cuisine_tags ?? []).join(", ");
 
   return (
@@ -155,6 +162,20 @@ export default async function SettingsPage({
           name="cuisine_tags"
           defaultValue={tags}
         />
+
+        <div>
+          <TextField
+            label="Contact phone"
+            name="contact_phone"
+            type="tel"
+            defaultValue={profile?.phone ?? ""}
+            placeholder="(408) 555-0139"
+          />
+          <p className="mt-1 text-xs text-faint">
+            Shared with a buyer only after they order, so you can coordinate the
+            pickup or delivery. Leave blank to keep it private.
+          </p>
+        </div>
 
         <div className="space-y-3 rounded-lg border border-line p-4">
           <p className="text-sm font-medium text-ink">How do customers get their food?</p>

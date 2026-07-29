@@ -51,9 +51,20 @@ export async function wizardSaveKitchen(formData: FormData) {
   const delivery = formData.get("delivery_available") === "on";
   const deliveryNotes = String(formData.get("delivery_notes") ?? "").trim();
   const pickupWindows = readPickupWindows(formData);
+  const contactPhone = String(formData.get("contact_phone") ?? "").trim();
 
   if (!businessName) {
     redirect("/sell?error=" + encodeURIComponent("Please name your kitchen."));
+  }
+
+  // Buyer-visible-after-order contact phone lives on the profile. Empty-safe:
+  // the wizard only sets it (clearing is done in Settings), so re-visiting
+  // Step 1 without re-typing it can't wipe a saved number.
+  if (contactPhone) {
+    await supabase
+      .from("profiles")
+      .update({ phone: contactPhone })
+      .eq("id", user.id);
   }
 
   const basics = {

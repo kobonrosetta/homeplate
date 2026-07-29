@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { formatUsd } from "@/lib/constants";
+import { pickupLocation } from "@/lib/handoff";
 import ReviewForm from "@/components/review-form";
 import StatusPill from "@/components/status-pill";
 import EmptyState from "@/components/empty-state";
@@ -37,13 +39,45 @@ export default async function BuyerOrdersPage() {
   const { data: orders } = await supabase
     .from("orders")
     .select(
-      "id, status, fulfillment, total_cents, created_at, cook_id, cooks(business_name, slug), order_items(title, quantity, line_total_cents), reviews(rating, comment)"
+      "id, status, fulfillment, pickup_time, delivery_address, total_cents, created_at, cook_id, cooks(business_name, slug, city, profile_id), order_items(title, quantity, line_total_cents), reviews(rating, comment)"
     )
     .eq("buyer_id", user.id)
     .neq("status", "pending")
     .order("created_at", { ascending: false });
 
   const list = orders ?? [];
+
+  // The pickup street (owner-only cook_private) and the kitchen's contact phone
+  // (its profile) are assembled server-side with the admin client so a buyer's
+  // order carries the durable handoff details — batched over the cooks on the
+  // page, not per order.
+  const admin = createAdminClient();
+  const cookIds = [...new Set(list.map((o: any) => o.cook_id).filter(Boolean))];
+  const addrByCook = new Map<string, string | null>();
+  const phoneByProfile = new Map<string, string | null>();
+  if (cookIds.length) {
+    const { data: privs } = await admin
+      .from("cook_private")
+      .select("cook_id, street_address")
+      .in("cook_id", cookIds);
+    for (const p of privs ?? []) addrByCook.set(p.cook_id, p.street_address);
+    const profileIds = [
+      ...new Set(
+        list
+          .map((o: any) =>
+            (Array.isArray(o.cooks) ? o.cooks[0] : o.cooks)?.profile_id
+          )
+          .filter(Boolean)
+      ),
+    ] as string[];
+    if (profileIds.length) {
+      const { data: profs } = await admin
+        .from("profiles")
+        .select("id, phone")
+        .in("id", profileIds);
+      for (const pr of profs ?? []) phoneByProfile.set(pr.id, pr.phone);
+    }
+  }
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-10">
@@ -69,6 +103,16 @@ export default async function BuyerOrdersPage() {
             const cook = Array.isArray(o.cooks) ? o.cooks[0] : o.cooks;
             const label = statusLabel(o.status, o.fulfillment);
             const review = (o.reviews ?? [])[0];
+            const pickupAddr = pickupLocation(
+              addrByCook.get(o.cook_id),
+              cook?.city
+            );
+            const kitchenPhone = cook?.profile_id
+              ? phoneByProfile.get(cook.profile_id)?.trim() || null
+              : null;
+            // Handoff details matter until the order is done or cancelled.
+            const showHandoff =
+              o.status !== "cancelled" && o.status !== "completed";
             const date = new Date(o.created_at).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
@@ -106,6 +150,36 @@ export default async function BuyerOrdersPage() {
                     </li>
                   ))}
                 </ul>
+
+                {showHandoff && (
+                  <div className="mt-3 space-y-0.5 border-t border-line pt-3 text-sm">
+                    {o.fulfillment === "delivery" ? (
+                      <p className="text-ink">
+                        <span className="text-faint">Delivering to: </span>
+                        {o.delivery_address}
+                      </p>
+                    ) : (
+                      <p className="text-ink">
+                        <span className="text-faint">
+                          Pickup{o.pickup_time ? ` · ${o.pickup_time}` : ""}:{" "}
+                        </span>
+                        {pickupAddr ??
+                          "the kitchen will message you the address"}
+                      </p>
+                    )}
+                    {kitchenPhone && (
+                      <p className="text-ink">
+                        <span className="text-faint">Reach the kitchen: </span>
+                        <a
+                          href={`tel:${kitchenPhone}`}
+                          className="text-brand hover:underline"
+                        >
+                          {kitchenPhone}
+                        </a>
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="mt-3 border-t border-line pt-3 text-sm text-muted">
                   Total {formatUsd(o.total_cents)}
