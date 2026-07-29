@@ -1,0 +1,24 @@
+# Sweeps newly posted dishes into one digest email per kitchen for its
+# followers. Calls the app's announce endpoint every 15 minutes; the endpoint
+# decides which kitchens are due (session settled, rate limit clear) and sends.
+#
+# Setup: reuses the same CRON_SECRET repository secret as order-reminders
+# (GitHub → Settings → Secrets), matching the CRON_SECRET env var on Render.
+name: Announce dishes
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  announce:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the announce endpoint
+        run: |
+          # Generous timeout + retries ride out Render's free-tier cold start.
+          curl -sS --fail-with-body -X POST \
+            --max-time 120 --retry 3 --retry-delay 20 --retry-all-errors \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://homeplate-jyd2.onrender.com/api/cron/announce-dishes
