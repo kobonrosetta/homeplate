@@ -42,6 +42,7 @@ type Defaults = {
   quantity?: string;
   limited?: boolean;
   allergens?: string;
+  ingredients?: string;
   description?: string;
   leadTime?: string;
   servedHot?: boolean;
@@ -459,6 +460,23 @@ export default function NewListingForm({
         <p className="mt-1 text-xs text-faint">
           List anything a buyer with allergies must know — the AI can&apos;t know
           this, only you do.
+        </p>
+      </label>
+
+      <label className="block">
+        <span className="text-sm font-medium text-ink">
+          Ingredients (optional)
+        </span>
+        <textarea
+          name="ingredients"
+          rows={2}
+          defaultValue={defaults?.ingredients}
+          placeholder="e.g. flour, butter, sugar, eggs, vanilla"
+          className={inputClass}
+        />
+        <p className="mt-1 text-xs text-faint">
+          Shown on the item page when filled in. Baked goods: this is what your
+          cottage label lists anyway — buyers trust seeing it.
         </p>
       </label>
 
