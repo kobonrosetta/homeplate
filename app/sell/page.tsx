@@ -5,6 +5,7 @@ import { taxRateForCity } from "@/lib/tax";
 import { wizardSaveKitchen, wizardAddDish, wizardFinalize } from "./actions";
 import CookPitch from "./pitch";
 import NewListingForm from "@/components/new-listing-form";
+import PickupWindowsField from "@/components/pickup-windows-field";
 import {
   TextField,
   TextArea,
@@ -160,18 +161,7 @@ function Step1({ cook }: { cook: any }) {
             name="pickup_available"
             defaultChecked={cook?.pickup_available ?? true}
           />
-          <div>
-            <TextArea
-              label="Pickup times (one per line, optional)"
-              name="pickup_windows"
-              rows={2}
-              defaultValue={(cook?.pickup_windows ?? []).join("\n")}
-              placeholder={"Saturdays 4–6 PM"}
-            />
-            <p className="mt-1 text-xs text-faint">
-              You set the schedule — buyers pick one of these at checkout.
-            </p>
-          </div>
+          <PickupWindowsField defaultValue={cook?.pickup_windows ?? []} rows={2} />
           <CheckboxField
             label="Delivery available"
             name="delivery_available"

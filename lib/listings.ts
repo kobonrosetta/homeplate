@@ -67,6 +67,17 @@ export function readQuantity(formData: FormData): {
   return { limited, quantity };
 }
 
+// Cook-defined pickup windows: one per line, each trimmed + capped at 80 chars,
+// max 10, blanks dropped — so a paste-happy cook can't blow up checkout. Shared
+// by the sell wizard and dashboard settings (both write cooks.pickup_windows).
+export function readPickupWindows(formData: FormData): string[] {
+  return String(formData.get("pickup_windows") ?? "")
+    .split("\n")
+    .map((s) => s.trim().slice(0, 80))
+    .filter(Boolean)
+    .slice(0, 10);
+}
+
 // Create a listing for `cookId` from a submitted form (photo upload + the
 // authoritative AI quality gate). Returns an error message, or null on success.
 // No redirects — the caller (dashboard OR onboarding wizard) decides where to go.

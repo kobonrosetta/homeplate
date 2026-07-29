@@ -4,6 +4,7 @@ import { useState, type ChangeEvent } from "react";
 import { useFormStatus } from "react-dom";
 import { formatUsd } from "@/lib/constants";
 import { formatRate, netOfTaxCents } from "@/lib/tax";
+import { FormError } from "@/components/form";
 
 const inputClass =
   "mt-1 w-full rounded-lg border border-line px-4 py-2.5 text-ink outline-none focus:border-muted focus:ring-2 focus:ring-line";
@@ -184,9 +185,7 @@ export default function NewListingForm({
   return (
     <form action={action} className="mt-6 space-y-5">
       {hiddenId && <input type="hidden" name="id" value={hiddenId} />}
-      {error && (
-        <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
-      )}
+      {error && <FormError message={error} />}
 
       <label className="block">
         <span className="text-sm font-medium text-ink">Item name</span>

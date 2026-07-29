@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentCook } from "@/lib/cook";
 import { formatUsd } from "@/lib/constants";
 import { FormError } from "@/components/form";
+import EmptyState from "@/components/empty-state";
 import { toggleListing, deleteListing } from "../listings/actions";
 
 export default async function MenuPage({
@@ -37,9 +38,12 @@ export default async function MenuPage({
       </div>
 
       {items.length === 0 ? (
-        <p className="mt-6 rounded-lg border border-dashed border-line px-4 py-10 text-center text-muted">
-          No listings yet. Add your first item to start selling.
-        </p>
+        <div className="mt-6">
+          <EmptyState
+            title="No items yet."
+            subtitle="Add your first item to start selling."
+          />
+        </div>
       ) : (
         <ul className="mt-6 divide-y divide-line rounded-lg border border-line">
           {items.map((l: any) => (

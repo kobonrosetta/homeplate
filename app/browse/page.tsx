@@ -2,6 +2,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatUsd } from "@/lib/constants";
 import FeeNote from "@/components/fee-note";
+import VerifiedBadge from "@/components/verified-badge";
+import EmptyState from "@/components/empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -75,9 +77,7 @@ export default async function BrowsePage() {
       )}
 
       {kitchens.length === 0 ? (
-        <p className="mt-10 rounded-lg border border-dashed border-line px-4 py-16 text-center text-muted">
-          No kitchens open yet. Check back soon.
-        </p>
+        <div className="mt-10"><EmptyState title="No kitchens open yet." subtitle="Check back soon." /></div>
       ) : (
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {kitchens.map((k) => (
@@ -100,9 +100,7 @@ export default async function BrowsePage() {
                   </div>
                 )}
                 {k.verified && (
-                  <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/85 px-2.5 py-1 text-[11px] font-medium text-emerald-800 backdrop-blur-sm">
-                    ✓ Verified
-                  </span>
+                  <div className="absolute left-3 top-3"><VerifiedBadge variant="overlay" /></div>
                 )}
               </div>
               <div className="flex flex-1 flex-col p-5">

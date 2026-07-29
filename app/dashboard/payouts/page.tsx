@@ -2,6 +2,7 @@ import { getCurrentCook } from "@/lib/cook";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatUsd } from "@/lib/constants";
+import EmptyState from "@/components/empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -50,10 +51,12 @@ export default async function PayoutsPage() {
           Payment history
         </h3>
         {!payouts || payouts.length === 0 ? (
-          <p className="mt-2 rounded-xl border border-dashed border-line px-4 py-8 text-center text-sm text-muted">
-            No payouts yet — they&apos;ll show here once we&apos;ve sent your first
-            one.
-          </p>
+          <div className="mt-2">
+            <EmptyState
+              title="No payouts yet"
+              subtitle="They'll show here once we've sent your first one."
+            />
+          </div>
         ) : (
           <div className="mt-2 divide-y divide-line rounded-xl border border-line">
             {payouts.map((p: any, i: number) => (

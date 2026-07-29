@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { signup } from "../actions";
 import SignupForm from "@/components/signup-form";
+import { FormError } from "@/components/form";
 import { safeNext } from "@/lib/safe-next";
 
 export default function SignupPage({
@@ -27,9 +28,7 @@ export default function SignupPage({
       </p>
 
       {searchParams.error && (
-        <p className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-          {searchParams.error}
-        </p>
+        <FormError message={searchParams.error} className="mt-4" />
       )}
 
       <SignupForm action={signup} selling={selling} next={next} />

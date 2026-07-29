@@ -2,6 +2,7 @@ import { getCurrentCook } from "@/lib/cook";
 import { createClient } from "@/lib/supabase/server";
 import { updateKitchen } from "../edit/actions";
 import { toggleKitchenPause } from "./actions";
+import PickupWindowsField from "@/components/pickup-windows-field";
 import {
   TextField,
   TextArea,
@@ -132,19 +133,7 @@ export default async function SettingsPage({
             name="pickup_available"
             defaultChecked={cook.pickup_available}
           />
-          <div>
-            <TextArea
-              label="Pickup times (one per line)"
-              name="pickup_windows"
-              rows={3}
-              defaultValue={(cook.pickup_windows ?? []).join("\n")}
-              placeholder={"Saturdays 4–6 PM\nSundays noon–2 PM"}
-            />
-            <p className="mt-1 text-xs text-faint">
-              You set the schedule — buyers choose one of these at checkout.
-              Leave empty to let buyers suggest a time instead.
-            </p>
-          </div>
+          <PickupWindowsField defaultValue={cook.pickup_windows ?? []} />
           <CheckboxField
             label="Delivery available"
             name="delivery_available"

@@ -3,15 +3,18 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatUsd } from "@/lib/constants";
 import ReviewForm from "@/components/review-form";
+import StatusPill from "@/components/status-pill";
+import EmptyState from "@/components/empty-state";
+import { orderStatusColor } from "@/lib/order-status";
 
 export const dynamic = "force-dynamic";
 
-const STATUS: Record<string, { label: string; cls: string }> = {
-  confirmed: { label: "Paid · sent to the kitchen", cls: "bg-amber-100 text-amber-900" },
-  in_progress: { label: "Cook is on it", cls: "bg-indigo-100 text-indigo-900" },
-  ready: { label: "Ready for pickup", cls: "bg-blue-100 text-blue-900" },
-  completed: { label: "Completed", cls: "bg-emerald-100 text-emerald-800" },
-  cancelled: { label: "Cancelled", cls: "bg-red-100 text-red-800" },
+const STATUS: Record<string, { label: string }> = {
+  confirmed: { label: "Paid · sent to the kitchen" },
+  in_progress: { label: "Cook is on it" },
+  ready: { label: "Ready for pickup" },
+  completed: { label: "Completed" },
+  cancelled: { label: "Cancelled" },
 };
 
 export default async function BuyerOrdersPage() {
@@ -40,11 +43,15 @@ export default async function BuyerOrdersPage() {
       </p>
 
       {list.length === 0 ? (
-        <div className="mt-8 rounded-xl border border-dashed border-line px-4 py-16 text-center text-muted">
-          You haven&apos;t ordered yet.{" "}
-          <Link href="/browse" className="text-brand hover:underline">
-            Browse kitchens
-          </Link>
+        <div className="mt-8">
+          <EmptyState
+            title="You haven't ordered yet."
+            action={
+              <Link href="/browse" className="text-brand hover:underline">
+                Browse kitchens
+              </Link>
+            }
+          />
         </div>
       ) : (
         <div className="mt-6 space-y-4">
@@ -72,11 +79,7 @@ export default async function BuyerOrdersPage() {
                         {cook?.business_name ?? "Kitchen"}
                       </span>
                     )}
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${s.cls}`}
-                    >
-                      {s.label}
-                    </span>
+                    <StatusPill label={s.label} className={orderStatusColor(o.status)} />
                   </div>
                   <span className="text-sm text-muted">{date}</span>
                 </div>

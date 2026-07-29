@@ -4,7 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { formatUsd } from "@/lib/constants";
 import { advanceOrder } from "./actions";
 import { cancelPaymentRequest } from "./request-actions";
-import CopyLink from "@/components/copy-link";
+import ShareLink from "@/components/share-link";
+import StatusPill from "@/components/status-pill";
+import { orderStatusColor } from "@/lib/order-status";
+import EmptyState from "@/components/empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -74,7 +77,7 @@ export default async function OrdersPage({
             ✓ Link ready — send it to your buyer
           </p>
           <div className="mt-2">
-            <CopyLink url={`${siteUrl}/pay/${justCreated.token}`} />
+            <ShareLink url={`${siteUrl}/pay/${justCreated.token}`} showUrl label="Copy link" />
           </div>
           <p className="mt-2 text-xs text-emerald-800">
             {justCreated.title} · you receive {formatUsd(justCreated.price_cents)} ·
@@ -114,7 +117,7 @@ export default async function OrdersPage({
                   </form>
                 </div>
                 <div className="mt-2">
-                  <CopyLink url={`${siteUrl}/pay/${r.token}`} />
+                  <ShareLink url={`${siteUrl}/pay/${r.token}`} showUrl label="Copy link" />
                 </div>
               </div>
             ))}
@@ -128,13 +131,10 @@ export default async function OrdersPage({
     return (
       <div className="space-y-8">
         {requestsUi}
-        <div className="rounded-xl border border-dashed border-line px-6 py-16 text-center">
-          <p className="font-medium text-ink">No orders yet</p>
-          <p className="mx-auto mt-1 max-w-md text-sm text-muted">
-            The moment a buyer pays, their order shows up here — what they bought,
-            their pickup time or delivery address, and how to reach them.
-          </p>
-        </div>
+        <EmptyState
+          title="No orders yet"
+          subtitle="The moment a buyer pays, their order shows up here — what they bought, their pickup time or delivery address, and how to reach them."
+        />
       </div>
     );
   }
@@ -147,7 +147,7 @@ export default async function OrdersPage({
           Active
         </h3>
         {active.length === 0 ? (
-          <p className="mt-2 text-sm text-muted">Nothing to prepare right now.</p>
+          <div className="mt-2"><EmptyState title="Nothing to prepare right now." /></div>
         ) : (
           <div className="mt-3 space-y-4">
             {active.map((o: any) => (
@@ -193,11 +193,7 @@ function OrderCard({ o, active }: { o: any; active?: boolean }) {
           <span className="font-medium text-ink">
             #{String(o.id).slice(0, 8)}
           </span>
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${s.cls}`}
-          >
-            {s.label}
-          </span>
+          <StatusPill label={s.label} className={orderStatusColor(o.status)} />
         </div>
         <span className="text-sm text-muted">{date}</span>
       </div>

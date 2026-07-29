@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { calcServiceFeeCents, formatUsd } from "@/lib/constants";
+import VerifiedBadge from "@/components/verified-badge";
 import { payLinkCheckout } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -95,11 +96,7 @@ export default async function PayPage({
             </Link>
             {cook.city && <p className="text-sm text-muted">{cook.city}</p>}
           </div>
-          {cook.permit_verified && (
-            <span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800">
-              ✓ County-verified
-            </span>
-          )}
+          {cook.permit_verified && <VerifiedBadge className="shrink-0" />}
         </div>
 
         <div className="mt-5 rounded-lg bg-line/40 p-4">

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requestPasswordReset } from "../actions";
-import { SubmitButton } from "@/components/form";
+import { SubmitButton, FormError } from "@/components/form";
 
 export default function ForgotPasswordPage({
   searchParams,
@@ -26,9 +26,7 @@ export default function ForgotPasswordPage({
           </p>
 
           {searchParams.error && (
-            <p className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-              {searchParams.error}
-            </p>
+            <FormError message={searchParams.error} className="mt-4" />
           )}
 
           <form action={requestPasswordReset} className="mt-6 space-y-4">

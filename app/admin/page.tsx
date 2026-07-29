@@ -3,6 +3,8 @@ import { getAdminUser } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatUsd } from "@/lib/constants";
 import { nameMatchTier, isExpired } from "@/lib/match";
+import StatusPill from "@/components/status-pill";
+import EmptyState from "@/components/empty-state";
 import {
   approveCook,
   rejectCook,
@@ -182,9 +184,9 @@ export default async function AdminPage() {
       </h2>
 
       {list.length === 0 ? (
-        <p className="mt-3 rounded-lg border border-dashed border-line px-4 py-16 text-center text-muted">
-          No kitchens yet.
-        </p>
+        <div className="mt-3">
+          <EmptyState title="No kitchens yet." />
+        </div>
       ) : (
         <div className="mt-3 space-y-4">
           {list.map((c: any) => {
@@ -446,9 +448,5 @@ function StatusBadge({ status }: { status: string }) {
     suspended: { l: "Suspended", c: "bg-red-100 text-red-800" },
   };
   const s = m[status] ?? m.pending;
-  return (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${s.c}`}>
-      {s.l}
-    </span>
-  );
+  return <StatusPill label={s.l} className={s.c} />;
 }

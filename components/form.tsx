@@ -2,10 +2,22 @@
 
 import { useFormStatus } from "react-dom";
 
-export function FormError({ message }: { message?: string }) {
+export function FormError({
+  message,
+  className = "",
+}: {
+  message?: string;
+  className?: string;
+}) {
   if (!message) return null;
   return (
-    <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{message}</p>
+    <p
+      className={`rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700${
+        className ? ` ${className}` : ""
+      }`}
+    >
+      {message}
+    </p>
   );
 }
 
@@ -20,6 +32,8 @@ export function TextField({
   defaultValue,
   placeholder,
   step,
+  autoComplete,
+  minLength,
 }: {
   label: string;
   name: string;
@@ -28,6 +42,8 @@ export function TextField({
   defaultValue?: string | number;
   placeholder?: string;
   step?: string;
+  autoComplete?: string;
+  minLength?: number;
 }) {
   return (
     <label className="block">
@@ -39,6 +55,8 @@ export function TextField({
         defaultValue={defaultValue}
         placeholder={placeholder}
         step={step}
+        autoComplete={autoComplete}
+        minLength={minLength}
         className={inputClass}
       />
     </label>
@@ -122,7 +140,13 @@ export function CheckboxField({
   );
 }
 
-export function SubmitButton({ children }: { children: React.ReactNode }) {
+export function SubmitButton({
+  children,
+  pendingLabel = "Saving…",
+}: {
+  children: React.ReactNode;
+  pendingLabel?: string;
+}) {
   const { pending } = useFormStatus();
   return (
     <button
@@ -130,7 +154,7 @@ export function SubmitButton({ children }: { children: React.ReactNode }) {
       disabled={pending}
       className="w-full rounded-full bg-brand px-6 py-3 font-medium text-white hover:bg-brand/90 disabled:opacity-60"
     >
-      {pending ? "Saving…" : children}
+      {pending ? pendingLabel : children}
     </button>
   );
 }
