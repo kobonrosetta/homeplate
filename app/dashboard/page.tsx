@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentCook } from "@/lib/cook";
-import { formatUsd } from "@/lib/constants";
+import { SITE_URL, formatUsd } from "@/lib/constants";
 import ShareLink from "@/components/share-link";
 import {
   MONTH_NAMES,
@@ -196,10 +196,10 @@ export default async function DashboardOverview() {
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <code className="max-w-full overflow-x-auto rounded-lg border border-line bg-white px-3 py-2 text-xs text-muted">
-              {`${process.env.NEXT_PUBLIC_SITE_URL || "https://homeplate-jyd2.onrender.com"}/kitchen/${cook.slug}`}
+              {`${SITE_URL}/kitchen/${cook.slug}`}
             </code>
             <ShareLink
-              url={`${process.env.NEXT_PUBLIC_SITE_URL || "https://homeplate-jyd2.onrender.com"}/kitchen/${cook.slug}`}
+              url={`${SITE_URL}/kitchen/${cook.slug}`}
               text={`Order from ${cook.business_name} on HomePlate — county-verified home cooking`}
             />
           </div>
