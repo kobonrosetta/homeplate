@@ -37,6 +37,42 @@ export async function sendEmail(opts: {
   }
 }
 
+// Send many emails in ONE API call per 100 (Resend's batch endpoint) — each
+// message has a single recipient, so recipients never see each other's
+// addresses. Returns how many messages were accepted. Key-safe no-op like
+// sendEmail: no key (or empty input) → 0.
+export async function sendEmailBatch(
+  messages: { to: string; subject: string; html: string }[]
+): Promise<number> {
+  const key = apiKey();
+  if (!key || messages.length === 0) return 0;
+  let accepted = 0;
+  for (let i = 0; i < messages.length; i += 100) {
+    const chunk = messages.slice(i, i + 100);
+    try {
+      const res = await fetch("https://api.resend.com/emails/batch", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(
+          chunk.map((m) => ({
+            from: FROM,
+            to: m.to,
+            subject: m.subject,
+            html: m.html,
+          }))
+        ),
+      });
+      if (res.ok) accepted += chunk.length;
+    } catch {
+      /* chunk counted as not accepted */
+    }
+  }
+  return accepted;
+}
+
 // Escape user-typed text before interpolating it into email HTML — a buyer's
 // order note (or name, address, item title…) must render as text, never as
 // markup someone crafted to make our email look like it says something else.
