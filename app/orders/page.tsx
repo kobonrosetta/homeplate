@@ -9,13 +9,23 @@ import { orderStatusColor } from "@/lib/order-status";
 
 export const dynamic = "force-dynamic";
 
-const STATUS: Record<string, { label: string }> = {
-  confirmed: { label: "Paid · sent to the kitchen" },
-  in_progress: { label: "Cook is on it" },
-  ready: { label: "Ready for pickup" },
-  completed: { label: "Completed" },
-  cancelled: { label: "Cancelled" },
-};
+// "ready" reads differently for pickup vs delivery — resolved per order below.
+function statusLabel(status: string, fulfillment: string): string {
+  switch (status) {
+    case "confirmed":
+      return "Paid · sent to the kitchen";
+    case "in_progress":
+      return "Cook is on it";
+    case "ready":
+      return fulfillment === "delivery" ? "Out for delivery" : "Ready for pickup";
+    case "completed":
+      return "Completed";
+    case "cancelled":
+      return "Cancelled";
+    default:
+      return "Paid · sent to the kitchen";
+  }
+}
 
 export default async function BuyerOrdersPage() {
   const supabase = createClient();
@@ -27,7 +37,7 @@ export default async function BuyerOrdersPage() {
   const { data: orders } = await supabase
     .from("orders")
     .select(
-      "id, status, total_cents, created_at, cook_id, cooks(business_name, slug), order_items(title, quantity, line_total_cents), reviews(rating, comment)"
+      "id, status, fulfillment, total_cents, created_at, cook_id, cooks(business_name, slug), order_items(title, quantity, line_total_cents), reviews(rating, comment)"
     )
     .eq("buyer_id", user.id)
     .neq("status", "pending")
@@ -57,7 +67,7 @@ export default async function BuyerOrdersPage() {
         <div className="mt-6 space-y-4">
           {list.map((o: any) => {
             const cook = Array.isArray(o.cooks) ? o.cooks[0] : o.cooks;
-            const s = STATUS[o.status] ?? STATUS.confirmed;
+            const label = statusLabel(o.status, o.fulfillment);
             const review = (o.reviews ?? [])[0];
             const date = new Date(o.created_at).toLocaleDateString("en-US", {
               month: "short",
@@ -79,7 +89,7 @@ export default async function BuyerOrdersPage() {
                         {cook?.business_name ?? "Kitchen"}
                       </span>
                     )}
-                    <StatusPill label={s.label} className={orderStatusColor(o.status)} />
+                    <StatusPill label={label} className={orderStatusColor(o.status)} />
                   </div>
                   <span className="text-sm text-muted">{date}</span>
                 </div>

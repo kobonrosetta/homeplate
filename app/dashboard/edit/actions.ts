@@ -26,6 +26,7 @@ export async function updateKitchen(formData: FormData) {
   const delivery = formData.get("delivery_available") === "on";
   const deliveryNotes = String(formData.get("delivery_notes") ?? "").trim();
   const pickupWindows = readPickupWindows(formData);
+  const cdtfaPermit = String(formData.get("cdtfa_permit") ?? "").trim();
 
   if (!businessName || !city || !streetAddress) {
     redirect(
@@ -60,10 +61,13 @@ export async function updateKitchen(formData: FormData) {
     .limit(1)
     .maybeSingle();
   if (cookRow) {
+    // cdtfa_permit only appears in the form for MEHKO kitchens; the empty-safe
+    // spread means a cottage cook's submit (no field) never nulls a saved value.
     await supabase.from("cook_private").upsert(
       {
         cook_id: cookRow.id,
         street_address: streetAddress || null,
+        ...(cdtfaPermit ? { cdtfa_permit: cdtfaPermit } : {}),
         updated_at: new Date().toISOString(),
       },
       { onConflict: "cook_id" }

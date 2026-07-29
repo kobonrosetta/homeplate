@@ -21,7 +21,7 @@ export default async function SettingsPage({
   const supabase = createClient();
   const { data: priv } = await supabase
     .from("cook_private")
-    .select("street_address")
+    .select("street_address, cdtfa_permit")
     .eq("cook_id", cook.id)
     .maybeSingle();
   const tags = (cook.cuisine_tags ?? []).join(", ");
@@ -114,6 +114,30 @@ export default async function SettingsPage({
         <p className="-mt-3 text-xs text-faint">
           Kept private — buyers only see your city until they place an order.
         </p>
+
+        {cook.operation_type === "mehko" && (
+          <div>
+            <TextField
+              label="CDTFA seller's permit number (for sales tax)"
+              name="cdtfa_permit"
+              defaultValue={priv?.cdtfa_permit ?? ""}
+              placeholder="e.g. 123-456789"
+            />
+            <p className="mt-1 text-xs text-faint">
+              Kept private. Needed to collect and remit California sales tax on
+              hot food. Free at{" "}
+              <a
+                href="https://www.cdtfa.ca.gov"
+                target="_blank"
+                rel="noreferrer"
+                className="underline hover:text-ink"
+              >
+                cdtfa.ca.gov
+              </a>
+              .
+            </p>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <TextField label="City" name="city" required defaultValue={cook.city ?? ""} />

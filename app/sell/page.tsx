@@ -71,8 +71,8 @@ function Tracker({ step }: { step: number }) {
       {labels.map((label, i) => {
         const n = i + 1;
         const state = n < step ? "done" : n === step ? "active" : "todo";
-        return (
-          <div key={n} className="flex items-center">
+        const inner = (
+          <>
             <span
               className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-medium ${
                 state === "active"
@@ -91,6 +91,22 @@ function Tracker({ step }: { step: number }) {
             >
               {label}
             </span>
+          </>
+        );
+        return (
+          <div key={n} className="flex items-center">
+            {/* Completed steps are clickable — jump back to edit (progress
+                auto-saves). Active/upcoming steps aren't links. */}
+            {state === "done" ? (
+              <Link
+                href={`/sell?step=${n}`}
+                className="flex items-center hover:opacity-80"
+              >
+                {inner}
+              </Link>
+            ) : (
+              <div className="flex items-center">{inner}</div>
+            )}
             {n < 3 && <span className="mx-3 h-px w-6 bg-line sm:w-10" />}
           </div>
         );

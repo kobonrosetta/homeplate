@@ -18,7 +18,7 @@ export default async function NewListingPage({
       <Link href="/dashboard/menu" className="text-sm text-muted hover:text-ink">
         ← Back to menu
       </Link>
-      <h2 className="mt-2 text-lg font-semibold text-ink">Add a listing</h2>
+      <h2 className="mt-2 text-lg font-semibold text-ink">Add an item</h2>
       <NewListingForm
         action={createListing}
         error={searchParams.error}

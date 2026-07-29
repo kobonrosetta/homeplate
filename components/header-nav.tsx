@@ -45,7 +45,8 @@ export default function HeaderNav({
         <Link href="/browse" className={item}>
           Browse kitchens
         </Link>
-        <CartButton />
+        {/* Mobile shows a persistent cart icon in the header row instead. */}
+        {!mobile && <CartButton />}
         {signedIn ? (
           <>
             <Link href="/orders" className={item}>
@@ -95,16 +96,20 @@ export default function HeaderNav({
         <Links mobile={false} />
       </nav>
 
-      {/* Mobile — hamburger toggles a dropdown */}
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-label={open ? "Close menu" : "Open menu"}
-        aria-expanded={open}
-        className="-mr-2 p-2 text-ink sm:hidden"
-      >
-        {open ? <CloseIcon /> : <MenuIcon />}
-      </button>
+      {/* Mobile — a persistent cart icon (so it never hides in the menu) plus
+          the hamburger. */}
+      <div className="flex items-center sm:hidden">
+        <CartButton icon />
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-label={open ? "Close menu" : "Open menu"}
+          aria-expanded={open}
+          className="-mr-2 p-2 text-ink"
+        >
+          {open ? <CloseIcon /> : <MenuIcon />}
+        </button>
+      </div>
       {open && (
         <nav className="absolute inset-x-0 top-full z-50 flex flex-col gap-1 border-b border-line bg-bg px-6 py-3 text-sm shadow-lg sm:hidden">
           <Links mobile={true} />

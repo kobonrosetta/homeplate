@@ -145,7 +145,7 @@ export default async function DashboardOverview() {
     });
   if (totalListings === 0)
     tasks.push({
-      label: "Add your first dish to start selling",
+      label: "Add your first item to start selling",
       href: "/dashboard/listings/new",
       urgent: true,
     });
@@ -171,10 +171,9 @@ export default async function DashboardOverview() {
 
   return (
     <div className="space-y-6">
-      {cook.status !== "active" && (
+      {cook.status === "pending" && (
         <p className="rounded-lg bg-brand/10 px-4 py-3 text-sm text-brand">
-          Your kitchen is under review, so it isn&apos;t public yet. Go ahead and
-          build your menu — it goes live the moment you&apos;re approved.
+          Build your menu now — it goes live the moment you&apos;re approved.
         </p>
       )}
 
@@ -183,7 +182,7 @@ export default async function DashboardOverview() {
         <p className="mt-1 text-3xl font-semibold text-ink">{formatUsd(earned)}</p>
         <p className="mt-1 text-sm text-muted">
           {completed.length} completed · {newOrders} new · {visible} live{" "}
-          {visible === 1 ? "listing" : "listings"}
+          {visible === 1 ? "item" : "items"}
         </p>
       </div>
 
@@ -324,12 +323,6 @@ export default async function DashboardOverview() {
           className="rounded-full bg-brand px-5 py-2.5 text-sm font-medium text-white hover:bg-brand/90"
         >
           Manage menu
-        </Link>
-        <Link
-          href="/dashboard/listings/new"
-          className="rounded-full border border-line px-5 py-2.5 text-sm font-medium text-ink hover:bg-card"
-        >
-          Add a listing
         </Link>
         {cook.status === "active" && (
           <Link

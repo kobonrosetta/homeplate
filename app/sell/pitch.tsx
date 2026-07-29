@@ -29,7 +29,7 @@ export default function CookPitch() {
               Apply to sell — it&apos;s free
             </Link>
             <Link
-              href="/login"
+              href="/login?next=/sell"
               className="text-sm font-medium text-muted hover:text-ink"
             >
               Already on HomePlate? Sign in →
