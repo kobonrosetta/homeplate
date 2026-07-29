@@ -1,6 +1,7 @@
 import { checkPhotoImage } from "@/lib/ai";
 import { MIN_PHOTO_SCORE } from "@/lib/constants";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyFollowersOfNewDish } from "@/lib/follows";
 
 // All storage writes go through the service role (this module is imported by
 // server actions only). The caller has already been authenticated and every
@@ -181,6 +182,14 @@ export async function insertListingFromForm(
     photo_quality_score: qualityScore,
     is_available: true,
   });
+
+  // A new dish is the thing worth announcing. Debounced + active-kitchens-only
+  // inside the notifier, and best-effort — a failed alert never fails the post.
+  // Extras (packaging, lettering) aren't news.
+  if (!error && kind === "dish") {
+    await notifyFollowersOfNewDish(cookId, title, Math.round(priceDollars * 100));
+  }
+
   return error ? error.message : null;
 }
 

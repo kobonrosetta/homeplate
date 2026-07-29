@@ -4,7 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { formatUsd } from "@/lib/constants";
 import AddToCart from "@/components/add-to-cart";
 import FeeNote from "@/components/fee-note";
+import FollowButton from "@/components/follow-button";
 import ReviewsSection from "@/components/reviews-section";
+import { toggleFollow } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +62,23 @@ export default async function KitchenPage({
     ? revs.reduce((n: number, r: any) => n + r.rating, 0) / reviewCount
     : 0;
 
+  // Follow state for the viewer. Guests (anonymous checkout sessions) can't
+  // follow — there's no email to alert — so they get a sign-up link instead.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const canFollow = Boolean(user && !user.is_anonymous);
+  let following = false;
+  if (canFollow) {
+    const { data: f } = await supabase
+      .from("follows")
+      .select("id")
+      .eq("profile_id", user!.id)
+      .eq("cook_id", cook.id)
+      .maybeSingle();
+    following = Boolean(f);
+  }
+
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -92,20 +111,40 @@ export default async function KitchenPage({
             )}
           </div>
         </div>
-        {cook.permit_verified && (
-          <div className="text-right">
-            <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-sm font-medium text-emerald-800">
-              ✓ County-verified
-            </span>
+        <div className="flex flex-col items-end gap-2">
+          {cook.permit_verified && (
+            <div className="text-right">
+              <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-sm font-medium text-emerald-800">
+                ✓ County-verified
+              </span>
+              <Link
+                href="/verified"
+                className="mt-1 block text-xs text-muted hover:text-ink"
+              >
+                What this means
+              </Link>
+            </div>
+          )}
+          {canFollow ? (
+            <FollowButton
+              action={toggleFollow}
+              cookId={cook.id}
+              slug={cook.slug}
+              following={following}
+            />
+          ) : (
             <Link
-              href="/verified"
-              className="mt-1 block text-xs text-muted hover:text-ink"
+              href="/signup"
+              className="rounded-full border border-brand px-4 py-1.5 text-sm font-medium text-brand transition hover:bg-brand hover:text-white"
             >
-              What this means
+              ♡ Follow
             </Link>
-          </div>
-        )}
+          )}
+        </div>
       </div>
+      <p className="mt-1 text-right text-xs text-faint">
+        Followers get an email when new dishes are posted.
+      </p>
 
       {cook.bio && (
         <p className="mt-4 max-w-2xl leading-relaxed text-ink">{cook.bio}</p>
