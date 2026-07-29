@@ -11,12 +11,15 @@ import GoogleButton, { OrDivider } from "@/components/google-button";
 // missing `intent` to ordering, so this form sends new accounts to /browse.
 export default function SignupForm({
   action,
+  selling = false,
 }: {
   action: (formData: FormData) => void;
+  selling?: boolean;
 }) {
   return (
     <form action={action} className="mt-6 space-y-4">
-      <GoogleButton next="/browse" />
+      {selling && <input type="hidden" name="intent" value="sell" />}
+      <GoogleButton next={selling ? "/sell" : "/browse"} />
 
       <OrDivider />
 
@@ -31,12 +34,14 @@ export default function SignupForm({
 
       <Submit />
 
-      <p className="pt-1 text-center text-sm text-muted">
-        Run a permitted kitchen?{" "}
-        <Link href="/sell" className="font-medium text-brand hover:underline">
-          Apply to sell →
-        </Link>
-      </p>
+      {!selling && (
+        <p className="pt-1 text-center text-sm text-muted">
+          Run a permitted kitchen?{" "}
+          <Link href="/sell" className="font-medium text-brand hover:underline">
+            Apply to sell →
+          </Link>
+        </p>
+      )}
     </form>
   );
 }
