@@ -56,22 +56,29 @@ export default async function BrowsePage() {
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
       <h1 className="text-3xl font-semibold text-ink">Local kitchens</h1>
-      <p className="mt-1 text-muted">
-        {kitchens.length > 0
-          ? `${kitchens.length} verified home ${
-              kitchens.length === 1 ? "kitchen" : "kitchens"
-            } open now.`
-          : "Verified home cooks and bakers."}
-      </p>
-      <FeeNote className="mt-1" />
+      <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <p className="text-muted">
+          {kitchens.length > 0
+            ? `${kitchens.length} verified home ${
+                kitchens.length === 1 ? "kitchen" : "kitchens"
+              } open now.`
+            : "Verified home cooks and bakers."}
+        </p>
+        <FeeNote />
+      </div>
 
       {kitchens.length > 0 && (
-        <div className="mt-5 flex items-start gap-2 rounded-lg bg-emerald-100 px-4 py-3 text-sm font-medium text-emerald-900">
-          <span aria-hidden>✓</span>
+        <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-line bg-card px-4 py-3 text-sm text-muted">
+          <span aria-hidden className="font-semibold text-brand">
+            ✓
+          </span>
           <span>
             Every kitchen is matched against Santa Clara County’s
             approved-operator list before it can sell — no anonymous sellers.{" "}
-            <Link href="/verified" className="underline hover:no-underline">
+            <Link
+              href="/verified"
+              className="font-medium text-brand underline-offset-2 hover:underline"
+            >
               What this means
             </Link>
           </span>
