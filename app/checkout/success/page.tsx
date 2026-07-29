@@ -6,6 +6,8 @@ import { confirmPaidOrder } from "@/lib/orders";
 import { formatUsd } from "@/lib/constants";
 import ClearCart from "@/components/clear-cart";
 import ClaimAccount from "@/components/claim-account";
+import FollowButton from "@/components/follow-button";
+import { toggleFollow } from "@/app/kitchen/[slug]/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -64,14 +66,16 @@ export default async function CheckoutSuccessPage({
     : { data: null as any };
 
   let kitchenName = "";
+  let kitchenSlug = "";
   let pickupAddress: string | null = null;
   if (order?.cook_id) {
     const { data: cook } = await admin
       .from("cooks")
-      .select("business_name, city")
+      .select("business_name, city, slug")
       .eq("id", order.cook_id)
       .maybeSingle();
     kitchenName = cook?.business_name ?? "";
+    kitchenSlug = cook?.slug ?? "";
     if (order.fulfillment === "pickup") {
       const { data: priv } = await admin
         .from("cook_private")
@@ -90,6 +94,20 @@ export default async function CheckoutSuccessPage({
     data: { user },
   } = await sb.auth.getUser();
   const isGuest = Boolean(user?.is_anonymous);
+
+  // The moment a buyer most wants to hear from this kitchen again is right
+  // after ordering — offer a follow (signed-in accounts only; a guest sees
+  // the claim-account block above instead).
+  let showFollow = false;
+  if (user && !isGuest && order?.cook_id) {
+    const { data: f } = await sb
+      .from("follows")
+      .select("id")
+      .eq("profile_id", user.id)
+      .eq("cook_id", order.cook_id)
+      .maybeSingle();
+    showFollow = !f;
+  }
 
   return (
     <main className="mx-auto max-w-xl px-6 py-16">
@@ -141,6 +159,21 @@ export default async function CheckoutSuccessPage({
         )}
 
         {isGuest && <ClaimAccount defaultEmail={order?.contact_email ?? ""} />}
+
+        {showFollow && (
+          <div className="mt-6 flex flex-col items-center gap-2 rounded-xl border border-line bg-card p-4">
+            <p className="text-sm text-ink">
+              Love {kitchenName || "this kitchen"}? Get an email when they post
+              something new.
+            </p>
+            <FollowButton
+              action={toggleFollow}
+              cookId={order.cook_id}
+              slug={kitchenSlug}
+              following={false}
+            />
+          </div>
+        )}
 
         <Link
           href="/browse"
