@@ -51,7 +51,8 @@ type CartContextValue = {
   setQty: (key: string, qty: number) => void;
   reconcile: (
     live: LiveListing[],
-    liveOptions?: LiveOption[]
+    liveOptions?: LiveOption[],
+    liveCook?: Partial<CartCook> & { id: string }
   ) => { changed: string[]; removed: string[] };
   clear: () => void;
 };
@@ -99,7 +100,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
               lineKey(i) === key ? { ...i, quantity: i.quantity + qty } : i
             )
           : [...prev.items, { ...item, quantity: qty }];
-        return { cook: prev.cook, items };
+        // Adopt the incoming cook object: it comes from a freshly
+        // server-rendered page, so pickup windows / delivery info heal on
+        // every add instead of fossilizing at first-add time.
+        return { cook, items };
       });
     },
     []
@@ -126,11 +130,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Sync the saved cart against what the kitchen sells right now: refresh
-  // stale titles/prices, drop items that are gone or unavailable, and report
-  // what happened so the caller can tell the buyer. Prices in the cart are
-  // display-only either way — checkout re-reads them from the database.
+  // stale titles/prices, drop items that are gone or unavailable, heal the
+  // cook snapshot (pickup windows, delivery info), and report what happened
+  // so the caller can tell the buyer. Prices in the cart are display-only
+  // either way — checkout re-reads them from the database.
   const reconcile = useCallback(
-    (live: LiveListing[], liveOptions?: LiveOption[]) => {
+    (
+      live: LiveListing[],
+      liveOptions?: LiveOption[],
+      liveCook?: Partial<CartCook> & { id: string }
+    ) => {
       const changed: string[] = [];
       const removed: string[] = [];
       setCart((prev) => {
@@ -159,8 +168,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
           if (livePrice !== i.priceCents) changed.push(now.title);
           items.push({ ...i, title: now.title, priceCents: livePrice });
         }
-        if (!changed.length && !removed.length) return prev;
-        return items.length ? { cook: prev.cook, items } : null;
+        // Cook snapshot heals too — windows a cook deleted must not survive
+        // in an old cart to be bought at checkout.
+        const cook =
+          liveCook && liveCook.id === prev.cook.id
+            ? { ...prev.cook, ...liveCook }
+            : prev.cook;
+        const cookChanged = JSON.stringify(cook) !== JSON.stringify(prev.cook);
+        if (!changed.length && !removed.length && !cookChanged) return prev;
+        return items.length ? { cook, items } : null;
       });
       // De-dupe: React may run the updater twice in dev (strict mode).
       return { changed: [...new Set(changed)], removed: [...new Set(removed)] };

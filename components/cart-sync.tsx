@@ -35,12 +35,30 @@ export default function CartSync() {
           .select("id, price_delta_cents")
           .in("id", optionIds)
       : Promise.resolve({ data: [], error: null });
-    Promise.all([listingsQ, optionsQ]).then(
-      ([{ data, error }, opts]: [any, any]) => {
+    // The cook snapshot (pickup windows, delivery) heals too — a window the
+    // cook deleted must not survive in an old cart to be chosen at checkout.
+    const cookQ = supabase
+      .from("cooks")
+      .select("id, business_name, pickup_available, delivery_available, pickup_windows")
+      .eq("id", cart.cook.id)
+      .eq("status", "active")
+      .maybeSingle();
+    Promise.all([listingsQ, optionsQ, cookQ]).then(
+      ([{ data, error }, opts, cookRes]: [any, any, any]) => {
         if (error || !data || opts?.error) return; // offline etc. — the server still re-checks
+        const liveCook = cookRes?.data
+          ? {
+              id: cookRes.data.id as string,
+              name: cookRes.data.business_name as string,
+              pickupAvailable: !!cookRes.data.pickup_available,
+              deliveryAvailable: !!cookRes.data.delivery_available,
+              pickupWindows: (cookRes.data.pickup_windows ?? []) as string[],
+            }
+          : undefined;
         const { changed, removed } = reconcile(
           data as LiveListing[],
-          (opts?.data ?? []) as { id: string; price_delta_cents: number }[]
+          (opts?.data ?? []) as { id: string; price_delta_cents: number }[],
+          liveCook
         );
         const parts: string[] = [];
         if (removed.length)
