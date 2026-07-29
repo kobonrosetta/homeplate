@@ -27,6 +27,7 @@ export async function updateKitchen(formData: FormData) {
   const deliveryNotes = String(formData.get("delivery_notes") ?? "").trim();
   const pickupWindows = readPickupWindows(formData);
   const cdtfaPermit = String(formData.get("cdtfa_permit") ?? "").trim();
+  const contactPhone = String(formData.get("contact_phone") ?? "").trim();
 
   if (!businessName || !city || !streetAddress) {
     redirect(
@@ -52,6 +53,12 @@ export async function updateKitchen(formData: FormData) {
       pickup_windows: pickupWindows,
     })
     .eq("profile_id", user.id);
+
+  // The kitchen's buyer-facing contact phone lives on the profile.
+  await supabase
+    .from("profiles")
+    .update({ phone: contactPhone || null })
+    .eq("id", user.id);
 
   // The home address lives in the locked-down private table.
   const { data: cookRow } = await supabase

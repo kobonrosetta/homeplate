@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { escapeHtml, sendEmail, wrapEmail } from "@/lib/email";
 import { formatUsd } from "@/lib/constants";
+import { pickupLocation } from "@/lib/handoff";
 
 /**
  * Mark a paid order confirmed and deduct stock for limited items — exactly once.
@@ -107,9 +108,28 @@ async function notifyOrderConfirmed(
     if (order?.cook_id) {
       const { data: cook } = await admin
         .from("cooks")
-        .select("business_name, profile_id")
+        .select("business_name, city, profile_id")
         .eq("id", order.cook_id)
         .maybeSingle();
+
+      // The exact pickup street lives in the owner-only private table, and the
+      // kitchen's contact phone on its profile — read both server-side so the
+      // buyer's email carries the real handoff details (durable record), not a
+      // promise to send them later.
+      const { data: priv } = await admin
+        .from("cook_private")
+        .select("street_address")
+        .eq("cook_id", order.cook_id)
+        .maybeSingle();
+      const { data: cookProfile } = cook?.profile_id
+        ? await admin
+            .from("profiles")
+            .select("phone")
+            .eq("id", cook.profile_id)
+            .maybeSingle()
+        : { data: null as { phone: string | null } | null };
+      const pickupAddr = pickupLocation(priv?.street_address, cook?.city);
+      const kitchenPhone = cookProfile?.phone?.trim() || null;
 
       // Everything user-typed gets escaped — email HTML is an injection target.
       const kitchen = escapeHtml(cook?.business_name ?? "the kitchen");
@@ -122,6 +142,26 @@ async function notifyOrderConfirmed(
           : `Pickup${
               order.pickup_time ? ` · ${escapeHtml(order.pickup_time)}` : ""
             }`;
+
+      // The buyer-facing handoff block: real address/time for pickup, the
+      // delivery address for delivery, plus the kitchen's contact if set.
+      const buyerHandoff =
+        order.fulfillment === "delivery"
+          ? `<p><strong>Delivering to:</strong> ${escapeHtml(
+              order.delivery_address ?? ""
+            )}</p>`
+          : `<p><strong>Pickup${
+              order.pickup_time ? ` · ${escapeHtml(order.pickup_time)}` : ""
+            }:</strong> ${
+              pickupAddr
+                ? escapeHtml(pickupAddr)
+                : `${kitchen} will message you the pickup address.`
+            }</p>`;
+      const contactLineBuyer = kitchenPhone
+        ? `<p><strong>Reach the kitchen:</strong> ${escapeHtml(
+            kitchenPhone
+          )}</p>`
+        : "";
 
       // 1) Alert the cook that they've got a paid order.
       const res = cook?.profile_id
@@ -165,16 +205,12 @@ async function notifyOrderConfirmed(
             `<h2>Your order is confirmed</h2>
              <p>Thanks${
                order.contact_name ? `, ${escapeHtml(order.contact_name)}` : ""
-             }! ${kitchen} has your order and your contact details.</p>
+             }! ${kitchen} has your order.</p>
              <p><strong>${items}</strong></p>
              <p>You paid <strong>${formatUsd(order.total_cents ?? 0)}</strong></p>
-             <p>${where}</p>
-             ${
-               order.fulfillment === "delivery"
-                 ? ""
-                 : `<p>${kitchen} will share the exact pickup address and time with you directly.</p>`
-             }
-             <p>You can find this order anytime under <strong>Purchases</strong>.</p>`
+             ${buyerHandoff}
+             ${contactLineBuyer}
+             <p>You can find these details anytime under <strong>Purchases</strong>.</p>`
           ),
         });
       }

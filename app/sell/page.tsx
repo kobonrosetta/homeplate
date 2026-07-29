@@ -168,6 +168,18 @@ function Step1({ cook }: { cook: any }) {
           defaultValue={tags}
           placeholder="sourdough, pastries, vegan"
         />
+        <div>
+          <TextField
+            label="Contact phone (optional)"
+            name="contact_phone"
+            type="tel"
+            placeholder="(408) 555-0139"
+          />
+          <p className="mt-1 text-xs text-faint">
+            Shared with a buyer only after they order, so you can coordinate
+            pickup or delivery.
+          </p>
+        </div>
         <div className="space-y-3 rounded-lg border border-line p-4">
           <p className="text-sm font-medium text-ink">
             How do customers get their food?
