@@ -58,7 +58,7 @@ export default function CookPitch() {
           />
           <Perk
             title="The boring parts run themselves"
-            body="Orders, payments, buyer contact details, email alerts — handled. Prices include any sales tax, and your dashboard totals what you'd owe each quarter with a one-click export."
+            body="Orders, payments, buyer contact details, email alerts — handled. Sell hot meals? Your dashboard does the sales-tax math too — quarterly totals, one-click export."
           />
         </div>
       </section>
