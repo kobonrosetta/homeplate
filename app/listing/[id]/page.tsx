@@ -18,7 +18,7 @@ export default async function ListingPage({
   const { data: listing } = await supabase
     .from("listings")
     .select(
-      "*, cooks!inner(id, business_name, slug, city, permit_verified, status, pickup_available, delivery_available)"
+      "*, cooks!inner(id, business_name, slug, city, permit_verified, status, pickup_available, delivery_available, pickup_windows)"
     )
     .eq("id", params.id)
     .eq("is_available", true)
@@ -129,6 +129,7 @@ export default async function ListingPage({
                   slug: cook.slug,
                   pickupAvailable: cook.pickup_available,
                   deliveryAvailable: cook.delivery_available,
+                  pickupWindows: cook.pickup_windows ?? [],
                 }}
                 listingId={listing.id}
                 title={listing.title}
@@ -144,6 +145,7 @@ export default async function ListingPage({
                   slug: cook.slug,
                   pickupAvailable: cook.pickup_available,
                   deliveryAvailable: cook.delivery_available,
+                  pickupWindows: cook.pickup_windows ?? [],
                 }}
                 item={{
                   listingId: listing.id,

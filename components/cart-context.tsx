@@ -34,6 +34,7 @@ export type CartCook = {
   slug: string;
   pickupAvailable?: boolean;
   deliveryAvailable?: boolean;
+  pickupWindows?: string[]; // cook-defined windows offered at checkout
 };
 type Cart = { cook: CartCook; items: CartItem[] } | null;
 

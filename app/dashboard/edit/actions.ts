@@ -25,6 +25,12 @@ export async function updateKitchen(formData: FormData) {
   const pickup = formData.get("pickup_available") === "on";
   const delivery = formData.get("delivery_available") === "on";
   const deliveryNotes = String(formData.get("delivery_notes") ?? "").trim();
+  // One window per line, capped so a paste-happy cook can't blow up checkout.
+  const pickupWindows = String(formData.get("pickup_windows") ?? "")
+    .split("\n")
+    .map((s) => s.trim().slice(0, 80))
+    .filter(Boolean)
+    .slice(0, 10);
 
   if (!businessName || !city || !streetAddress) {
     redirect(
@@ -47,6 +53,7 @@ export async function updateKitchen(formData: FormData) {
       pickup_available: pickup,
       delivery_available: delivery,
       delivery_notes: deliveryNotes || null,
+      pickup_windows: pickupWindows,
     })
     .eq("profile_id", user.id);
 

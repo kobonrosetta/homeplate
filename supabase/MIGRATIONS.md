@@ -4,7 +4,9 @@ Every schema change to the HomePlate Supabase project has been applied **by hand
 the Supabase SQL editor — this project does not use the Supabase CLI migration system.
 This file is the canonical record of what was run, in what order, and whether it's live.
 
-**Status: all 23 applied.** #22 + #23 confirmed live 2026-07-28 (columns/tables present
+**Status: 23 of 24 applied — #24 (`pickup-windows.sql`) is NOT yet run.** Paste it into
+the SQL editor and run it *before* deploying the pickup-windows code (the kitchen page
+selects the new column). #22 + #23 confirmed live 2026-07-28 (columns/tables present
 via REST; #23 behavior-verified the same day: Taxes card renders correct quarterly
 numbers for a seeded MEHKO cook, CSV export matches to the cent, `cdtfa_permit`
 unreadable by anon + cross-user sessions, checkout-shaped `order_items` insert with
@@ -50,6 +52,7 @@ Project ref: `jycefrvkqybadwupokdn` (Santa Clara County pilot)
 | 21 | `harden-permits-bucket.sql` | Permits bucket server-writes-only — drops the end-user write policies (uploads moved to the service role in `lib/listings.ts`, path always derived server-side from the caller's own kitchen) + bucket-level 10MB / image-or-PDF limits that bind even service-role uploads | ✅ |
 | 22 | `raffin-ready.sql` | "Raffin-ready" batch — (a) `custom_requests` (cook-minted payment links for DM-negotiated customs; token-capability access, no public read, cancel-only guard trigger for end users, paid/expired service-role-only) + `orders.custom_request_id`; (b) `listings.kind` (`dish`/`extra` — extras skip the AI food gate); (c) `listing_option_groups` + `listing_options` (cook-defined single-select dropdowns with price deltas; public read, owner-only writes; checkout re-derives every line's price server-side) | ✅ |
 | 23 | `tax-pilot.sql` | Sales-tax pilot (prices tax-INCLUDED; each cook remits on their own CDTFA seller's permit) — `listings.served_hot` (the CA taxability flag, asked as "How is it served?"; MEHKO-only UI, cottage always false), `order_items.served_hot` (snapshot at purchase, like title/price, so listing edits can't rewrite tax history), `cook_private.cdtfa_permit` (seller's-permit number — private table because `cooks` is publicly readable). Additive-only; safe to run before the code deploy | ✅ |
+| 24 | `pickup-windows.sql` | `cooks.pickup_windows text[]` — cook-defined pickup windows (edited in dashboard settings + the sell wizard), shown on the kitchen page and offered as the checkout pickup-time choices (the chosen window lands in the existing `orders.pickup_time`; no orders change). Also re-issues `enforce_cook_update_rules` (#17's trigger function) with `pickup_windows` on the editable allow-list — without that, the guard blocks a cook's own session from saving windows. Additive-only; **run BEFORE deploying the code that selects it** | ⬜ |
 
 ## Replaying on a fresh database
 

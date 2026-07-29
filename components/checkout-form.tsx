@@ -127,16 +127,34 @@ export default function CheckoutForm({
       </div>
 
       {fulfillment === "pickup" ? (
-        <Field label="Preferred pickup time (optional)">
-          <input
-            name="pickup_time"
-            placeholder="e.g. Saturday afternoon"
-            className={INPUT}
-          />
-          <p className="mt-1 text-xs text-faint">
-            The kitchen shares the exact pickup address once you&apos;ve paid.
-          </p>
-        </Field>
+        (cart.cook.pickupWindows ?? []).length > 0 ? (
+          // The cook set their pickup schedule — buyers choose a window
+          // instead of proposing a time the cook never agreed to.
+          <Field label="Pickup time">
+            <select name="pickup_time" className={INPUT}>
+              {(cart.cook.pickupWindows ?? []).map((w) => (
+                <option key={w} value={w}>
+                  {w}
+                </option>
+              ))}
+              <option value="">Another time — I&apos;ll arrange it with the kitchen</option>
+            </select>
+            <p className="mt-1 text-xs text-faint">
+              The kitchen shares the exact pickup address once you&apos;ve paid.
+            </p>
+          </Field>
+        ) : (
+          <Field label="Preferred pickup time (optional)">
+            <input
+              name="pickup_time"
+              placeholder="e.g. Saturday afternoon"
+              className={INPUT}
+            />
+            <p className="mt-1 text-xs text-faint">
+              The kitchen shares the exact pickup address once you&apos;ve paid.
+            </p>
+          </Field>
+        )
       ) : (
         <Field label="Delivery address">
           <input
