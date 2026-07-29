@@ -9,6 +9,52 @@ import OptionsPicker from "@/components/options-picker";
 
 export const dynamic = "force-dynamic";
 
+// A dish link shared in a group chat should unfurl as the dish: photo, name,
+// kitchen, price — a menu item, not a bare URL.
+export async function generateMetadata({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const supabase = createClient();
+  const { data: listing } = await supabase
+    .from("listings")
+    .select(
+      "title, description, price_cents, photo_url, cooks!inner(business_name, status)"
+    )
+    .eq("id", params.id)
+    .eq("is_available", true)
+    .maybeSingle();
+  const cook: any = Array.isArray(listing?.cooks)
+    ? listing?.cooks[0]
+    : listing?.cooks;
+  if (!listing || !cook || cook.status !== "active") return {};
+
+  const title = `${listing.title} — ${cook.business_name}`;
+  const description = (
+    listing.description ||
+    `${formatUsd(listing.price_cents)} · homemade by a county-permitted kitchen on HomePlate.`
+  ).slice(0, 200);
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      siteName: "HomePlate",
+      url: `/listing/${params.id}`,
+      images: listing.photo_url ? [{ url: listing.photo_url }] : undefined,
+    },
+    twitter: {
+      card: listing.photo_url ? "summary_large_image" : "summary",
+      title,
+      description,
+    },
+  };
+}
+
 export default async function ListingPage({
   params,
 }: {

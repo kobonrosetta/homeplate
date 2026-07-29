@@ -6,6 +6,10 @@ import SiteFooter from "@/components/site-footer";
 import { CartProvider } from "@/components/cart-context";
 
 export const metadata: Metadata = {
+  // Absolute base for Open Graph/Twitter URLs — link unfurls need full URLs.
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || "https://homeplate-jyd2.onrender.com"
+  ),
   title: "HomePlate — county-approved home kitchens, near you",
   description:
     "Discover and order from local, county-approved home bakers and cooks. Real food, real people, verified and trusted.",
