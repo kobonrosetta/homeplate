@@ -22,7 +22,7 @@ export default async function SettingsPage({
   const supabase = createClient();
   const { data: priv } = await supabase
     .from("cook_private")
-    .select("street_address, cdtfa_permit")
+    .select("street_address, cdtfa_permit, pickup_location")
     .eq("cook_id", cook.id)
     .maybeSingle();
   const { data: profile } = user
@@ -212,7 +212,7 @@ export default async function SettingsPage({
         </div>
 
         <PickupLocationField
-          defaultValue={cook.pickup_location ?? ""}
+          defaultValue={priv?.pickup_location ?? ""}
           homeAddress={
             [priv?.street_address, cook.city].filter(Boolean).join(", ") || ""
           }

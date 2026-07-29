@@ -29,6 +29,9 @@ export async function updateKitchen(formData: FormData) {
   const cdtfaPermit = String(formData.get("cdtfa_permit") ?? "").trim();
   const contactPhone = String(formData.get("contact_phone") ?? "").trim();
   const neighborhood = String(formData.get("neighborhood") ?? "").trim();
+  // "elsewhere" requires a spot — otherwise there'd be silently no pickup
+  // location while the cook believes they've picked a meetup point.
+  const pickupMode = String(formData.get("pickup_mode") ?? "home");
   const pickupLocation = String(formData.get("pickup_location") ?? "").trim();
 
   if (!businessName || !city || !streetAddress) {
@@ -36,6 +39,14 @@ export async function updateKitchen(formData: FormData) {
       "/dashboard/settings?error=" +
         encodeURIComponent(
           "Business name, street address, and city are required."
+        )
+    );
+  }
+  if (pickupMode === "elsewhere" && !pickupLocation) {
+    redirect(
+      "/dashboard/settings?error=" +
+        encodeURIComponent(
+          "Enter where buyers should meet you, or choose your home address."
         )
     );
   }
@@ -54,7 +65,6 @@ export async function updateKitchen(formData: FormData) {
       delivery_notes: deliveryNotes || null,
       pickup_windows: pickupWindows,
       neighborhood: neighborhood || null,
-      pickup_location: pickupLocation || null,
     })
     .eq("profile_id", user.id);
 
@@ -73,11 +83,14 @@ export async function updateKitchen(formData: FormData) {
     .maybeSingle();
   if (cookRow) {
     // cdtfa_permit only appears in the form for MEHKO kitchens; the empty-safe
-    // spread means a cottage cook's submit (no field) never nulls a saved value.
+    // spread means a cottage cook's submit (no field) never nulls a saved
+    // value. pickup_location is written directly (not empty-safe) — "home"
+    // mode must be able to CLEAR a previously saved meetup spot.
     await supabase.from("cook_private").upsert(
       {
         cook_id: cookRow.id,
         street_address: streetAddress || null,
+        pickup_location: pickupMode === "elsewhere" ? pickupLocation : null,
         ...(cdtfaPermit ? { cdtfa_permit: cdtfaPermit } : {}),
         updated_at: new Date().toISOString(),
       },

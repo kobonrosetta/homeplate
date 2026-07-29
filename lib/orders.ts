@@ -108,17 +108,17 @@ async function notifyOrderConfirmed(
     if (order?.cook_id) {
       const { data: cook } = await admin
         .from("cooks")
-        .select("business_name, city, pickup_location, profile_id")
+        .select("business_name, city, profile_id")
         .eq("id", order.cook_id)
         .maybeSingle();
 
-      // The exact pickup street lives in the owner-only private table, and the
-      // kitchen's contact phone on its profile — read both server-side so the
-      // buyer's email carries the real handoff details (durable record), not a
-      // promise to send them later.
+      // The exact pickup spot (home street, or a cook-chosen meetup point) and
+      // the kitchen's contact phone are both read server-side so the buyer's
+      // email carries the real handoff details (durable record), not a
+      // promise to send them later. Neither is ever shown pre-order.
       const { data: priv } = await admin
         .from("cook_private")
-        .select("street_address")
+        .select("street_address, pickup_location")
         .eq("cook_id", order.cook_id)
         .maybeSingle();
       const { data: cookProfile } = cook?.profile_id
@@ -131,7 +131,7 @@ async function notifyOrderConfirmed(
       const pickupAddr = pickupLocation(
         priv?.street_address,
         cook?.city,
-        cook?.pickup_location
+        priv?.pickup_location
       );
       const kitchenPhone = cookProfile?.phone?.trim() || null;
 
