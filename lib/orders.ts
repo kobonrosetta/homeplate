@@ -108,7 +108,7 @@ async function notifyOrderConfirmed(
     if (order?.cook_id) {
       const { data: cook } = await admin
         .from("cooks")
-        .select("business_name, city, profile_id")
+        .select("business_name, city, pickup_location, profile_id")
         .eq("id", order.cook_id)
         .maybeSingle();
 
@@ -128,7 +128,11 @@ async function notifyOrderConfirmed(
             .eq("id", cook.profile_id)
             .maybeSingle()
         : { data: null as { phone: string | null } | null };
-      const pickupAddr = pickupLocation(priv?.street_address, cook?.city);
+      const pickupAddr = pickupLocation(
+        priv?.street_address,
+        cook?.city,
+        cook?.pickup_location
+      );
       const kitchenPhone = cookProfile?.phone?.trim() || null;
 
       // Everything user-typed gets escaped — email HTML is an injection target.

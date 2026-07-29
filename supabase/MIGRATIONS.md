@@ -4,7 +4,10 @@ Every schema change to the HomePlate Supabase project has been applied **by hand
 the Supabase SQL editor — this project does not use the Supabase CLI migration system.
 This file is the canonical record of what was run, in what order, and whether it's live.
 
-**Status: all 27 applied.** #27 applied + verified live 2026-07-29 (`announced_at`
+**Status: 27 of 28 applied — #28 (`add-pickup-location.sql`) is NOT yet run.**
+Paste it into the SQL editor and run it *before* deploying the pickup-location code
+(browse/kitchen/settings select the new columns; cook edits need the re-issued guard
+allow-list). #27 applied + verified live 2026-07-29 (`announced_at`
 column present; existing dishes backfilled — zero un-announced; announce-dishes cron
 behaviorally verified: no-follower announce path, settle gate holds a fresh dish,
 send-failure leaves a dish for retry, second run idempotent). #26 applied + confirmed
@@ -65,6 +68,7 @@ Project ref: `jycefrvkqybadwupokdn` (Santa Clara County pilot)
 | 25 | `follows.sql` | Follow a kitchen + drop alerts — `follows` table (owner-only RLS: nobody can list a kitchen's followers; insert requires a non-anonymous session and an active target kitchen; `email` snapshotted server-side from the auth session since `profiles` has no email column) + `cooks.followers_notified_at` (service-role-written debounce stamp — one follower alert per 6h per kitchen, stamped before sending for at-most-once bias). Additive-only; run before deploying the code that uses it | ✅ |
 | 26 | `add-listing-ingredients.sql` | `listings.ingredients text` — optional cook-entered ingredient list, shown on the item page only when present. Buyer trust (allergy readers) + the one missing field for the future cottage-label generator. Additive-only; run before deploying the code that writes it | ✅ |
 | 27 | `add-listing-announced.sql` | `listings.announced_at timestamptz` — per-dish "announced to followers" flag for the digest sweep. Replaces the old inline alert whose 6h cooldown silently dropped the 2nd–Nth dish of a posting session; the `announce-dishes` cron now gathers a session's un-announced dishes into ONE digest. Backfills existing rows as announced so the first sweep doesn't blast the back catalogue. Additive-only; run before deploying the digest code | ✅ |
+| 28 | `add-pickup-location.sql` | `cooks.pickup_location text` + `cooks.neighborhood text` — buyer-facing, cook-controlled handoff location. When `pickup_location` is set (a public meetup spot, or the home address if the cook chooses) it shows to shoppers on browse/kitchen AND becomes the post-order pickup detail; null = pickup stays private (home revealed post-order from `cook_private`, unchanged). `neighborhood` is an optional coarse area label. PUBLIC columns on `cooks` by design (like pickup_windows); the private home street is NEVER auto-mirrored here. Re-issues `enforce_cook_update_rules` (current #24 body) with both columns on the editable allow-list. Additive-only; **run BEFORE deploying the code that selects it** | ⬜ |
 
 ## Replaying on a fresh database
 

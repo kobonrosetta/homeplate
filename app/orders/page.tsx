@@ -39,7 +39,7 @@ export default async function BuyerOrdersPage() {
   const { data: orders } = await supabase
     .from("orders")
     .select(
-      "id, status, fulfillment, pickup_time, delivery_address, total_cents, created_at, cook_id, cooks(business_name, slug, city, profile_id), order_items(title, quantity, line_total_cents), reviews(rating, comment)"
+      "id, status, fulfillment, pickup_time, delivery_address, total_cents, created_at, cook_id, cooks(business_name, slug, city, pickup_location, profile_id), order_items(title, quantity, line_total_cents), reviews(rating, comment)"
     )
     .eq("buyer_id", user.id)
     .neq("status", "pending")
@@ -105,7 +105,8 @@ export default async function BuyerOrdersPage() {
             const review = (o.reviews ?? [])[0];
             const pickupAddr = pickupLocation(
               addrByCook.get(o.cook_id),
-              cook?.city
+              cook?.city,
+              cook?.pickup_location
             );
             const kitchenPhone = cook?.profile_id
               ? phoneByProfile.get(cook.profile_id)?.trim() || null

@@ -21,7 +21,7 @@ const getActiveCook = cache(async (slug: string) => {
   const { data } = await supabase
     .from("cooks")
     .select(
-      "id, business_name, slug, city, operation_type, permit_verified, bio, avatar_url, pickup_available, delivery_available, pickup_windows, cuisine_tags"
+      "id, business_name, slug, city, neighborhood, pickup_location, operation_type, permit_verified, bio, avatar_url, pickup_available, delivery_available, pickup_windows, cuisine_tags"
     )
     .eq("slug", slug)
     .eq("status", "active")
@@ -150,7 +150,8 @@ export default async function KitchenPage({
               {cook.business_name}
             </h1>
             <p className="mt-1 text-muted">
-              {cook.city ? `${cook.city} · ` : ""}
+              {[cook.neighborhood, cook.city].filter(Boolean).join(", ")}
+              {cook.neighborhood || cook.city ? " · " : ""}
               {cook.operation_type === "mehko" ? "Home kitchen" : "Cottage food"}
             </p>
             {reviewCount > 0 ? (
@@ -214,6 +215,13 @@ export default async function KitchenPage({
           </span>
         ))}
       </div>
+
+      {cook.pickup_available && cook.pickup_location && (
+        <p className="mt-2 text-sm text-muted">
+          <span className="font-medium text-ink">Pickup at:</span>{" "}
+          {cook.pickup_location}
+        </p>
+      )}
 
       {cook.pickup_available && (cook.pickup_windows ?? []).length > 0 && (
         <p className="mt-2 text-sm text-muted">

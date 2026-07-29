@@ -28,6 +28,8 @@ export async function updateKitchen(formData: FormData) {
   const pickupWindows = readPickupWindows(formData);
   const cdtfaPermit = String(formData.get("cdtfa_permit") ?? "").trim();
   const contactPhone = String(formData.get("contact_phone") ?? "").trim();
+  const neighborhood = String(formData.get("neighborhood") ?? "").trim();
+  const pickupLocation = String(formData.get("pickup_location") ?? "").trim();
 
   if (!businessName || !city || !streetAddress) {
     redirect(
@@ -51,6 +53,8 @@ export async function updateKitchen(formData: FormData) {
       delivery_available: delivery,
       delivery_notes: deliveryNotes || null,
       pickup_windows: pickupWindows,
+      neighborhood: neighborhood || null,
+      pickup_location: pickupLocation || null,
     })
     .eq("profile_id", user.id);
 

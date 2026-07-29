@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { updateKitchen } from "../edit/actions";
 import { toggleKitchenPause } from "./actions";
 import PickupWindowsField from "@/components/pickup-windows-field";
+import PickupLocationField from "@/components/pickup-location-field";
 import {
   TextField,
   TextArea,
@@ -157,6 +158,19 @@ export default async function SettingsPage({
           <TextField label="ZIP" name="zip" defaultValue={cook.zip ?? ""} />
         </div>
 
+        <div>
+          <TextField
+            label="Neighborhood (optional)"
+            name="neighborhood"
+            defaultValue={cook.neighborhood ?? ""}
+            placeholder="e.g. West Sunnyvale"
+          />
+          <p className="mt-1 text-xs text-faint">
+            Buyers see this so they can tell if you&apos;re nearby — never your
+            exact address.
+          </p>
+        </div>
+
         <TextField
           label="Cuisine tags (comma separated)"
           name="cuisine_tags"
@@ -196,6 +210,13 @@ export default async function SettingsPage({
             defaultValue={cook.delivery_notes ?? ""}
           />
         </div>
+
+        <PickupLocationField
+          defaultValue={cook.pickup_location ?? ""}
+          homeAddress={
+            [priv?.street_address, cook.city].filter(Boolean).join(", ") || ""
+          }
+        />
 
         <SubmitButton>Save changes</SubmitButton>
       </form>
