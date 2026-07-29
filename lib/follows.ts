@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmailBatch, wrapEmail, escapeHtml } from "@/lib/email";
-import { formatUsd } from "@/lib/constants";
+import { SITE_URL, formatUsd } from "@/lib/constants";
 
 // A cook adding several dishes in one session sends ONE alert, not one per
 // dish. Six hours is long enough to cover a menu-update session and short
@@ -65,9 +65,7 @@ export async function notifyFollowersOfNewDish(
       );
     }
 
-    const site =
-      process.env.NEXT_PUBLIC_SITE_URL || "https://homeplate-jyd2.onrender.com";
-    const url = `${site}/kitchen/${cook.slug}`;
+    const url = `${SITE_URL}/kitchen/${cook.slug}`;
     const name = escapeHtml(cook.business_name);
     const html = wrapEmail(`
       <p><strong>${name}</strong> just posted something new:</p>

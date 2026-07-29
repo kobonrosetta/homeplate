@@ -10,6 +10,16 @@ export const SERVICE_FEE_FLAT_CENTS = 30; // $0.30
 export const MIN_PHOTO_SCORE = 40;
 
 /**
+ * The site's public origin, for absolute URLs in emails, share links, and
+ * social-card metadata. At go-live: set NEXT_PUBLIC_SITE_URL on Render (and
+ * update the fallback) — this constant is the ONLY place the host lives.
+ * (Server actions that redirect within a request use the forwarded host
+ * instead, on purpose — they should respect whatever host served them.)
+ */
+export const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://homeplate-jyd2.onrender.com";
+
+/**
  * The cook keeps 100% of `subtotalCents`.
  * The buyer pays `subtotalCents + serviceFee`.
  * HomePlate keeps the service fee (minus Stripe's cut).
