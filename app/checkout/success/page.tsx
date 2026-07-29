@@ -6,8 +6,7 @@ import { confirmPaidOrder } from "@/lib/orders";
 import { formatUsd } from "@/lib/constants";
 import ClearCart from "@/components/clear-cart";
 import ClaimAccount from "@/components/claim-account";
-import FollowButton from "@/components/follow-button";
-import { toggleFollow } from "@/app/kitchen/[slug]/actions";
+import FollowToggle from "@/components/follow-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -66,16 +65,14 @@ export default async function CheckoutSuccessPage({
     : { data: null as any };
 
   let kitchenName = "";
-  let kitchenSlug = "";
   let pickupAddress: string | null = null;
   if (order?.cook_id) {
     const { data: cook } = await admin
       .from("cooks")
-      .select("business_name, city, slug")
+      .select("business_name, city")
       .eq("id", order.cook_id)
       .maybeSingle();
     kitchenName = cook?.business_name ?? "";
-    kitchenSlug = cook?.slug ?? "";
     if (order.fulfillment === "pickup") {
       const { data: priv } = await admin
         .from("cook_private")
@@ -166,12 +163,11 @@ export default async function CheckoutSuccessPage({
               Love {kitchenName || "this kitchen"}? Get an email when they post
               something new.
             </p>
-            <FollowButton
-              action={toggleFollow}
-              cookId={order.cook_id}
-              slug={kitchenSlug}
-              following={false}
-            />
+            {/* Client-side toggle on purpose: a server action would re-render
+                this page and re-verify the Stripe session — a transient
+                Stripe failure would swap the confirmed screen for the
+                couldn't-verify fallback. */}
+            <FollowToggle cookId={order.cook_id} />
           </div>
         )}
 
