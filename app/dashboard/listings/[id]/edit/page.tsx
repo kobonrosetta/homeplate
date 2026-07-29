@@ -70,6 +70,7 @@ export default async function EditListingPage({
           quantity: String(listing.quantity_available),
           limited: listing.limited_quantity,
           allergens: listing.allergens ?? "",
+          ingredients: listing.ingredients ?? "",
           description: listing.description ?? "",
           leadTime: listing.lead_time_note ?? "",
           servedHot: !!listing.served_hot,

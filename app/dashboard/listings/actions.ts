@@ -49,6 +49,7 @@ export async function updateListing(formData: FormData) {
   const { limited, quantity } = readQuantity(formData);
   const leadTime = String(formData.get("lead_time_note") ?? "").trim();
   const allergens = String(formData.get("allergens") ?? "").trim();
+  const ingredients = String(formData.get("ingredients") ?? "").trim();
 
   if (!title || Number.isNaN(priceDollars) || priceDollars <= 0) {
     redirect(
@@ -72,6 +73,7 @@ export async function updateListing(formData: FormData) {
     limited_quantity: limited,
     lead_time_note: leadTime || null,
     allergens: allergens || null,
+    ingredients: ingredients || null,
     // CA taxability flag — same server-side guard as inserts: only MEHKO
     // kitchens can flag hot food, and the form sends false for extras.
     served_hot:

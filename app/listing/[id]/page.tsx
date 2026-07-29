@@ -146,6 +146,12 @@ export default async function ListingPage({
               <span className="text-muted">{listing.allergens}</span>
             </p>
           )}
+          {listing.ingredients && (
+            <p className="mt-3 text-sm">
+              <span className="font-medium text-ink">Ingredients:</span>{" "}
+              <span className="text-muted">{listing.ingredients}</span>
+            </p>
+          )}
           {listing.lead_time_note && (
             <p className="mt-3 text-sm text-faint">{listing.lead_time_note}</p>
           )}

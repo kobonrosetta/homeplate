@@ -83,6 +83,7 @@ export async function insertListingFromForm(
   const { limited, quantity } = readQuantity(formData);
   const leadTime = String(formData.get("lead_time_note") ?? "").trim();
   const allergens = String(formData.get("allergens") ?? "").trim();
+  const ingredients = String(formData.get("ingredients") ?? "").trim();
   // Extras (packaging, lettering, upgrades) aren't food — they skip the AI
   // food-photo gate below and render in their own strip on the kitchen page.
   const kind = formData.get("kind") === "extra" ? "extra" : "dish";
@@ -174,6 +175,7 @@ export async function insertListingFromForm(
     price_cents: Math.round(priceDollars * 100),
     description: description || null,
     allergens: allergens || null,
+    ingredients: ingredients || null,
     quantity_available: quantity,
     limited_quantity: limited,
     lead_time_note: leadTime || null,
