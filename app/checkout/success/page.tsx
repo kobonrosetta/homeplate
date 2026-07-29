@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { retrieveSession } from "@/lib/stripe";
 import { confirmPaidOrder } from "@/lib/orders";
+import { pickupLocation } from "@/lib/handoff";
 import { formatUsd } from "@/lib/constants";
 import ClearCart from "@/components/clear-cart";
 import ClaimAccount from "@/components/claim-account";
@@ -69,7 +70,7 @@ export default async function CheckoutSuccessPage({
   if (order?.cook_id) {
     const { data: cook } = await admin
       .from("cooks")
-      .select("business_name, city")
+      .select("business_name, city, pickup_location")
       .eq("id", order.cook_id)
       .maybeSingle();
     kitchenName = cook?.business_name ?? "";
@@ -79,8 +80,12 @@ export default async function CheckoutSuccessPage({
         .select("street_address")
         .eq("cook_id", order.cook_id)
         .maybeSingle();
-      pickupAddress =
-        [priv?.street_address, cook?.city].filter(Boolean).join(", ") || null;
+      // Cook-published spot wins; else the private home address (post-order).
+      pickupAddress = pickupLocation(
+        priv?.street_address,
+        cook?.city,
+        cook?.pickup_location
+      );
     }
   }
 

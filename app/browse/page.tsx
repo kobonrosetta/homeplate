@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatUsd } from "@/lib/constants";
+import { publicArea } from "@/lib/handoff";
 import FeeNote from "@/components/fee-note";
 import VerifiedBadge from "@/components/verified-badge";
 import EmptyState from "@/components/empty-state";
@@ -12,7 +13,7 @@ export default async function BrowsePage() {
   const { data: cooksData } = await supabase
     .from("cooks")
     .select(
-      "id, business_name, slug, city, permit_verified, cuisine_tags, listings(id, photo_url, is_available, price_cents, limited_quantity, quantity_available, kind), reviews(rating)"
+      "id, business_name, slug, city, neighborhood, pickup_location, permit_verified, cuisine_tags, listings(id, photo_url, is_available, price_cents, limited_quantity, quantity_available, kind), reviews(rating)"
     )
     .eq("status", "active")
     .order("business_name", { ascending: true })
@@ -38,6 +39,7 @@ export default async function BrowsePage() {
         name: c.business_name,
         slug: c.slug,
         city: c.city,
+        area: publicArea(c.pickup_location, c.neighborhood, c.city),
         verified: c.permit_verified,
         tags: (c.cuisine_tags ?? []) as string[],
         count: avail.length,
@@ -105,7 +107,7 @@ export default async function BrowsePage() {
               </div>
               <div className="flex flex-1 flex-col p-5">
                 <p className="text-[11px] uppercase tracking-[0.11em] text-faint">
-                  {k.city ? `${k.city} · ` : ""}
+                  {k.area ? `${k.area} · ` : ""}
                   {k.count} {k.count === 1 ? "item" : "items"}
                 </p>
                 <p className="mt-1 font-display text-lg font-semibold leading-tight text-ink">
