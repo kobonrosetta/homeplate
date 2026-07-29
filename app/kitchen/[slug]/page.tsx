@@ -10,6 +10,46 @@ import { toggleFollow } from "./actions";
 
 export const dynamic = "force-dynamic";
 
+// The kitchen link IS the cook's storefront — when it lands in a WhatsApp
+// group or an Instagram bio it must unfurl like a real business: name,
+// description, and the branded card from ./opengraph-image (which Next wires
+// in as og:image/twitter:image automatically).
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}) {
+  const supabase = createClient();
+  const { data: cook } = await supabase
+    .from("cooks")
+    .select("business_name, bio, city, permit_verified")
+    .eq("slug", params.slug)
+    .eq("status", "active")
+    .maybeSingle();
+  if (!cook) return {};
+
+  const title = `${cook.business_name} — HomePlate`;
+  const description = (
+    cook.bio ||
+    `${cook.permit_verified ? "County-verified home kitchen" : "Home kitchen"}${
+      cook.city ? ` in ${cook.city}` : ""
+    } — browse the menu and order ahead on HomePlate.`
+  ).slice(0, 200);
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      siteName: "HomePlate",
+      url: `/kitchen/${params.slug}`,
+    },
+    twitter: { card: "summary_large_image", title, description },
+  };
+}
+
 export default async function KitchenPage({
   params,
 }: {

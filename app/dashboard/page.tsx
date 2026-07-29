@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentCook } from "@/lib/cook";
 import { formatUsd } from "@/lib/constants";
+import ShareLink from "@/components/share-link";
 import {
   MONTH_NAMES,
   formatDueDate,
@@ -184,6 +185,26 @@ export default async function DashboardOverview() {
           {visible === 1 ? "listing" : "listings"}
         </p>
       </div>
+
+      {cook.status === "active" && (
+        <div className="rounded-xl border border-line bg-card p-5">
+          <p className="text-sm font-medium text-ink">Share your kitchen</p>
+          <p className="mt-1 text-sm text-muted">
+            This link is your storefront — drop it in your WhatsApp groups,
+            Instagram bio, anywhere your people are. It unfurls with your food
+            photo and your verified badge.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <code className="max-w-full overflow-x-auto rounded-lg border border-line bg-white px-3 py-2 text-xs text-muted">
+              {`${process.env.NEXT_PUBLIC_SITE_URL || "https://homeplate-jyd2.onrender.com"}/kitchen/${cook.slug}`}
+            </code>
+            <ShareLink
+              url={`${process.env.NEXT_PUBLIC_SITE_URL || "https://homeplate-jyd2.onrender.com"}/kitchen/${cook.slug}`}
+              text={`Order from ${cook.business_name} on HomePlate — county-verified home cooking`}
+            />
+          </div>
+        </div>
+      )}
 
       {showTaxes && (
         <div id="taxes" className="rounded-xl border border-line p-5">
