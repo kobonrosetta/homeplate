@@ -141,7 +141,7 @@ export default async function CheckoutSuccessPage({
                 <>
                   <p className="text-ink">
                     <span className="text-faint">Pickup: </span>
-                    {pickupAddress ?? "The kitchen will share the address"}
+                    {pickupAddress ?? "The kitchen will message you the pickup address."}
                   </p>
                   {order.pickup_time && (
                     <p className="text-ink">
@@ -171,12 +171,22 @@ export default async function CheckoutSuccessPage({
           </div>
         )}
 
-        <Link
-          href="/browse"
-          className="mt-8 inline-block rounded-full bg-brand px-6 py-3 font-medium text-white hover:bg-brand/90"
-        >
-          Browse more kitchens
-        </Link>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href="/browse"
+            className="inline-block rounded-full bg-brand px-6 py-3 font-medium text-white hover:bg-brand/90"
+          >
+            Browse more kitchens
+          </Link>
+          {!isGuest && (
+            <Link
+              href="/orders"
+              className="inline-block rounded-full border border-line px-6 py-3 font-medium text-ink hover:bg-card"
+            >
+              See your purchases
+            </Link>
+          )}
+        </div>
       </div>
     </main>
   );

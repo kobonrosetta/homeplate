@@ -70,7 +70,7 @@ export default async function BrowsePage() {
             Every kitchen is matched against Santa Clara County’s
             approved-operator list before it can sell — no anonymous sellers.{" "}
             <Link href="/verified" className="underline hover:no-underline">
-              What that means
+              What this means
             </Link>
           </span>
         </div>

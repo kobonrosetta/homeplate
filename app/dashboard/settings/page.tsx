@@ -70,15 +70,21 @@ export default async function SettingsPage({
           defaultValue={cook.business_name}
         />
 
-        <SelectField
-          label="Operation type"
-          name="operation_type"
-          defaultValue={cook.operation_type}
-          options={[
-            { value: "cottage", label: "Cottage food (baked goods, jams, shelf-stable)" },
-            { value: "mehko", label: "MEHKO (hot home-cooked meals)" },
-          ]}
-        />
+        <div>
+          <SelectField
+            label="Operation type"
+            name="operation_type"
+            defaultValue={cook.operation_type}
+            options={[
+              { value: "cottage", label: "Cottage food (baked goods, jams, shelf-stable)" },
+              { value: "mehko", label: "MEHKO (hot home-cooked meals)" },
+            ]}
+          />
+          <p className="mt-1 text-xs text-faint">
+            This affects how sales tax is handled — only MEHKO (hot food) sees
+            the tax tools. Change it only if your permit type changed.
+          </p>
+        </div>
 
         <TextArea label="Short bio" name="bio" rows={3} defaultValue={cook.bio ?? ""} />
 

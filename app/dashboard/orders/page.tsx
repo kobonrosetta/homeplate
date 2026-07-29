@@ -128,13 +128,15 @@ export default async function OrdersPage({
   );
 
   if (list.length === 0) {
+    // Lead with the empty state; the payment-request creator (requestsUi) is
+    // a secondary tool a brand-new cook hasn't been introduced to yet.
     return (
       <div className="space-y-8">
-        {requestsUi}
         <EmptyState
           title="No orders yet"
           subtitle="The moment a buyer pays, their order shows up here — what they bought, their pickup time or delivery address, and how to reach them."
         />
+        {requestsUi}
       </div>
     );
   }
