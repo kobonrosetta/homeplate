@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useFormStatus } from "react-dom";
+import { TextField, SubmitButton } from "@/components/form";
 import GoogleButton, { OrDivider } from "@/components/google-button";
 import { safeNext } from "@/lib/safe-next";
 
@@ -30,16 +30,30 @@ export default function SignupForm({
 
       <OrDivider />
 
-      <Field label="Full name" name="full_name" type="text" autoComplete="name" />
-      <Field label="Email" name="email" type="email" autoComplete="email" />
-      <Field
+      <TextField
+        label="Full name"
+        name="full_name"
+        type="text"
+        required
+        autoComplete="name"
+      />
+      <TextField
+        label="Email"
+        name="email"
+        type="email"
+        required
+        autoComplete="email"
+      />
+      <TextField
         label="Password"
         name="password"
         type="password"
+        required
         autoComplete="new-password"
+        minLength={8}
       />
 
-      <Submit />
+      <SubmitButton pendingLabel="Creating…">Create account</SubmitButton>
 
       {!selling && (
         <p className="pt-1 text-center text-sm text-muted">
@@ -50,43 +64,5 @@ export default function SignupForm({
         </p>
       )}
     </form>
-  );
-}
-
-function Field({
-  label,
-  name,
-  type,
-  autoComplete,
-}: {
-  label: string;
-  name: string;
-  type: string;
-  autoComplete?: string;
-}) {
-  return (
-    <label className="block">
-      <span className="text-sm font-medium text-ink">{label}</span>
-      <input
-        name={name}
-        type={type}
-        required
-        autoComplete={autoComplete}
-        className="mt-1 w-full rounded-lg border border-line px-4 py-2.5 text-ink outline-none focus:border-muted focus:ring-2 focus:ring-line"
-      />
-    </label>
-  );
-}
-
-function Submit() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="w-full rounded-full bg-brand px-6 py-3 font-medium text-white hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      {pending ? "Creating…" : "Create account"}
-    </button>
   );
 }

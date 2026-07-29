@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { FormError } from "@/components/form";
 
 // Shown on /reset-password after the user follows their recovery link (they
 // arrive already signed in via a recovery session). Sets a new password with
@@ -39,9 +40,7 @@ export default function ResetPasswordForm() {
 
   return (
     <form onSubmit={submit} className="mt-6 space-y-4">
-      {err && (
-        <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{err}</p>
-      )}
+      {err && <FormError message={err} />}
       <label className="block">
         <span className="text-sm font-medium text-ink">New password</span>
         <input

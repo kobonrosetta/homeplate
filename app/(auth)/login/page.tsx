@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { login } from "../actions";
-import { SubmitButton } from "@/components/form";
+import { SubmitButton, TextField, FormError } from "@/components/form";
 import GoogleButton, { OrDivider } from "@/components/google-button";
 import { safeNext } from "@/lib/safe-next";
 
@@ -21,9 +21,7 @@ export default function LoginPage({
       <p className="mt-1 text-muted">Sign in to your account.</p>
 
       {searchParams.error && (
-        <p className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-          {searchParams.error}
-        </p>
+        <FormError message={searchParams.error} className="mt-4" />
       )}
 
       <div className="mt-6">
@@ -34,11 +32,18 @@ export default function LoginPage({
 
       <form action={login} className="space-y-4">
         {dest !== "/" && <input type="hidden" name="next" value={dest} />}
-        <Field label="Email" name="email" type="email" autoComplete="email" />
-        <Field
+        <TextField
+          label="Email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+        />
+        <TextField
           label="Password"
           name="password"
           type="password"
+          required
           autoComplete="current-password"
         />
         <div className="-mt-2 text-right">
@@ -59,30 +64,5 @@ export default function LoginPage({
         </Link>
       </p>
     </main>
-  );
-}
-
-function Field({
-  label,
-  name,
-  type,
-  autoComplete,
-}: {
-  label: string;
-  name: string;
-  type: string;
-  autoComplete?: string;
-}) {
-  return (
-    <label className="block">
-      <span className="text-sm font-medium text-ink">{label}</span>
-      <input
-        name={name}
-        type={type}
-        required
-        autoComplete={autoComplete}
-        className="mt-1 w-full rounded-lg border border-line px-4 py-2.5 text-ink outline-none focus:border-muted focus:ring-2 focus:ring-line"
-      />
-    </label>
   );
 }

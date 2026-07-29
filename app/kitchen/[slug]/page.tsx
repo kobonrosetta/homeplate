@@ -7,6 +7,9 @@ import AddToCart from "@/components/add-to-cart";
 import FeeNote from "@/components/fee-note";
 import FollowToggle from "@/components/follow-toggle";
 import ReviewsSection from "@/components/reviews-section";
+import VerifiedBadge from "@/components/verified-badge";
+import SoldOutTag from "@/components/sold-out-tag";
+import EmptyState from "@/components/empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -165,9 +168,7 @@ export default async function KitchenPage({
         <div className="flex flex-col items-end gap-2">
           {cook.permit_verified && (
             <div className="text-right">
-              <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-sm font-medium text-emerald-800">
-                ✓ County-verified
-              </span>
+              <VerifiedBadge />
               <Link
                 href="/verified"
                 className="mt-1 block text-xs text-muted hover:text-ink"
@@ -224,7 +225,7 @@ export default async function KitchenPage({
       <h2 className="mt-10 text-lg font-semibold text-ink">Menu</h2>
       <FeeNote className="mt-1" />
       {items.length === 0 ? (
-        <p className="mt-4 text-muted">No items available right now.</p>
+        <div className="mt-4"><EmptyState title="No items available right now." /></div>
       ) : (
         <div className="mt-4 grid gap-5 sm:grid-cols-2">
           {items.map((l: any) => {
@@ -279,9 +280,7 @@ export default async function KitchenPage({
                         : formatUsd(l.price_cents)}
                     </span>
                     {soldOut ? (
-                      <span className="rounded-full bg-line px-3 py-1.5 text-sm font-medium text-faint">
-                        Sold out
-                      </span>
+                      <SoldOutTag />
                     ) : hasOptions.has(l.id) ? (
                       <Link
                         href={`/listing/${l.id}`}
@@ -350,9 +349,7 @@ export default async function KitchenPage({
                     <p className="text-sm text-muted">{formatUsd(l.price_cents)}</p>
                   </div>
                   {soldOut ? (
-                    <span className="shrink-0 text-xs font-medium text-faint">
-                      Sold out
-                    </span>
+                    <SoldOutTag />
                   ) : (
                     <AddToCart
                       cook={{

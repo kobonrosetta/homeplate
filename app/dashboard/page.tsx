@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentCook } from "@/lib/cook";
 import { SITE_URL, formatUsd } from "@/lib/constants";
 import ShareLink from "@/components/share-link";
+import EmptyState from "@/components/empty-state";
 import {
   MONTH_NAMES,
   formatDueDate,
@@ -195,12 +196,10 @@ export default async function DashboardOverview() {
             photo and your verified badge.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <code className="max-w-full overflow-x-auto rounded-lg border border-line bg-white px-3 py-2 text-xs text-muted">
-              {`${SITE_URL}/kitchen/${cook.slug}`}
-            </code>
             <ShareLink
               url={`${SITE_URL}/kitchen/${cook.slug}`}
               text={`Order from ${cook.business_name} on HomePlate — county-verified home cooking`}
+              showUrl
             />
           </div>
         </div>
@@ -293,9 +292,9 @@ export default async function DashboardOverview() {
           Top tasks
         </h3>
         {tasks.length === 0 ? (
-          <p className="mt-2 rounded-xl border border-dashed border-line px-4 py-8 text-center text-sm text-muted">
-            You&apos;re all caught up.
-          </p>
+          <div className="mt-2">
+            <EmptyState title="You're all caught up." />
+          </div>
         ) : (
           <div className="mt-2 divide-y divide-line overflow-hidden rounded-xl border border-line">
             {tasks.map((t, i) => (

@@ -10,6 +10,7 @@ import {
   uploadCookAvatar,
   uploadPermitPhoto,
   permitFileProblem,
+  readPickupWindows,
 } from "@/lib/listings";
 import { sendEmail, wrapEmail } from "@/lib/email";
 import { normalizePermit, isExpired } from "@/lib/match";
@@ -49,12 +50,7 @@ export async function wizardSaveKitchen(formData: FormData) {
   const pickup = formData.get("pickup_available") === "on";
   const delivery = formData.get("delivery_available") === "on";
   const deliveryNotes = String(formData.get("delivery_notes") ?? "").trim();
-  // One window per line, capped so a paste-happy cook can't blow up checkout.
-  const pickupWindows = String(formData.get("pickup_windows") ?? "")
-    .split("\n")
-    .map((s) => s.trim().slice(0, 80))
-    .filter(Boolean)
-    .slice(0, 10);
+  const pickupWindows = readPickupWindows(formData);
 
   if (!businessName) {
     redirect("/sell?error=" + encodeURIComponent("Please name your kitchen."));

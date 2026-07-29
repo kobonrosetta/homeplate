@@ -7,6 +7,7 @@ import AddToCart from "@/components/add-to-cart";
 import FeeNote from "@/components/fee-note";
 import PhotoGallery from "@/components/photo-gallery";
 import OptionsPicker from "@/components/options-picker";
+import SoldOutTag from "@/components/sold-out-tag";
 
 export const dynamic = "force-dynamic";
 
@@ -135,7 +136,7 @@ export default async function ListingPage({
             className="mt-3 inline-block text-sm text-muted hover:text-ink"
           >
             {cook.business_name}
-            {cook.permit_verified ? " · ✓ Verified" : ""}
+            {cook.permit_verified ? " · ✓ County-verified" : ""}
             {cook.city ? ` · ${cook.city}` : ""}
           </Link>
 
@@ -172,9 +173,7 @@ export default async function ListingPage({
 
           <div className="mt-6">
             {soldOut ? (
-              <span className="inline-block rounded-full bg-line px-5 py-2.5 text-sm font-medium text-faint">
-                Sold out
-              </span>
+              <SoldOutTag />
             ) : hasOptions ? (
               <OptionsPicker
                 cook={{

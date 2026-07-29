@@ -6,17 +6,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCart, lineKey } from "@/components/cart-context";
 import CartSync from "@/components/cart-sync";
 import { formatUsd, calcServiceFeeCents } from "@/lib/constants";
+import { FormError } from "@/components/form";
 
 // Checkout bounces its errors here (?error=...) — e.g. "no longer available"
 // or "prices changed". useSearchParams needs a Suspense boundary.
 function CheckoutError() {
   const message = useSearchParams().get("error");
   if (!message) return null;
-  return (
-    <p className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-      {message}
-    </p>
-  );
+  return <FormError message={message} className="mt-4" />;
 }
 
 export default function CartPage() {

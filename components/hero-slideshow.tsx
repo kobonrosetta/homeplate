@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatUsd } from "@/lib/constants";
+import VerifiedBadge from "@/components/verified-badge";
 
 export type HeroKitchen = {
   slug: string;
@@ -61,9 +62,7 @@ export default function HeroSlideshow({
           />
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent p-5 pt-16 text-white">
             {k.verified && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/85 px-2.5 py-1 text-[11px] font-medium text-emerald-800 backdrop-blur-sm">
-                ✓ Verified
-              </span>
+              <VerifiedBadge variant="overlay" />
             )}
             <p className="mt-2 font-display text-2xl font-semibold leading-tight">
               {k.name}
