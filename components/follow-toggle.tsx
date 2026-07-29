@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 
-// Client-side follow toggle for pages that must NOT re-render on follow —
-// the order-confirmation page re-verifies the Stripe session when rendered,
-// so it uses this (a plain /api/follow call that updates only the button)
-// instead of the server-action FollowButton the kitchen page uses.
+// Client-side follow toggle used by both the kitchen page and the order-
+// confirmation page. It calls /api/follow and updates only the button, so it
+// works on pages that must NOT re-render on follow (the confirmation page
+// re-verifies the Stripe session when rendered) and it surfaces a rejected
+// follow as a visible message instead of a silent no-op.
 export default function FollowToggle({
   cookId,
   initialFollowing = false,

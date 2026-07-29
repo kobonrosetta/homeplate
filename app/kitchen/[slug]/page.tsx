@@ -5,9 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { formatUsd } from "@/lib/constants";
 import AddToCart from "@/components/add-to-cart";
 import FeeNote from "@/components/fee-note";
-import FollowButton from "@/components/follow-button";
+import FollowToggle from "@/components/follow-toggle";
 import ReviewsSection from "@/components/reviews-section";
-import { toggleFollow } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -178,15 +177,14 @@ export default async function KitchenPage({
             </div>
           )}
           {canFollow ? (
-            <FollowButton
-              action={toggleFollow}
-              cookId={cook.id}
-              slug={cook.slug}
-              following={following}
-            />
+            // Client toggle (hits /api/follow) rather than a server action:
+            // it surfaces a rejected follow (e.g. kitchen just paused) as a
+            // visible message instead of silently re-rendering "Follow".
+            <FollowToggle cookId={cook.id} initialFollowing={following} />
           ) : (
+            // Signed out → sign up, then land back on THIS kitchen (not /browse).
             <Link
-              href="/signup"
+              href={`/signup?next=/kitchen/${cook.slug}`}
               className="rounded-full border border-brand px-4 py-1.5 text-sm font-medium text-brand transition hover:bg-brand hover:text-white"
             >
               ♡ Follow
