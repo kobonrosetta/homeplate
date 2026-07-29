@@ -224,6 +224,20 @@ function Step3({ cottage }: { cottage?: boolean }) {
           required
           placeholder={cottage ? "Your county registration #" : "e.g. PT0503912"}
         />
+        {cottage && (
+          <p className="-mt-3 text-xs text-faint">
+            Don&apos;t have one yet? California requires a Cottage Food
+            registration to sell baked goods.{" "}
+            <a
+              href="https://deh.santaclaracounty.gov/food-and-retail/compliance-retail-food-operations/apply-cottage-food-operator-cfo-permit"
+              target="_blank"
+              rel="noreferrer"
+              className="underline hover:text-ink"
+            >
+              How to register with Santa Clara County →
+            </a>
+          </p>
+        )}
         <TextField
           label="Street address"
           name="street_address"
