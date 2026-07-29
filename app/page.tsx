@@ -73,12 +73,6 @@ export default async function Home() {
             >
               Find food near you
             </Link>
-            <Link
-              href="/sell"
-              className="rounded-full border border-line px-6 py-3 font-medium text-ink hover:border-muted hover:bg-card"
-            >
-              I&apos;m a cook →
-            </Link>
           </div>
           <p className="mt-4 text-sm text-muted">
             Now serving Santa Clara County.
