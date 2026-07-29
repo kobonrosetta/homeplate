@@ -59,7 +59,10 @@ export async function startCheckout(formData: FormData) {
   const contactName = String(formData.get("contact_name") ?? "").trim();
   const contactPhone = String(formData.get("contact_phone") ?? "").trim();
   const contactEmail = String(formData.get("email") ?? "").trim();
-  const pickupTime = String(formData.get("pickup_time") ?? "").trim();
+  // Capped: windows are ≤80 chars, and free-text must not be a novel.
+  const pickupTime = String(formData.get("pickup_time") ?? "")
+    .trim()
+    .slice(0, 120);
   const deliveryAddress = String(formData.get("delivery_address") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
 
@@ -151,13 +154,30 @@ export async function startCheckout(formData: FormData) {
 
   const { data: cook } = await supabase
     .from("cooks")
-    .select("id, status, delivery_available")
+    .select("id, status, delivery_available, pickup_windows")
     .eq("id", cookId)
     .maybeSingle();
   if (!cook || cook.status !== "active")
     err("/cart", "This kitchen isn't available right now.");
   if (fulfillment === "delivery" && !cook!.delivery_available)
     err("/checkout", "This kitchen doesn't offer delivery.");
+  // The cook owns the schedule: when they define pickup windows, a pickup
+  // order must name one of the CURRENT windows (or none — the "arrange with
+  // the kitchen" choice). Catches stale carts offering a deleted window and
+  // devtools-fabricated values alike; the checkout page's CartSync will have
+  // healed the cart by the time the buyer sees this bounce.
+  const windows = (cook!.pickup_windows ?? []) as string[];
+  if (
+    fulfillment === "pickup" &&
+    pickupTime &&
+    windows.length > 0 &&
+    !windows.includes(pickupTime)
+  ) {
+    err(
+      "/checkout",
+      "That pickup time isn't offered by this kitchen anymore — please choose one of their current times."
+    );
+  }
 
   // One order line per CART line (the same listing can appear twice with
   // different option choices). served_hot is snapshotted like title/price:
