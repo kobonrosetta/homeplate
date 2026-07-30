@@ -214,8 +214,27 @@ export default async function AdminPage() {
                 </div>
 
                 <p className="mt-1 text-sm text-muted">
-                  {email || "no email"}
-                  {phone ? ` · ${phone}` : ""}
+                  {email ? (
+                    <a
+                      href={`mailto:${email}`}
+                      className="hover:text-ink hover:underline"
+                    >
+                      {email}
+                    </a>
+                  ) : (
+                    "no email"
+                  )}
+                  {" · "}
+                  {phone ? (
+                    <a
+                      href={`tel:${phone}`}
+                      className="hover:text-ink hover:underline"
+                    >
+                      {phone}
+                    </a>
+                  ) : (
+                    <span className="text-amber-700">no phone</span>
+                  )}
                 </p>
 
                 <div className="mt-3 grid gap-3 rounded-lg bg-card p-3 text-sm sm:grid-cols-2">

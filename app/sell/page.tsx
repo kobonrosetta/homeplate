@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentCook } from "@/lib/cook";
+import { createClient } from "@/lib/supabase/server";
 import { taxRateForCity } from "@/lib/tax";
 import { wizardSaveKitchen, wizardAddDish, wizardFinalize } from "./actions";
 import CookPitch from "./pitch";
@@ -27,8 +28,11 @@ export default async function SellPage({
   const { user, cook } = await getCurrentCook();
   if (!user || user.is_anonymous) return <CookPitch />;
 
-  // Wizard already finished (permit submitted) → straight to the dashboard.
-  if (cook?.permit_number) redirect("/dashboard");
+  // Wizard already finished → straight to the dashboard. A permit is now
+  // optional, so "finished" keys off city (only ever set at Step 3 finalize
+  // during onboarding), with permit_number as a fallback for kitchens created
+  // before the permit became optional.
+  if (cook?.city || cook?.permit_number) redirect("/dashboard");
 
   // Which step to show. No kitchen yet → step 1. Kitchen started → step 2 by
   // default, but ?step lets them jump back to edit or forward to verify.
@@ -38,6 +42,16 @@ export default async function SellPage({
     step = requested === 1 || requested === 3 ? requested : 2;
   }
 
+  // The contact phone is required now and lives on the profile (not the cook
+  // row), so fetch it to pre-fill Step 1 on a revisit.
+  const supabase = createClient();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("phone")
+    .eq("id", user.id)
+    .maybeSingle();
+  const phone = profile?.phone ?? "";
+
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
       <Tracker step={step} />
@@ -46,7 +60,7 @@ export default async function SellPage({
         <FormError message={searchParams.error} />
       </div>
 
-      {step === 1 && <Step1 cook={cook} />}
+      {step === 1 && <Step1 cook={cook} phone={phone} />}
       {step === 2 && (
         <Step2
           mehko={cook?.operation_type === "mehko"}
@@ -115,7 +129,7 @@ function Tracker({ step }: { step: number }) {
   );
 }
 
-function Step1({ cook }: { cook: any }) {
+function Step1({ cook, phone }: { cook: any; phone: string }) {
   const tags = (cook?.cuisine_tags ?? []).join(", ");
   return (
     <div>
@@ -170,14 +184,16 @@ function Step1({ cook }: { cook: any }) {
         />
         <div>
           <TextField
-            label="Contact phone (optional)"
+            label="Contact phone"
             name="contact_phone"
             type="tel"
+            required
+            defaultValue={phone}
             placeholder="(408) 555-0139"
           />
           <p className="mt-1 text-xs text-faint">
-            Shared with a buyer only after they order, so you can coordinate
-            pickup or delivery.
+            How HomePlate reaches you about your application, and how a buyer
+            reaches you after they order. Never shown publicly.
           </p>
         </div>
         <div className="space-y-3 rounded-lg border border-line p-4">
@@ -251,25 +267,33 @@ function Step3({ cottage }: { cottage?: boolean }) {
 
       <form action={wizardFinalize} className="mt-6 space-y-5">
         <TextField
-          label={cottage ? "Cottage Food registration number" : "Permit number"}
+          label={
+            cottage
+              ? "Cottage Food registration number (optional)"
+              : "Permit number (optional)"
+          }
           name="permit_number"
-          required
           placeholder={cottage ? "Your county registration #" : "e.g. PT0503912"}
         />
-        {cottage && (
-          <p className="-mt-3 text-xs text-faint">
-            Don&apos;t have one yet? California requires a Cottage Food
-            registration to sell baked goods.{" "}
-            <a
-              href="https://deh.santaclaracounty.gov/food-and-retail/compliance-retail-food-operations/apply-cottage-food-operator-cfo-permit"
-              target="_blank"
-              rel="noreferrer"
-              className="underline hover:text-ink"
-            >
-              How to register with Santa Clara County →
-            </a>
-          </p>
-        )}
+        <p className="-mt-3 text-xs text-faint">
+          Adding it now speeds up verification — but you can submit without it
+          and we&apos;ll follow up before you go live.
+          {cottage && (
+            <>
+              {" "}
+              California requires a Cottage Food registration to sell baked
+              goods.{" "}
+              <a
+                href="https://deh.santaclaracounty.gov/food-and-retail/compliance-retail-food-operations/apply-cottage-food-operator-cfo-permit"
+                target="_blank"
+                rel="noreferrer"
+                className="underline hover:text-ink"
+              >
+                How to register with Santa Clara County →
+              </a>
+            </>
+          )}
+        </p>
         <TextField
           label="Street address"
           name="street_address"
