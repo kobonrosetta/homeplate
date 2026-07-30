@@ -5,9 +5,9 @@
 --
 --  Pilot model: prices are tax-INCLUDED. Each cook remits their
 --  own California sales tax on their own CDTFA seller's permit;
---  HomePlate derives the numbers for them (dashboard Taxes card
+--  ForkFork derives the numbers for them (dashboard Taxes card
 --  + CSV). Buyers never see a tax line. The marketplace-
---  facilitator flip (HomePlate collects tax at checkout) is
+--  facilitator flip (ForkFork collects tax at checkout) is
 --  deliberately NOT built yet — it needs the CPA answer first.
 --
 --  1) listings.served_hot — the CA taxability signal (CDTFA

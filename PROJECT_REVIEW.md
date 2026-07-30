@@ -1,4 +1,4 @@
-# HomePlate — Project Review & Launch Checklist
+# ForkFork — Project Review & Launch Checklist
 _July 2026 · reviewed against the working codebase, not from memory_
 
 ## Verdict

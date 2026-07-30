@@ -1,7 +1,7 @@
 // California sales-tax helpers for the pilot's tax-INCLUDED pricing model:
 // a cook's listed price contains any tax owed (CDTFA Reg. 1603 — hot prepared
 // food is taxable, cold/room-temp food sold to-go generally isn't), the cook
-// remits it on their own seller's permit, and HomePlate derives the numbers
+// remits it on their own seller's permit, and ForkFork derives the numbers
 // for them. Nothing here changes what a buyer pays.
 
 /** Santa Clara County rate (unincorporated + most cities), effective 2026-07-01. */
@@ -60,7 +60,7 @@ export type TaxQuarter = {
   dueDate: Date; // CDTFA filing deadline for this quarter's return
 };
 
-// Quarters are anchored to America/Los_Angeles. HomePlate runs on Render (UTC),
+// Quarters are anchored to America/Los_Angeles. ForkFork runs on Render (UTC),
 // but a California cook's quarter ends at midnight PACIFIC — without this a
 // hot-food sale within ~7-8h of a boundary (e.g. Jun 30 8pm PT = Jul 1 03:00
 // UTC) would be filtered into the wrong quarter's CSV / CDTFA report.

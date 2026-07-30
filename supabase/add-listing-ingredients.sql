@@ -2,7 +2,7 @@
 --
 -- Shown on the item page only when the cook filled it in. Two reasons it
 -- exists: buyers with allergies read ingredient lists, and California cottage
--- food labels legally require one — this is the one label field HomePlate
+-- food labels legally require one — this is the one label field ForkFork
 -- didn't already hold, so it's quietly step one of the future printable-label
 -- generator for bakers.
 --

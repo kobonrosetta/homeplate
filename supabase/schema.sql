@@ -1,5 +1,5 @@
 -- ============================================================
---  HomePlate database schema
+--  ForkFork database schema
 --  Run this in Supabase: SQL Editor -> New query -> paste -> Run
 -- ============================================================
 
@@ -98,7 +98,7 @@ create table orders (
   status                    order_status not null default 'pending',
   fulfillment               fulfillment_type not null default 'pickup',
   subtotal_cents            integer not null,   -- cook keeps 100% of this
-  service_fee_cents         integer not null,   -- HomePlate's 8% + $0.30
+  service_fee_cents         integer not null,   -- ForkFork's 8% + $0.30
   total_cents               integer not null,   -- subtotal + service fee (what the buyer pays)
   stripe_payment_intent_id  text,
   pickup_time               text,

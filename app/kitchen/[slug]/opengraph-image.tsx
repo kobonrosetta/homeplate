@@ -12,7 +12,7 @@ import { loadOgFonts } from "@/lib/og-font";
 // Uses a bare anon-key client (public data only: active kitchens + their
 // listing photos) — no cookies/session machinery in an image route.
 
-export const alt = "A county-verified home kitchen on HomePlate";
+export const alt = "A county-verified home kitchen on ForkFork";
 export const size = { width: 840, height: 441 };
 export const contentType = "image/png";
 
@@ -46,7 +46,7 @@ export default async function Image({
     (cook?.listings as { photo_url: string }[] | undefined)?.[0]?.photo_url ??
     null;
 
-  const rawName = cook?.business_name ?? "HomePlate";
+  const rawName = cook?.business_name ?? "ForkFork";
   const name =
     rawName.length > 44 ? `${rawName.slice(0, 43).trimEnd()}…` : rawName;
   const badge = cook?.permit_verified
@@ -57,7 +57,7 @@ export default async function Image({
   // the tofu gaps); ASCII names get [] and keep the built-in face. Scoped to
   // every string the card draws so all glyphs are covered.
   const fonts = await loadOgFonts(
-    `${name}${badge}HomePlateOrder ahead · pick up nearby`
+    `${name}${badge}ForkForkOrder ahead · pick up nearby`
   );
 
   const Badge = (
@@ -115,7 +115,7 @@ export default async function Image({
               fontWeight: 700,
             }}
           >
-            HomePlate
+            ForkFork
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div
@@ -165,7 +165,7 @@ export default async function Image({
               fontWeight: 700,
             }}
           >
-            HomePlate
+            ForkFork
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div

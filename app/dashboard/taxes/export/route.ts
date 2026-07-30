@@ -59,7 +59,7 @@ export async function GET(req: Request) {
   const lines: string[] = [];
   lines.push(
     [
-      esc(`HomePlate tax report — ${qtr.label}`),
+      esc(`ForkFork tax report — ${qtr.label}`),
       esc(`${cook.city?.trim() || "Santa Clara County"} rate ${formatRate(rate)}`),
       esc("prices are tax-included; estimates only"),
     ].join(",")
@@ -101,7 +101,7 @@ export async function GET(req: Request) {
   return new Response(lines.join("\n") + "\n", {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="homeplate-taxes-${qtr.label.replace(
+      "Content-Disposition": `attachment; filename="forkfork-taxes-${qtr.label.replace(
         " ",
         "-"
       )}.csv"`,

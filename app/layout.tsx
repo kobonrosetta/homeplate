@@ -9,7 +9,7 @@ import { SITE_URL } from "@/lib/constants";
 export const metadata: Metadata = {
   // Absolute base for Open Graph/Twitter URLs — link unfurls need full URLs.
   metadataBase: new URL(SITE_URL),
-  title: "HomePlate — county-approved home kitchens, near you",
+  title: "ForkFork — county-approved home kitchens, near you",
   description:
     "Discover and order from local, county-approved home bakers and cooks. Real food, real people, verified and trusted.",
 };

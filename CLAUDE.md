@@ -1,4 +1,4 @@
-# HomePlate — Agent Orientation
+# ForkFork — Agent Orientation
 
 **Read this first.** It's the fastest way to become productive here and to avoid
 "helpfully" undoing deliberate decisions. Kobon is the founder/CEO and non-technical:
@@ -178,7 +178,7 @@ them re-opens real vulnerabilities:
    quarterly numbers via `lib/tax.ts`, whose Santa Clara city rates were hand-verified
    against CDTFA on 2026-07-28 — re-check when CDTFA reposts (Jan/Apr/Jul/Oct). Buyers
    see one checkout footnote ("Prices include any California sales tax"), never a tax
-   line. The marketplace-facilitator flip (HomePlate collecting tax at checkout) is
+   line. The marketplace-facilitator flip (ForkFork collecting tax at checkout) is
    deliberately NOT built — it needs the CPA answer on whether a Santa Clara-based
    facilitator must register regardless of the $500k remote-seller threshold.
 

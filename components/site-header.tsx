@@ -30,7 +30,7 @@ export default async function SiteHeader() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <Link href="/" className="flex items-center">
           <span className="font-display text-2xl font-semibold tracking-tight text-ink">
-            HomePlate
+            ForkFork
           </span>
         </Link>
 

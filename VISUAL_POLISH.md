@@ -1,14 +1,14 @@
-# HomePlate — Visual Polish Plan
+# ForkFork — Visual Polish Plan
 _July 2026 · research-backed (Airbnb, DoorDash, Etsy, Sweetgreen, Refactoring UI, Nielsen Norman Group). Ranked by visual impact per effort._
 
 ## Why it reads "basic" right now
 
 Three tells, all fixable and all centralized:
-1. **System font + emoji logo.** `system-ui` everywhere and a "🍽️ HomePlate" wordmark = "we haven't done branding yet." This is the single biggest thing separating you from a designed brand.
+1. **System font + emoji logo.** `system-ui` everywhere and a "🍽️ ForkFork" wordmark = "we haven't done branding yet." This is the single biggest thing separating you from a designed brand.
 2. **A flat two-color palette.** One cream + one amber, with cold-ish gray text. No depth, no ramp.
 3. **Default-Tailwind components.** Uniform spacing, thin cards, flat borders. Competent, but nobody would call it beautiful.
 
-The upside: HomePlate's styling is centralized (a handful of CSS tokens + a font + shared card patterns), so **most of this is a few files, not a repaint of every screen.**
+The upside: ForkFork's styling is centralized (a handful of CSS tokens + a font + shared card patterns), so **most of this is a few files, not a repaint of every screen.**
 
 ---
 
@@ -18,7 +18,7 @@ The upside: HomePlate's styling is centralized (a handful of CSS tokens + a font
 - **Add a display serif for headings** (Fraunces — variable, warm, "old-style with attitude"; or Cormorant Garamond for higher-contrast drama), paired with **Inter** for body. Serif-for-headings is *the* signal of premium food/hospitality (Sweetgreen, most chef-driven brands). Keep the serif to H1–H3 only; Inter carries everything ≤16px. [Grilli Type, It's Nice That / Sweetgreen]
 - **Install a real modular scale** (16px base × ~1.33): 16 → 21 → 28 → 37 → 49, instead of flat 14/16/18. Big, confident headings.
 - **Tune the details:** tight leading (~1.1) + slightly negative tracking on large headings; **uppercase, letter-spaced eyebrow labels** ("COTTAGE FOOD · SANTA CLARA"). That one move reads instantly "designed." [Refactoring UI, Pangram Pangram]
-- **Kill the emoji; build a wordmark.** "HomePlate" set in Fraunces with tight tracking, one or two letters lightly redrawn, optional tiny plate mark. An emoji can't be trademarked and renders differently on every device. [ebaqdesign, Sweetgreen]
+- **Kill the emoji; build a wordmark.** "ForkFork" set in Fraunces with tight tracking, one or two letters lightly redrawn, optional tiny plate mark. An emoji can't be trademarked and renders differently on every device. [ebaqdesign, Sweetgreen]
 
 ### 2. Color depth — centralized
 - **Turn the single amber into a 9-step ramp** (100→900): pale honey for tints/badges, deep bronze for text-on-cream and hover. **Rebuild "cream" as a warm-tinted neutral ramp** carrying one amber/brown hue from lightest bg to darkest text — not cream sitting next to cold gray. [Refactoring UI]

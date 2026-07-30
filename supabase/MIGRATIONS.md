@@ -1,6 +1,6 @@
-# HomePlate — Database Migrations
+# ForkFork — Database Migrations
 
-Every schema change to the HomePlate Supabase project has been applied **by hand** in
+Every schema change to the ForkFork Supabase project has been applied **by hand** in
 the Supabase SQL editor — this project does not use the Supabase CLI migration system.
 This file is the canonical record of what was run, in what order, and whether it's live.
 

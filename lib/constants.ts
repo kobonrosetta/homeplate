@@ -1,4 +1,4 @@
-// Central place for the HomePlate business rules.
+// Central place for the ForkFork business rules.
 // Change the fee here and it updates everywhere.
 
 /** Buyer-side service fee, charged on top of the cook's price. */
@@ -22,7 +22,7 @@ export const SITE_URL =
 /**
  * The cook keeps 100% of `subtotalCents`.
  * The buyer pays `subtotalCents + serviceFee`.
- * HomePlate keeps the service fee (minus Stripe's cut).
+ * ForkFork keeps the service fee (minus Stripe's cut).
  */
 export function calcServiceFeeCents(subtotalCents: number): number {
   if (subtotalCents <= 0) return 0;

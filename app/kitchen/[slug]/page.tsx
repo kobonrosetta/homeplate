@@ -41,12 +41,12 @@ export async function generateMetadata({
   const cook = await getActiveCook(params.slug);
   if (!cook) return {};
 
-  const title = `${cook.business_name} — HomePlate`;
+  const title = `${cook.business_name} — ForkFork`;
   const description = (
     cook.bio ||
     `${cook.permit_verified ? "County-verified home kitchen" : "Home kitchen"}${
       cook.city ? ` in ${cook.city}` : ""
-    } — browse the menu and order ahead on HomePlate.`
+    } — browse the menu and order ahead on ForkFork.`
   ).slice(0, 200);
 
   return {
@@ -56,7 +56,7 @@ export async function generateMetadata({
       title,
       description,
       type: "website",
-      siteName: "HomePlate",
+      siteName: "ForkFork",
       url: `/kitchen/${params.slug}`,
     },
     twitter: { card: "summary_large_image", title, description },
@@ -412,7 +412,7 @@ export default async function KitchenPage({
             </p>
             <p className="mt-0.5 text-sm text-muted">
               Home cook{cook.city ? ` in ${cook.city}` : ""}
-              {joinedLabel ? ` · on HomePlate since ${joinedLabel}` : ""}
+              {joinedLabel ? ` · on ForkFork since ${joinedLabel}` : ""}
             </p>
             {cook.bio && (
               <p className="mt-3 max-w-2xl leading-relaxed text-ink">

@@ -7,7 +7,7 @@ function apiKey(): string | null {
   return k && k.startsWith("re_") ? k : null;
 }
 
-const FROM = process.env.EMAIL_FROM || "HomePlate <onboarding@resend.dev>";
+const FROM = process.env.EMAIL_FROM || "ForkFork <onboarding@resend.dev>";
 
 export async function sendEmail(opts: {
   to: string | string[];
@@ -88,8 +88,8 @@ export function escapeHtml(s: string): string {
 // Minimal branded wrapper so emails aren't raw text.
 export function wrapEmail(bodyHtml: string): string {
   return `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#292524">
-    <div style="font-size:18px;font-weight:600;color:#b45309;margin-bottom:12px">HomePlate</div>
+    <div style="font-size:18px;font-weight:600;color:#b45309;margin-bottom:12px">ForkFork</div>
     <div style="font-size:15px;line-height:1.6">${bodyHtml}</div>
-    <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e7e5e4;font-size:12px;color:#a8a29e">HomePlate · county-approved home kitchens</div>
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e7e5e4;font-size:12px;color:#a8a29e">ForkFork · county-approved home kitchens</div>
   </div>`;
 }

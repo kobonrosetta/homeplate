@@ -45,7 +45,7 @@ export async function generateMetadata({
   const title = `${listing.title} — ${cook.business_name}`;
   const description = (
     listing.description ||
-    `${formatUsd(listing.price_cents)} · homemade by a county-permitted kitchen on HomePlate.`
+    `${formatUsd(listing.price_cents)} · homemade by a county-permitted kitchen on ForkFork.`
   ).slice(0, 200);
 
   return {
@@ -55,7 +55,7 @@ export async function generateMetadata({
       title,
       description,
       type: "website",
-      siteName: "HomePlate",
+      siteName: "ForkFork",
       url: `/listing/${params.id}`,
       images: listing.photo_url ? [{ url: listing.photo_url }] : undefined,
     },

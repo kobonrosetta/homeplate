@@ -1,6 +1,6 @@
-# Deploying HomePlate to Render
+# Deploying ForkFork to Render
 
-HomePlate's backend (database, auth, storage) lives on **Supabase** and stays exactly where
+ForkFork's backend (database, auth, storage) lives on **Supabase** and stays exactly where
 it is. This guide only puts the **Next.js app** online, hosted on **Render**, deploying from
 the GitHub repo `kobonrosetta/homeplate`.
 

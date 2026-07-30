@@ -7,7 +7,7 @@ export default function SiteFooter() {
     <footer className="border-t border-line">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-sm text-muted">
         <span>
-          © {new Date().getFullYear()} HomePlate · A marketplace for
+          © {new Date().getFullYear()} ForkFork · A marketplace for
           county-approved home food operators.
         </span>
         <Link href="/sell" className="font-medium text-ink hover:text-brand">
