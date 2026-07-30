@@ -221,7 +221,7 @@ export default function NewListingForm({
         <span className="text-sm font-medium text-ink">Category</span>
         <select
           name="category"
-          defaultValue={defaults?.category ?? "bread"}
+          defaultValue={defaults?.category ?? (servedHotUI ? "meal" : "bread")}
           className={inputClass}
         >
           <option value="bread">Bread</option>
@@ -359,7 +359,8 @@ export default function NewListingForm({
         />
         {!preview && (
           <p className="mt-1 text-xs text-faint">
-            Add your photo first — then “Write with AI” below can describe it.
+            Your photo is what sells the dish on your storefront and browse — add
+            a clear, well-lit shot. Then “Write with AI” below can describe it.
           </p>
         )}
 

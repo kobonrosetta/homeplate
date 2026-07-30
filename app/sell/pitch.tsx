@@ -36,7 +36,8 @@ export default function CookPitch() {
             </Link>
           </div>
           <p className="mt-4 text-sm text-muted">
-            About ten minutes, and your progress saves as you go.
+            About ten minutes, and your progress saves after each step — leave
+            and come back anytime.
           </p>
         </div>
       </section>
@@ -82,7 +83,7 @@ export default function CookPitch() {
           <Step
             n="3"
             title="Get verified, go live"
-            body="Enter your permit number. We check it against the county's list and a person approves your kitchen — typically within a day."
+            body="Add your address. A permit number speeds verification but isn't required — a person reviews and approves your kitchen, usually within a day."
           />
         </div>
       </section>
