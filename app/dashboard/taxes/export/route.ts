@@ -44,7 +44,14 @@ export async function GET(req: Request) {
 
   const rate = taxRateForCity(cook.city);
   const esc = (v: string | number) => {
-    const s = String(v);
+    let s = String(v);
+    // Neutralize CSV / spreadsheet formula injection (CWE-1236): a cell that
+    // starts with a formula sigil is executed by Excel/Sheets/LibreOffice the
+    // moment the cook (or their accountant, or CDTFA) opens this report. Cooks
+    // control item titles and their city, so prefix a leading =, +, -, @, tab,
+    // or CR with an apostrophe to force the cell to render as literal text.
+    // (Numeric columns are formatted separately and never pass through esc.)
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const money = (cents: number) => (cents / 100).toFixed(2);
