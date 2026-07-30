@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -10,6 +11,9 @@ import ClaimAccount from "@/components/claim-account";
 import FollowToggle from "@/components/follow-toggle";
 
 export const dynamic = "force-dynamic";
+// Defense-in-depth: don't leak the session_id in the URL to any subresource via
+// the Referer header.
+export const metadata: Metadata = { referrer: "no-referrer" };
 
 export default async function CheckoutSuccessPage({
   searchParams,
@@ -59,15 +63,58 @@ export default async function CheckoutSuccessPage({
     ? await admin
         .from("orders")
         .select(
-          "id, fulfillment, total_cents, pickup_time, delivery_address, cook_id, contact_email, order_items(title, quantity, line_total_cents)"
+          "id, buyer_id, fulfillment, total_cents, pickup_time, delivery_address, cook_id, contact_email, order_items(title, quantity, line_total_cents)"
         )
         .eq("id", orderId)
         .maybeSingle()
     : { data: null as any };
 
+  // The viewer must OWN this order before we reveal any of its PII — the buyer's
+  // contact/delivery address and the cook's private home pickup address all sit
+  // behind this check (the order is loaded via the service role, which bypasses
+  // RLS, so ownership must be enforced here in code). Guest checkout runs on an
+  // anonymous session, so the guest's own anon id equals order.buyer_id — one
+  // check covers guests and signed-in buyers alike. Anyone else holding the
+  // session_id URL (a forwarded or shared link) gets only a generic
+  // confirmation. The payment was already confirmed above (keyed on the paid
+  // Stripe session, not the viewer), so nothing is lost by hiding the details.
+  const sb = createClient();
+  const {
+    data: { user },
+  } = await sb.auth.getUser();
+  const isOwner = Boolean(user && order && user.id === order.buyer_id);
+
+  if (!isOwner) {
+    return (
+      <main className="mx-auto max-w-xl px-6 py-16">
+        <div className="rounded-2xl border border-line p-8 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-2xl text-emerald-700">
+            ✓
+          </div>
+          <h1 className="mt-4 text-2xl font-semibold text-ink">
+            Order confirmed
+          </h1>
+          <p className="mt-2 text-muted">
+            Your payment went through and the kitchen has your order.
+          </p>
+          <div className="mt-8">
+            <Link
+              href="/browse"
+              className="inline-block rounded-full bg-brand px-6 py-3 font-medium text-white hover:bg-brand/90"
+            >
+              Browse more kitchens
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // Owner-only from here — safe to load and reveal the handoff details.
+  const isGuest = Boolean(user?.is_anonymous);
   let kitchenName = "";
   let pickupAddress: string | null = null;
-  if (order?.cook_id) {
+  if (order.cook_id) {
     const { data: cook } = await admin
       .from("cooks")
       .select("business_name, city")
@@ -89,19 +136,11 @@ export default async function CheckoutSuccessPage({
     }
   }
 
-  // A guest checkout leaves the buyer on an anonymous session — offer to turn it
-  // into a real account so this order (and future ones) stays attached.
-  const sb = createClient();
-  const {
-    data: { user },
-  } = await sb.auth.getUser();
-  const isGuest = Boolean(user?.is_anonymous);
-
   // The moment a buyer most wants to hear from this kitchen again is right
   // after ordering — offer a follow (signed-in accounts only; a guest sees
-  // the claim-account block above instead).
+  // the claim-account block below instead).
   let showFollow = false;
-  if (user && !isGuest && order?.cook_id) {
+  if (user && !isGuest && order.cook_id) {
     const { data: f } = await sb
       .from("follows")
       .select("id")
