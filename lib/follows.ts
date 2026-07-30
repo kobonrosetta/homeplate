@@ -66,7 +66,7 @@ export async function sendDishDigest(
       <p>${lead}</p>
       ${rows}
       <p><a href="${url}" style="display:inline-block;background:#b45309;color:#fff;padding:10px 20px;border-radius:999px;text-decoration:none;font-weight:600">See the menu</a></p>
-      <p style="font-size:12px;color:#a8a29e">You're getting this because you follow ${name} on HomePlate. You can unfollow anytime on <a href="${url}">their kitchen page</a>.</p>
+      <p style="font-size:12px;color:#a8a29e">You're getting this because you follow ${name} on ForkFork. You can unfollow anytime on <a href="${url}">their kitchen page</a>.</p>
     `);
     const subject =
       dishes.length === 1

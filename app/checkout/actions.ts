@@ -258,7 +258,7 @@ export async function startCheckout(formData: FormData) {
       amountCents: i.unit_price_cents,
       quantity: i.quantity,
     })),
-    { name: "HomePlate service fee", amountCents: fee, quantity: 1 },
+    { name: "ForkFork service fee", amountCents: fee, quantity: 1 },
   ];
 
   let session: { id: string; url: string };

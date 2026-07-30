@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-// One share/copy control for every HomePlate link (kitchen storefront, payment
+// One share/copy control for every ForkFork link (kitchen storefront, payment
 // links). Native share sheet first (WhatsApp, Messages, IG DM — where home-food
 // audiences live), then clipboard, then a prompt fallback for old/non-HTTPS
 // browsers. `showUrl` renders the URL in a chip beside the button.

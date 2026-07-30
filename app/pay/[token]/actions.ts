@@ -107,7 +107,7 @@ export async function payLinkCheckout(formData: FormData) {
     session = await createCheckoutSession({
       lineItems: [
         { name: request.title + depositNote, amountCents: subtotal, quantity: 1 },
-        { name: "HomePlate service fee", amountCents: fee, quantity: 1 },
+        { name: "ForkFork service fee", amountCents: fee, quantity: 1 },
       ],
       successUrl: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${origin}/pay/${token}`,

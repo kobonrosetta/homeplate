@@ -17,7 +17,7 @@ export default function CookPitch() {
             You did the hard part. You got the permit.
           </h1>
           <p className="mt-5 text-lg leading-relaxed text-muted">
-            HomePlate turns your county approval into a real storefront — a
+            ForkFork turns your county approval into a real storefront — a
             menu, online payment, and neighbors who can finally find you. You
             keep 100% of every price you set.
           </p>
@@ -32,7 +32,7 @@ export default function CookPitch() {
               href="/login?next=/sell"
               className="text-sm font-medium text-muted hover:text-ink"
             >
-              Already on HomePlate? Sign in →
+              Already on ForkFork? Sign in →
             </Link>
           </div>
           <p className="mt-4 text-sm text-muted">
@@ -51,7 +51,7 @@ export default function CookPitch() {
           />
           <Perk
             title="A badge buyers actually trust"
-            body="We match your permit against the county's published operator list, and a person reviews every kitchen before it goes live. That verified check is why buyers choose HomePlate over a Facebook group."
+            body="We match your permit against the county's published operator list, and a person reviews every kitchen before it goes live. That verified check is why buyers choose ForkFork over a Facebook group."
           />
           <Perk
             title="Your home stays private"
@@ -94,7 +94,7 @@ export default function CookPitch() {
           <div className="max-w-2xl">
             <h2 className="text-2xl font-semibold text-ink">Who can apply</h2>
             <p className="mt-3 leading-relaxed text-muted">
-              HomePlate is for permitted home food businesses in Santa Clara
+              ForkFork is for permitted home food businesses in Santa Clara
               County: <span className="font-medium text-ink">MEHKO
               operators</span> selling hot, home-cooked meals, and{" "}
               <span className="font-medium text-ink">cottage food
@@ -133,7 +133,7 @@ export default function CookPitch() {
             Be one of the founding kitchens
           </h2>
           <p className="mt-2 max-w-xl leading-relaxed text-muted">
-            HomePlate is launching in Santa Clara County right now, and the
+            ForkFork is launching in Santa Clara County right now, and the
             first kitchens set the tone — and get the spotlight.
           </p>
           <Link

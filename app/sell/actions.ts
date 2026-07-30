@@ -62,7 +62,7 @@ export async function wizardSaveKitchen(formData: FormData) {
     );
   }
 
-  // The contact phone lives on the profile. It's how HomePlate reaches the cook
+  // The contact phone lives on the profile. It's how ForkFork reaches the cook
   // about their application (the permit is now optional, so this is the
   // guaranteed contact channel) and how a buyer reaches them after an order.
   await supabase

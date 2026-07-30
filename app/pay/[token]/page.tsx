@@ -119,7 +119,7 @@ export default async function PayPage({
             <span className="text-ink">{formatUsd(request.price_cents)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted">HomePlate service fee</span>
+            <span className="text-muted">ForkFork service fee</span>
             <span className="text-ink">{formatUsd(fee)}</span>
           </div>
           <div className="flex justify-between border-t border-line pt-1.5 font-semibold text-ink">

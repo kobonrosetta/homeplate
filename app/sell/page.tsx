@@ -239,7 +239,7 @@ function Step1({ cook, phone }: { cook: any; phone: string }) {
             placeholder="(408) 555-0139"
           />
           <p className="mt-1 text-xs text-faint">
-            How HomePlate reaches you about your application, and how a buyer
+            How ForkFork reaches you about your application, and how a buyer
             reaches you after they order. Never shown publicly.
           </p>
         </div>
@@ -400,7 +400,7 @@ function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
             className="mt-1 block w-full text-sm text-muted file:mr-4 file:rounded-full file:border-0 file:bg-line file:px-4 file:py-2 file:text-sm file:font-medium hover:file:bg-line"
           />
           <p className="mt-1 text-xs text-faint">
-            Speeds up your review. Kept private — only the HomePlate team sees it.
+            Speeds up your review. Kept private — only the ForkFork team sees it.
           </p>
         </label>
 
@@ -424,9 +424,9 @@ function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
                   <span className="font-medium text-ink">
                     How you get paid.
                   </span>{" "}
-                  You appoint HomePlate to collect payment from buyers on your
-                  behalf. A buyer&apos;s payment to HomePlate settles what they
-                  owe you, and HomePlate passes your full listed price on to
+                  You appoint ForkFork to collect payment from buyers on your
+                  behalf. A buyer&apos;s payment to ForkFork settles what they
+                  owe you, and ForkFork passes your full listed price on to
                   you.
                 </span>
               </span>

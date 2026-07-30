@@ -201,7 +201,7 @@ export default async function DashboardOverview() {
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <ShareLink
               url={`${SITE_URL}/kitchen/${cook.slug}`}
-              text={`Order from ${cook.business_name} on HomePlate — county-verified home cooking`}
+              text={`Order from ${cook.business_name} on ForkFork — county-verified home cooking`}
               showUrl
             />
           </div>

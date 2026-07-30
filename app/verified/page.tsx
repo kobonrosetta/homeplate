@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "How HomePlate verifies every kitchen",
+  title: "How ForkFork verifies every kitchen",
 };
 
 export default function VerifiedPage() {
@@ -24,7 +24,7 @@ export default function VerifiedPage() {
           MEHKO kitchens (hot, home-cooked meals) are matched against Santa
           Clara County&rsquo;s published list of approved home-kitchen operators.
           Cottage-food bakers are reviewed against their county registration by
-          hand. Either way, no valid permit means no selling on HomePlate.
+          hand. Either way, no valid permit means no selling on ForkFork.
         </Point>
         <Point n="2" title="A real health permit on file">
           Every kitchen holds a valid county permit — either a MEHKO permit (for

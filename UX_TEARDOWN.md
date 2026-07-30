@@ -1,4 +1,4 @@
-# HomePlate — Expert UX Teardown (both sides)
+# ForkFork — Expert UX Teardown (both sides)
 _July 2026 · grounded in your actual screens + researched marketplace patterns (Airbnb, DoorDash/Uber Eats, Etsy, Shef, Stripe, Baymard Institute, Nielsen Norman Group). Effort tags: S = hours, M = a session, L = multi-session._
 
 ## Verdict

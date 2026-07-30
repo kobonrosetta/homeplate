@@ -1,4 +1,4 @@
-# HomePlate 🍽️
+# ForkFork 🍽️
 
 A marketplace for **county-approved home food operators** — cottage-food bakers and MEHKO home cooks. Launching in Santa Clara County.
 
@@ -66,18 +66,18 @@ Then open `.env.local` and paste in the keys from steps 2 and 3.
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) — you should see the HomePlate landing page.
+Open [http://localhost:3000](http://localhost:3000) — you should see the ForkFork landing page.
 
 ---
 
 ## Opening this in VS Code
-**File → Open Folder → HomePlate.** Everything is right here. The terminal inside VS Code (**View → Terminal**) is where you run the `npm` commands above.
+**File → Open Folder → ForkFork.** Everything is right here. The terminal inside VS Code (**View → Terminal**) is where you run the `npm` commands above.
 
 ---
 
 ## Project structure
 ```
-HomePlate/
+ForkFork/
 ├── CLAUDE.md             # start-here orientation for any AI/agent
 ├── app/                  # pages + server logic (App Router)
 │   ├── page.tsx          # landing page
