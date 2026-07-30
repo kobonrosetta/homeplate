@@ -60,17 +60,61 @@ export type TaxQuarter = {
   dueDate: Date; // CDTFA filing deadline for this quarter's return
 };
 
+// Quarters are anchored to America/Los_Angeles. HomePlate runs on Render (UTC),
+// but a California cook's quarter ends at midnight PACIFIC — without this a
+// hot-food sale within ~7-8h of a boundary (e.g. Jun 30 8pm PT = Jul 1 03:00
+// UTC) would be filtered into the wrong quarter's CSV / CDTFA report.
+const PT_TZ = "America/Los_Angeles";
+
+// The Pacific wall-clock of a UTC instant (month is 1-12).
+function ptParts(d: Date) {
+  const p: Record<string, string> = {};
+  for (const part of new Intl.DateTimeFormat("en-US", {
+    timeZone: PT_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(d)) {
+    if (part.type !== "literal") p[part.type] = part.value;
+  }
+  return {
+    year: +p.year,
+    month: +p.month,
+    day: +p.day,
+    hour: +p.hour % 24,
+    minute: +p.minute,
+    second: +p.second,
+  };
+}
+
+// The UTC instant of 00:00 Pacific on year-monthIndex-day. Exact for the dates
+// we pass it (quarter firsts: Jan/Apr/Jul/Oct 1 — never on a DST switch).
+function ptStartOfDay(year: number, monthIndex: number, day: number): Date {
+  const naive = Date.UTC(year, monthIndex, day, 0, 0, 0);
+  const w = ptParts(new Date(naive));
+  const offset =
+    Date.UTC(w.year, w.month - 1, w.day, w.hour, w.minute, w.second) - naive;
+  return new Date(naive - offset);
+}
+
 export function quarterOf(d: Date): TaxQuarter {
-  const quarter = (Math.floor(d.getMonth() / 3) + 1) as 1 | 2 | 3 | 4;
-  const year = d.getFullYear();
+  const { year, month } = ptParts(d); // Pacific-local year + month (1-12)
+  const quarter = (Math.floor((month - 1) / 3) + 1) as 1 | 2 | 3 | 4;
+  const nextYear = quarter === 4 ? year + 1 : year;
+  const nextStartMonthIndex = quarter === 4 ? 0 : quarter * 3;
   return {
     year,
     quarter,
     label: `Q${quarter} ${year}`,
-    start: new Date(year, (quarter - 1) * 3, 1),
-    end: new Date(year, quarter * 3, 1),
+    start: ptStartOfDay(year, (quarter - 1) * 3, 1),
+    end: ptStartOfDay(nextYear, nextStartMonthIndex, 1),
     // Day 0 of the month after the quarter's last month = that month's final
-    // day (Q3 -> Oct 31; Q4 -> Jan 31 of the next year).
+    // day (Q3 -> Oct 31; Q4 -> Jan 31 of the next year). Display-only; the
+    // day-of-month is timezone-neutral (formatDueDate reads it in local time).
     dueDate: new Date(year, quarter * 3 + 1, 0),
   };
 }

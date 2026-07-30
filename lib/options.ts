@@ -23,7 +23,14 @@ export function deriveUnitPrice(
   options: OptionRow[],
   selectedOptionIds: string[]
 ): { unitPriceCents: number; optionNames: string[] } | { error: string } {
-  const myGroups = groups.filter((g) => g.listing_id === listingId);
+  // Ignore any option group with zero live options: a non-atomic save can
+  // orphan an empty group (see saveListingOptions), and an empty group the
+  // buyer can't choose from would otherwise make every checkout for this
+  // listing fail "please choose every option" — bricking its sales invisibly.
+  const groupHasOptions = new Set(options.map((o) => o.group_id));
+  const myGroups = groups.filter(
+    (g) => g.listing_id === listingId && groupHasOptions.has(g.id)
+  );
   const selected = [...new Set(selectedOptionIds)];
 
   if (myGroups.length === 0) {

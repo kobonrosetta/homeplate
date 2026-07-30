@@ -3,9 +3,11 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { checkPhotoImage } from "@/lib/ai";
-import { MIN_PHOTO_SCORE } from "@/lib/constants";
-import { insertListingFromForm, readQuantity } from "@/lib/listings";
+import {
+  insertListingFromForm,
+  readQuantity,
+  uploadDishPhoto,
+} from "@/lib/listings";
 import { MAX_GROUPS_PER_LISTING, MAX_OPTIONS_PER_GROUP } from "@/lib/options";
 
 // Make sure the caller is a logged-in cook, and return their kitchen.
@@ -81,35 +83,20 @@ export async function updateListing(formData: FormData) {
       String(formData.get("served_hot") ?? "") === "true",
   };
 
-  // Optional new photo — same AI quality gate as creating.
-  const photo = formData.get("photo");
-  if (photo instanceof File && photo.size > 0) {
-    const ext = (photo.name.split(".").pop() || "jpg").toLowerCase();
-    const path = `${cook.id}/${crypto.randomUUID()}.${ext}`;
-    const { error: uploadError } = await supabase.storage
-      .from("listing-photos")
-      .upload(path, photo, { contentType: photo.type || "image/jpeg", upsert: false });
-    if (!uploadError) {
-      const { data: pub } = supabase.storage
-        .from("listing-photos")
-        .getPublicUrl(path);
-      const photoUrl = pub.publicUrl;
-      const check = await checkPhotoImage(photoUrl);
-      const score = check?.score ?? null;
-      if (score !== null && score < MIN_PHOTO_SCORE) {
-        await supabase.storage.from("listing-photos").remove([path]);
-        redirect(
-          `/dashboard/listings/${id}/edit?error=` +
-            encodeURIComponent(
-              `Photo scored ${score}/100${
-                check?.feedback ? ` — ${check.feedback}` : ""
-              }. Please upload a clear photo of the actual food.`
-            )
-        );
-      }
-      update.photo_url = photoUrl;
-      update.photo_quality_score = score;
-    }
+  // Optional new photo — service role + AI gate via the shared helper, exactly
+  // like the create path. The old code uploaded with the user-session storage
+  // client (which silently fails since Supabase's ES256 key migration) and
+  // skipped MIME/size validation, so a "saved" photo often wasn't replaced.
+  const photoResult = await uploadDishPhoto(cook.id, formData.get("photo"));
+  if (photoResult && "error" in photoResult) {
+    redirect(
+      `/dashboard/listings/${id}/edit?error=` +
+        encodeURIComponent(photoResult.error)
+    );
+  }
+  if (photoResult) {
+    update.photo_url = photoResult.url;
+    update.photo_quality_score = photoResult.score;
   }
 
   await supabase.from("listings").update(update).eq("id", id).eq("cook_id", cook.id);

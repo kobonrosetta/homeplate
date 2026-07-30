@@ -202,6 +202,44 @@ export async function insertListingFromForm(
   return error ? error.message : null;
 }
 
+// Upload a replacement/main DISH photo through the service role (path derived
+// from the caller's own cook id), validating MIME/size and running the AI food
+// gate — the same treatment insertListingFromForm gives a new dish's photo, so
+// the create and edit paths can't drift. Returns { url, score } on success,
+// { error } for a bad file / rejected photo, or null when no file was provided.
+export async function uploadDishPhoto(
+  cookId: string,
+  file: unknown
+): Promise<{ url: string; score: number | null } | { error: string } | null> {
+  if (!(file instanceof File) || file.size === 0) return null;
+  const bad = photoProblem(file);
+  if (bad) return { error: bad };
+  const storage = adminStorage();
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const path = `${cookId}/${crypto.randomUUID()}.${ext}`;
+  const { error: uploadError } = await storage
+    .from("listing-photos")
+    .upload(path, file, {
+      contentType: file.type || "image/jpeg",
+      upsert: false,
+    });
+  if (uploadError) {
+    return { error: "Couldn't upload the photo — please try again." };
+  }
+  const url = storage.from("listing-photos").getPublicUrl(path).data.publicUrl;
+  const check = await checkPhotoImage(url);
+  const score = check?.score ?? null;
+  if (score !== null && score < MIN_PHOTO_SCORE) {
+    await storage.from("listing-photos").remove([path]);
+    return {
+      error: `Photo scored ${score}/100${
+        check?.feedback ? ` — ${check.feedback}` : ""
+      }. Please upload a clear photo of the actual food.`,
+    };
+  }
+  return { url, score };
+}
+
 // Upload a cook's profile photo (no food quality gate — it's a face, not a dish).
 // Returns the public URL, or null if no/invalid file was provided or the
 // upload failed. (`supabase` is unused but kept so call sites read uniformly.)
