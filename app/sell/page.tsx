@@ -7,10 +7,10 @@ import { wizardSaveKitchen, wizardAddDish, wizardFinalize } from "./actions";
 import CookPitch from "./pitch";
 import NewListingForm from "@/components/new-listing-form";
 import PickupWindowsField from "@/components/pickup-windows-field";
+import OperationTypeField from "@/components/operation-type-field";
 import {
   TextField,
   TextArea,
-  SelectField,
   CheckboxField,
   SubmitButton,
   FormError,
@@ -146,15 +146,7 @@ function Step1({ cook, phone }: { cook: any; phone: string }) {
           defaultValue={cook?.business_name ?? ""}
           placeholder="Kate's Bread"
         />
-        <SelectField
-          label="What you make"
-          name="operation_type"
-          defaultValue={cook?.operation_type ?? "cottage"}
-          options={[
-            { value: "cottage", label: "Cottage food (baked goods, jams, shelf-stable)" },
-            { value: "mehko", label: "MEHKO (hot home-cooked meals)" },
-          ]}
-        />
+        <OperationTypeField defaultValue={cook?.operation_type ?? "cottage"} />
         <TextArea
           label="Short bio"
           name="bio"
