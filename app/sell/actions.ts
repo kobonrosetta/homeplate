@@ -166,6 +166,23 @@ export async function wizardFinalize(formData: FormData) {
   const cookId = await myCookId(supabase, user.id);
   if (!cookId) redirect("/sell");
 
+  // Finalize is valid ONLY while the kitchen is still under admin review
+  // (status='pending'). This action re-derives permit_verified from a
+  // cook-supplied permit number and writes it via the service role, which
+  // bypasses the cooks update-guard trigger — so it must never be reachable
+  // after approval: otherwise an already-active cook could re-POST it with a
+  // stranger's real county permit number and self-award the buyer-facing
+  // "County-verified" badge with no human review, and a suspended cook could
+  // rewrite their permit/address. Any post-review change goes through the admin
+  // console only. (The /sell page redirect guards the render; this guards the
+  // directly-POST-able action endpoint.)
+  const { data: cookState } = await supabase
+    .from("cooks")
+    .select("status")
+    .eq("id", cookId)
+    .maybeSingle();
+  if (cookState?.status !== "pending") redirect("/dashboard");
+
   const permitNumber = String(formData.get("permit_number") ?? "").trim();
   const streetAddress = String(formData.get("street_address") ?? "").trim();
   const city = String(formData.get("city") ?? "").trim();
