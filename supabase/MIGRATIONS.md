@@ -4,13 +4,13 @@ Every schema change to the HomePlate Supabase project has been applied **by hand
 the Supabase SQL editor — this project does not use the Supabase CLI migration system.
 This file is the canonical record of what was run, in what order, and whether it's live.
 
-**Status: 30 of 31 applied — #31 (`harden-follows-orderitems.sql`) is NOT yet run.**
-Two RLS-only policy tightenings from the full-codebase security review: pin
-`follows.email` to the caller's own JWT email (closes an email-relay hole), and
-allow `order_items` inserts only while the parent order is `pending` (closes
-tax-total injection into already-paid orders). Both are **migration-first-safe** —
-they reject only the attack shapes, so the follow button and both checkout paths
-still pass — so run it any time; no code change. #30 (`add-cook-owner-name.sql`) applied
+**Status: 30 of 32 applied — #31 & #32 (both from the security review) are NOT yet run.**
+#31 (`harden-follows-orderitems.sql`): pin `follows.email` to the caller's own
+JWT email + allow `order_items` inserts only while the order is `pending` — both
+RLS-only, migration-first-safe, run any time. #32 (`harden-listings-operationtype.sql`):
+gate the public listings SELECT on an active cook + re-issue the cook guard to
+lock `operation_type` once verified — **run AFTER PR #45 deploys** (its settings
+lock keeps a verified cook's normal save from tripping the new guard). #30 (`add-cook-owner-name.sql`) applied
 + verified live 2026-07-29 (six REST checks: `owner_name` + `cover_url`
 anon-readable; a cook session CAN save `owner_name` — the guard allow-list works
 — while flipping `permit_verified` still 400s "this kitchen column is protected";
@@ -85,6 +85,7 @@ Project ref: `jycefrvkqybadwupokdn` (Santa Clara County pilot)
 | 29 | `move-pickup-location-private.sql` | Decision reversed: a cook's pickup spot must NEVER be shown pre-order (same rule as the home address), so `pickup_location` moves off the public `cooks` table onto **`cook_private`** (new column there; no new RLS needed — reuses the existing owner-only/service-role-reveal policy) and is dropped from `cooks`. `neighborhood` stays public — it's the only pre-order location signal now. Re-issues `enforce_cook_update_rules` with `pickup_location` removed from the allow-list (it's no longer a `cooks` column at all). No real cook had set one yet, so this is a clean relocation, not a data migration. Additive-then-subtractive; **run BEFORE deploying the code that reads/writes the new location** | ✅ |
 | 30 | `add-cook-owner-name.sql` | Storefront "Meet the cook" — adds `cooks.owner_name text` (PUBLIC, cook-chosen display name of the person behind the kitchen, e.g. "Maria"; the real name on `profiles.full_name` is unreadable to shoppers under profiles' owner-only RLS, so the cook publishes a name they choose rather than us exposing profiles). Re-issues `enforce_cook_update_rules` (current #29 body) with `owner_name` on the editable allow-list. `cover_url` needed **no** migration — it already exists on `cooks` and is already allow-listed, so the cover-photo hero writes straight through. Additive-only; run BEFORE deploying the code that selects/writes it | ✅ |
 | 31 | `harden-follows-orderitems.sql` | Security-review hardening of two newer-table RLS policies. (a) Re-issues `follows: insert own` to pin the stored `email` to the caller's own JWT email (`email is not distinct from auth.jwt()->>'email'`) — the old policy left `email` client-chosen, so a signed-in user could register a victim's address and the dish-digest cron would email arbitrary recipients (email relay). (b) Re-issues `buyer adds items to own order` on `order_items` with `and o.status = 'pending'` — the old policy let a buyer POST line items to any of their orders at any stage, injecting fake `served_hot` lines into an already-paid order to inflate the cook's CDTFA tax total. RLS-only; both migration-first-safe (reject only the attack shapes; the follow button + both checkout paths still pass). Residual: a buyer can still inject into their OWN order pre-payment — fully closed only by making `order_items` server-authored (follow-up). | ⬜ |
+| 32 | `harden-listings-operationtype.sql` | Two more security-review tightenings. (a) Re-issues `available listings are public` so the PUBLIC branch also requires the owning cook to be `status='active'` — the old policy exposed any `is_available` listing regardless of cook status, so the anon key could read the menus (title/price/photo, no PII) of pending/suspended kitchens. Owner-can-always-read branch stays. (b) Re-issues `enforce_cook_update_rules` (current #30 body) with one added rule: `operation_type` is rejected if it changes while `old.permit_verified` is true — it stays in the editable allow-list so onboarding (unverified) cooks can still choose/switch program, but a VERIFIED cook can't flip MEHKO<->cottage and keep a badge earned under the other program. Both migration-first-safe. **Run AFTER PR #45 deploys** (its settings lock renders `operation_type` read-only for verified cooks, so a normal save never submits a change that would trip the new guard). | ⬜ |
 
 ## Replaying on a fresh database
 
