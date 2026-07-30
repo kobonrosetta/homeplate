@@ -8,6 +8,7 @@ import { slugify } from "@/lib/slug";
 import {
   insertListingFromForm,
   uploadCookAvatar,
+  uploadCookCover,
   uploadPermitPhoto,
   permitFileProblem,
   readPickupWindows,
@@ -41,6 +42,7 @@ export async function wizardSaveKitchen(formData: FormData) {
   const { supabase, user } = await requireCookUser();
 
   const businessName = String(formData.get("business_name") ?? "").trim();
+  const ownerName = String(formData.get("owner_name") ?? "").trim();
   const operationType = String(formData.get("operation_type") ?? "cottage");
   const bio = String(formData.get("bio") ?? "").trim();
   const cuisineTags = String(formData.get("cuisine_tags") ?? "")
@@ -70,6 +72,7 @@ export async function wizardSaveKitchen(formData: FormData) {
 
   const basics = {
     business_name: businessName,
+    owner_name: ownerName || null,
     operation_type: operationType,
     bio: bio || null,
     cuisine_tags: cuisineTags,
@@ -123,13 +126,20 @@ export async function wizardSaveKitchen(formData: FormData) {
     await supabase.from("profiles").update({ is_cook: true }).eq("id", user.id);
   }
 
-  // Optional cook photo.
+  // Optional cook photo + storefront cover.
   if (cookId) {
     const avatarUrl = await uploadCookAvatar(supabase, cookId, formData);
     if (avatarUrl) {
       await supabase
         .from("cooks")
         .update({ avatar_url: avatarUrl })
+        .eq("id", cookId);
+    }
+    const coverUrl = await uploadCookCover(supabase, cookId, formData);
+    if (coverUrl) {
+      await supabase
+        .from("cooks")
+        .update({ cover_url: coverUrl })
         .eq("id", cookId);
     }
   }
