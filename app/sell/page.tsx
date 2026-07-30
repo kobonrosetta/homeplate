@@ -68,7 +68,12 @@ export default async function SellPage({
           taxPlace={cook?.city?.trim() || "Santa Clara County"}
         />
       )}
-      {step === 3 && <Step3 cottage={cook?.operation_type === "cottage"} />}
+      {step === 3 && (
+        <Step3
+          cottage={cook?.operation_type === "cottage"}
+          email={user.email ?? ""}
+        />
+      )}
 
       <p className="mt-8 flex items-center justify-center gap-1.5 text-xs text-faint">
         <SaveIcon />
@@ -297,7 +302,7 @@ function Step2({
   );
 }
 
-function Step3({ cottage }: { cottage?: boolean }) {
+function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
   return (
     <div>
       <h1 className="text-2xl font-semibold text-ink">Last step — submit for review</h1>
@@ -306,6 +311,12 @@ function Step3({ cottage }: { cottage?: boolean }) {
           ? "Last step. Our team reviews your Cottage Food registration with the county by hand, and your address stays private. You'll hear back by email within about a day."
           : "Last step. We match your permit to Santa Clara County's published MEHKO list, and your address stays private. You'll hear back by email within about a day."}
       </div>
+      {email && (
+        <p className="mt-2 text-xs text-faint">
+          We&apos;ll email updates to{" "}
+          <span className="font-medium text-ink">{email}</span>.
+        </p>
+      )}
 
       <form action={wizardFinalize} className="mt-6 space-y-5">
         <TextField
