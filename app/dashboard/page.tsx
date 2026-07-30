@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentCook } from "@/lib/cook";
 import { SITE_URL, formatUsd } from "@/lib/constants";
@@ -20,6 +21,9 @@ const PAID_STATUSES = ["confirmed", "in_progress", "ready", "completed"];
 
 export default async function DashboardOverview() {
   const { cook } = await getCurrentCook();
+  // A signed-in non-cook (buyer, or mid-onboarding) has no kitchen; the layout
+  // redirects too, but guard here so the page can't null-deref cook.id first.
+  if (!cook) redirect("/sell");
   const supabase = createClient();
 
   const now = new Date();

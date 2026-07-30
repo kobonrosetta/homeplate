@@ -72,7 +72,10 @@ export async function recordPayout(formData: FormData) {
   const id = String(formData.get("cook_id") ?? "");
   const dollars = parseFloat(String(formData.get("amount") ?? ""));
   const note = String(formData.get("note") ?? "").trim();
-  if (!id || Number.isNaN(dollars) || dollars <= 0) return;
+  // Number.isFinite rejects NaN AND Infinity; the cap stops an admin fat-finger
+  // (e.g. a stray $1,000,000) from silently skewing the "owed to cooks" totals.
+  if (!id || !Number.isFinite(dollars) || dollars <= 0 || dollars > 100000)
+    return;
   const db = createAdminClient();
   await db.from("payouts").insert({
     cook_id: id,

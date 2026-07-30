@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getCurrentCook } from "@/lib/cook";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PayoutsPage() {
   const { cook } = await getCurrentCook();
+  if (!cook) redirect("/sell");
 
   // The cook can read their own orders via RLS; earnings = completed subtotals.
   const supabase = createClient();

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentCook } from "@/lib/cook";
 import { formatUsd } from "@/lib/constants";
@@ -12,6 +13,7 @@ export default async function MenuPage({
   searchParams: { error?: string };
 }) {
   const { cook } = await getCurrentCook();
+  if (!cook) redirect("/sell");
   const supabase = createClient();
   const { data: listings } = await supabase
     .from("listings")

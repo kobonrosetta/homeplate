@@ -97,19 +97,47 @@ export default async function SettingsPage({
           </div>
 
           <div>
-            <SelectField
-              label="Operation type"
-              name="operation_type"
-              defaultValue={cook.operation_type}
-              options={[
-                { value: "cottage", label: "Cottage food (baked goods, jams, shelf-stable)" },
-                { value: "mehko", label: "MEHKO (hot home-cooked meals)" },
-              ]}
-            />
-            <p className="mt-1 text-xs text-faint">
-              Sets how sales tax works — only MEHKO (hot food) sees the tax
-              tools. Change it only if your permit type changed.
-            </p>
+            {cook.permit_verified ? (
+              // Locked once verified: switching program (MEHKO<->cottage) would
+              // keep a County-verified badge earned under the OTHER program. The
+              // DB guard enforces this too; the hidden input keeps the form
+              // submitting the current value so a normal save still passes.
+              <>
+                <span className="text-sm font-medium text-ink">
+                  Operation type
+                </span>
+                <input
+                  type="hidden"
+                  name="operation_type"
+                  value={cook.operation_type}
+                />
+                <p className="mt-1 rounded-lg border border-line bg-card px-4 py-2.5 text-ink">
+                  {cook.operation_type === "mehko"
+                    ? "MEHKO (hot home-cooked meals)"
+                    : "Cottage food (baked goods, jams, shelf-stable)"}
+                </p>
+                <p className="mt-1 text-xs text-faint">
+                  Locked to your verified permit type — contact support if your
+                  permit itself changed.
+                </p>
+              </>
+            ) : (
+              <>
+                <SelectField
+                  label="Operation type"
+                  name="operation_type"
+                  defaultValue={cook.operation_type}
+                  options={[
+                    { value: "cottage", label: "Cottage food (baked goods, jams, shelf-stable)" },
+                    { value: "mehko", label: "MEHKO (hot home-cooked meals)" },
+                  ]}
+                />
+                <p className="mt-1 text-xs text-faint">
+                  Sets how sales tax works — only MEHKO (hot food) sees the tax
+                  tools. Change it only if your permit type changed.
+                </p>
+              </>
+            )}
           </div>
 
           <div>
