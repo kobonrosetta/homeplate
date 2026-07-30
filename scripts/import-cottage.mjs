@@ -35,14 +35,31 @@ const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, "Content-Type": "applic
 const titleCase = (s) =>
   s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()).trim();
 
+// Build YYYY-MM-DD only for a REAL calendar date; null otherwise. A malformed
+// county date (a D/M/Y slip giving month 13, or an impossible day like Feb 30)
+// must NOT produce an invalid string — Postgres would reject it and 400 the
+// whole batch upsert. null expiry is safe: lib/match.ts isExpired treats it as
+// current, so one bad row is dropped, not fatal.
+const ymd = (y, mo, d) => {
+  const iso = `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  const dt = new Date(`${iso}T00:00:00Z`);
+  return !Number.isNaN(dt.getTime()) &&
+    dt.getUTCFullYear() === +y &&
+    dt.getUTCMonth() + 1 === +mo &&
+    dt.getUTCDate() === +d
+    ? iso
+    : null;
+};
+
 // County publishes cottage expiry as M/D/YYYY (e.g. "1/31/2027"); the MEHKO
-// feed uses YYYYMMDD. Handle both; null if unparseable (lib/match.ts isExpired
-// treats null as current, so a blank date never blocks a real operator).
+// feed uses YYYYMMDD. Handle both, validating the date so one bad row can't
+// abort the import.
 const toDate = (s) => {
   const t = String(s ?? "").trim();
-  const m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (m) return `${m[3]}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
-  if (/^\d{8}$/.test(t)) return `${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)}`;
+  const us = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (us) return ymd(us[3], us[1], us[2]); // M/D/YYYY (cottage feed)
+  const compact = t.match(/^(\d{4})(\d{2})(\d{2})$/);
+  if (compact) return ymd(compact[1], compact[2], compact[3]); // YYYYMMDD (MEHKO feed)
   return null;
 };
 
@@ -88,15 +105,21 @@ async function main() {
   console.log(`  ${raw.length} rows fetched, ${rows.length} unique cottage permits.`);
 
   // Both programs use PT… numbers and we upsert on permit_number, so a shared
-  // number would flip an existing MEHKO row to cottage. Exclude any collisions
-  // (leave them as MEHKO) and report them for manual review.
+  // number would flip an existing MEHKO row to cottage. Read EVERY existing
+  // MEHKO permit and exclude any collision (leave it as MEHKO). `limit` is set
+  // far above the MEHKO count so a default page size can't truncate the guard's
+  // view. Fail CLOSED: if this read fails we can't know what would collide, so
+  // we abort rather than risk overwriting a MEHKO row.
   const existing = await fetch(
-    `${URL_}/rest/v1/approved_operators?operation_type=eq.mehko&select=permit_number`,
+    `${URL_}/rest/v1/approved_operators?operation_type=eq.mehko&select=permit_number&limit=100000`,
     { headers: H }
   );
-  const mehkoSet = new Set(
-    existing.ok ? (await existing.json()).map((r) => r.permit_number) : []
-  );
+  if (!existing.ok) {
+    throw new Error(
+      `could not read existing MEHKO permits for the collision guard (${existing.status}: ${await existing.text()}) — aborting so a cottage row can't overwrite a MEHKO one`
+    );
+  }
+  const mehkoSet = new Set((await existing.json()).map((r) => r.permit_number));
   const collisions = rows.filter((r) => mehkoSet.has(r.permit_number));
   const safe = rows.filter((r) => !mehkoSet.has(r.permit_number));
   if (collisions.length) {
