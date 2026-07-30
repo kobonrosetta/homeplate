@@ -53,19 +53,20 @@ export async function wizardSaveKitchen(formData: FormData) {
   const pickupWindows = readPickupWindows(formData);
   const contactPhone = String(formData.get("contact_phone") ?? "").trim();
 
-  if (!businessName) {
-    redirect("/sell?error=" + encodeURIComponent("Please name your kitchen."));
+  if (!businessName || !contactPhone) {
+    redirect(
+      "/sell?error=" +
+        encodeURIComponent("A kitchen name and a contact phone are required.")
+    );
   }
 
-  // Buyer-visible-after-order contact phone lives on the profile. Empty-safe:
-  // the wizard only sets it (clearing is done in Settings), so re-visiting
-  // Step 1 without re-typing it can't wipe a saved number.
-  if (contactPhone) {
-    await supabase
-      .from("profiles")
-      .update({ phone: contactPhone })
-      .eq("id", user.id);
-  }
+  // The contact phone lives on the profile. It's how HomePlate reaches the cook
+  // about their application (the permit is now optional, so this is the
+  // guaranteed contact channel) and how a buyer reaches them after an order.
+  await supabase
+    .from("profiles")
+    .update({ phone: contactPhone })
+    .eq("id", user.id);
 
   const basics = {
     business_name: businessName,
@@ -161,12 +162,13 @@ export async function wizardFinalize(formData: FormData) {
   const zip = String(formData.get("zip") ?? "").trim();
   const cdtfaPermit = String(formData.get("cdtfa_permit") ?? "").trim();
 
-  if (!permitNumber || !streetAddress || !city) {
+  // Permit is now OPTIONAL — a cook can submit and land in pending without one,
+  // and admin approval (plus, when given, the permit match/photo) is the gate.
+  // Address + city are still required (private; a real operator has them).
+  if (!streetAddress || !city) {
     redirect(
       "/sell?step=3&error=" +
-        encodeURIComponent(
-          "Permit number, street address, and city are required."
-        )
+        encodeURIComponent("Street address and city are required.")
     );
   }
 
@@ -187,12 +189,17 @@ export async function wizardFinalize(formData: FormData) {
   // application). The admin console shows the reviewer how the names line up
   // (nameMatchTier) as an advisory signal, and admin approval — plus, when
   // provided, the permit photo below — is the real gate.
-  const normalizedPermit = normalizePermit(permitNumber);
-  const { data: match } = await supabase
-    .from("approved_operators")
-    .select("id, name, expires_at")
-    .eq("permit_number", normalizedPermit)
-    .maybeSingle();
+  const normalizedPermit = permitNumber ? normalizePermit(permitNumber) : null;
+  let match: { id: string; name: string; expires_at: string | null } | null =
+    null;
+  if (normalizedPermit) {
+    const { data } = await supabase
+      .from("approved_operators")
+      .select("id, name, expires_at")
+      .eq("permit_number", normalizedPermit)
+      .maybeSingle();
+    match = data;
+  }
 
   const today = new Date().toISOString().slice(0, 10);
   const verified = !!match && !isExpired(match.expires_at, today);
@@ -277,12 +284,16 @@ export async function wizardFinalize(formData: FormData) {
         }`,
         html: wrapEmail(
           `<h2>A kitchen is waiting for approval</h2>
-           <p><strong>${cook?.business_name ?? "A kitchen"}</strong> submitted permit ${normalizedPermit} ${
-             verified
-               ? "(matched the county list)"
-               : match
-                 ? `(matched the county list but the permit EXPIRED ${match.expires_at})`
-                 : "(no county match)"
+           <p><strong>${cook?.business_name ?? "A kitchen"}</strong> ${
+             normalizedPermit
+               ? `submitted permit ${normalizedPermit} ${
+                   verified
+                     ? "(matched the county list)"
+                     : match
+                       ? `(matched the county list but the permit EXPIRED ${match.expires_at})`
+                       : "(no county match)"
+                 }`
+               : "submitted with NO permit number — follow up before approving"
            }.</p>
            <p>Review it in the admin console.</p>`
         ),
