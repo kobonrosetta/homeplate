@@ -19,7 +19,7 @@ const getListing = cache(async (id: string) => {
   const { data: listing } = await supabase
     .from("listings")
     .select(
-      "*, cooks!inner(id, business_name, slug, city, permit_verified, status, pickup_available, delivery_available, pickup_windows)"
+      "*, cooks!inner(id, business_name, slug, city, permit_verified, status, stripe_ready, pickup_available, delivery_available, pickup_windows)"
     )
     .eq("id", id)
     .eq("is_available", true)
@@ -27,7 +27,10 @@ const getListing = cache(async (id: string) => {
   const cook: any = Array.isArray(listing?.cooks)
     ? listing?.cooks[0]
     : listing?.cooks;
-  if (!listing || !cook || cook.status !== "active") return null;
+  // Same visibility rule as browse/kitchen: a kitchen that can't take an order
+  // (not payout-ready) has no live listing pages either.
+  if (!listing || !cook || cook.status !== "active" || !cook.stripe_ready)
+    return null;
   return { listing, cook };
 });
 

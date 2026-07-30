@@ -47,12 +47,16 @@ export async function POST(req: Request) {
   const { data: rows, error } = await admin
     .from("listings")
     .select(
-      "id, cook_id, title, price_cents, created_at, cooks!inner(business_name, slug, status, followers_notified_at)"
+      "id, cook_id, title, price_cents, created_at, cooks!inner(business_name, slug, status, stripe_ready, followers_notified_at)"
     )
     .is("announced_at", null)
     .eq("kind", "dish")
     .eq("is_available", true)
     .eq("cooks.status", "active")
+    // Don't email followers a link to a kitchen page that 404s — dishes from a
+    // not-yet-payout-ready kitchen stay un-announced until it goes live (they
+    // age out after MAX_AGE_HOURS like any other unsent announcement).
+    .eq("cooks.stripe_ready", true)
     .gt("created_at", oldest)
     .order("created_at", { ascending: false });
   if (error) {

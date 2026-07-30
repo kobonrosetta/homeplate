@@ -39,10 +39,21 @@ export async function payLinkCheckout(formData: FormData) {
 
   const { data: cook } = await admin
     .from("cooks")
-    .select("id, status, business_name")
+    .select("id, status, stripe_ready, business_name")
     .eq("id", request.cook_id)
     .maybeSingle();
   if (!cook || cook.status !== "active")
+    err("This kitchen isn't taking payments right now.");
+  // Payout backstop: cook must have finished Stripe onboarding. The connected
+  // account id lives in the service-role-only cook_stripe table.
+  if (!cook!.stripe_ready)
+    err("This kitchen isn't taking payments right now.");
+  const { data: cookStripe } = await admin
+    .from("cook_stripe")
+    .select("stripe_account_id")
+    .eq("cook_id", request.cook_id)
+    .maybeSingle();
+  if (!cookStripe?.stripe_account_id)
     err("This kitchen isn't taking payments right now.");
 
   // Guest session (same pattern as startCheckout).
@@ -61,6 +72,9 @@ export async function payLinkCheckout(formData: FormData) {
   const subtotal = request.price_cents;
   const fee = calcServiceFeeCents(subtotal);
   const total = subtotal + fee;
+  // Stripe rejects charges under $0.50 — guard tiny deposits before we create an
+  // order we could never collect on.
+  if (total < 50) err("This amount is too small to process.");
   const depositNote =
     request.charge_kind === "deposit" && request.full_price_cents
       ? ` (50% deposit of $${(request.full_price_cents / 100).toFixed(2)} total)`
@@ -113,6 +127,9 @@ export async function payLinkCheckout(formData: FormData) {
       cancelUrl: `${origin}/pay/${token}`,
       metadata: { order_id: order!.id },
       customerEmail: contactEmail || undefined,
+      // Destination charge: the cook receives the subtotal, ForkFork keeps the fee.
+      applicationFeeCents: fee,
+      destinationAccountId: cookStripe!.stripe_account_id,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Payment could not be started.";

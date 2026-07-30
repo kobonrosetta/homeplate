@@ -4,14 +4,21 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatUsd } from "@/lib/constants";
 import EmptyState from "@/components/empty-state";
+import { startStripeOnboarding } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function PayoutsPage() {
+export default async function PayoutsPage({
+  searchParams,
+}: {
+  searchParams: { error?: string };
+}) {
   const { cook } = await getCurrentCook();
   if (!cook) redirect("/sell");
 
-  // The cook can read their own orders via RLS; earnings = completed subtotals.
+  // Earnings = the cook's cut on completed orders (RLS lets them read their own).
+  // With Connect, Stripe transfers this to their bank automatically — this figure
+  // is a reference; exact payout dates live in the cook's Stripe dashboard.
   const supabase = createClient();
   const { data: orders } = await supabase
     .from("orders")
@@ -21,45 +28,78 @@ export default async function PayoutsPage() {
     .filter((o: any) => o.status === "completed")
     .reduce((n: number, o: any) => n + (o.subtotal_cents ?? 0), 0);
 
-  // Payouts ledger is admin-only; read this cook's rows server-side.
+  // Payout status + any legacy manual payouts (both service-role only).
   const admin = createAdminClient();
+  const { data: stripe } = await admin
+    .from("cook_stripe")
+    .select("details_submitted, disabled_reason")
+    .eq("cook_id", cook.id)
+    .maybeSingle();
   const { data: payouts } = await admin
     .from("payouts")
     .select("amount_cents, note, created_at")
     .eq("cook_id", cook.id)
     .order("created_at", { ascending: false });
-  const paidOut = (payouts ?? []).reduce(
-    (n: number, p: any) => n + p.amount_cents,
-    0
-  );
-  const owed = earned - paidOut;
+
+  const ready = cook.stripe_ready === true;
+  const inReview = !ready && !!stripe?.details_submitted;
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Stat label="Earned (completed orders)" value={formatUsd(earned)} />
-        <Stat label="Paid to you" value={formatUsd(paidOut)} />
-        <Stat label="Owed to you" value={formatUsd(owed)} accent />
-      </div>
+      {searchParams.error && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {searchParams.error}
+        </p>
+      )}
 
-      <p className="rounded-lg bg-brand/10 px-4 py-3 text-sm text-brand">
-        During our pilot, payouts are sent by hand — you keep 100% of your price,
-        and we send your earnings after each completed order. Automatic bank
-        payouts are coming soon.
-      </p>
-
-      <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-faint">
-          Payment history
-        </h3>
-        {!payouts || payouts.length === 0 ? (
-          <div className="mt-2">
-            <EmptyState
-              title="No payouts yet"
-              subtitle="They'll show here once we've sent your first one."
+      {ready ? (
+        <>
+          <p className="rounded-lg bg-brand/10 px-4 py-3 text-sm text-brand">
+            <strong>Payouts are active.</strong> You keep 100% of your listed
+            price, and Stripe deposits it straight to your bank after each order —
+            exact dates are in your Stripe dashboard.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-1">
+            <Stat
+              label="Earned so far (completed orders)"
+              value={formatUsd(earned)}
+              accent
             />
           </div>
-        ) : (
+        </>
+      ) : (
+        <div className="rounded-xl border border-line bg-card p-5">
+          <h3 className="font-display text-lg font-semibold text-ink">
+            {inReview
+              ? "Finishing your payout setup"
+              : "Set up payouts to get paid"}
+          </h3>
+          <p className="mt-1 text-sm text-muted">
+            {inReview
+              ? "Stripe is verifying your details — usually just a few minutes. Add anything they still need below."
+              : "Connect a bank account through Stripe so you can take orders and your earnings land automatically. You keep 100% of your listed price; ForkFork only ever takes its service fee from the buyer."}
+          </p>
+          <form action={startStripeOnboarding} className="mt-4">
+            <button
+              type="submit"
+              className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+            >
+              {inReview
+                ? "Continue payout setup"
+                : "Set up payouts with Stripe"}
+            </button>
+          </form>
+          <p className="mt-3 text-xs text-faint">
+            Your kitchen goes live to buyers the moment payouts are active.
+          </p>
+        </div>
+      )}
+
+      {payouts && payouts.length > 0 && (
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-faint">
+            Manual payments
+          </h3>
           <div className="mt-2 divide-y divide-line rounded-xl border border-line">
             {payouts.map((p: any, i: number) => (
               <div
@@ -76,8 +116,15 @@ export default async function PayoutsPage() {
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {ready && (!payouts || payouts.length === 0) && earned === 0 && (
+        <EmptyState
+          title="No earnings yet"
+          subtitle="Your paid orders will show here."
+        />
+      )}
     </div>
   );
 }

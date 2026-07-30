@@ -1,24 +1,39 @@
-import { verifyStripeSignature } from "@/lib/stripe";
+import { verifyStripeSignature, retrieveAccount } from "@/lib/stripe";
 import { confirmPaidOrder } from "@/lib/orders";
+import { syncCookStripeStatus } from "@/lib/connect";
 
 export const dynamic = "force-dynamic";
 
-// Stripe -> here. The source of truth for "was this paid", independent of
-// whether the buyer's browser ever reaches /checkout/success.
+// Stripe -> here. The source of truth for "was this paid" (independent of
+// whether the buyer's browser ever reaches /checkout/success) AND for each
+// cook's Connect onboarding status.
+//
+// A Stripe webhook endpoint delivers EITHER platform events OR connected-account
+// events, never both — so the dashboard registers TWO endpoints at this one URL:
+//   1. "Events on your account"       -> checkout.session.completed
+//      (secret: STRIPE_WEBHOOK_SECRET)
+//   2. "Events on Connected accounts" -> account.updated,
+//      account.application.deauthorized   (secret: STRIPE_CONNECT_WEBHOOK_SECRET)
+// Each delivery is signed with its own endpoint's secret; accept if either
+// verifies.
 export async function POST(req: Request) {
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!secret) {
+  const secrets = [
+    process.env.STRIPE_WEBHOOK_SECRET,
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET,
+  ].filter((s): s is string => !!s);
+  if (secrets.length === 0) {
     // Not configured yet — refuse rather than trust an unsigned event.
     return new Response("Webhook not configured", { status: 500 });
   }
 
   const rawBody = await req.text();
   const sig = req.headers.get("stripe-signature");
-  if (!verifyStripeSignature(rawBody, sig, secret)) {
+  if (!secrets.some((s) => verifyStripeSignature(rawBody, sig, s))) {
     return new Response("Invalid signature", { status: 400 });
   }
 
-  let event: { type?: string; data?: { object?: any } };
+  // `account` is the connected-account id present on Connect-endpoint events.
+  let event: { type?: string; account?: string; data?: { object?: any } };
   try {
     event = JSON.parse(rawBody);
   } catch {
@@ -33,6 +48,66 @@ export async function POST(req: Request) {
           ? session.payment_intent
           : (session.payment_intent?.id ?? null);
       await confirmPaidOrder(session.metadata.order_id, pi);
+    }
+  }
+
+  // A cook's Express onboarding/capabilities changed. Stripe doesn't guarantee
+  // event ORDER, so never write the event's snapshot — re-fetch the account live
+  // and write that (the id from the signature-verified event is trustworthy; only
+  // its state may be stale). metadata.cook_id backstops the row match in case the
+  // event beat startStripeOnboarding's row write. A failed sync returns 5xx so
+  // Stripe redelivers on its retry schedule.
+  if (event.type === "account.updated") {
+    const account = event.data?.object ?? {};
+    if (account.id) {
+      const live = await retrieveAccount(account.id);
+      // Transient fetch failure -> 500 so Stripe redelivers. But a DEFINITIVE
+      // 403/404 ("gone" — deleted account / access revoked) can never succeed
+      // on retry: clean up like a deauthorization and ack, instead of feeding
+      // a 3-day retry storm.
+      if (!live) return new Response("Account fetch failed", { status: 500 });
+      try {
+        if (live === "gone") {
+          await syncCookStripeStatus(
+            account.id,
+            {
+              transfersActive: false,
+              payoutsEnabled: false,
+              detailsSubmitted: false,
+              disabledReason: "account_unreachable",
+            },
+            { clearAccountId: true }
+          );
+        } else {
+          await syncCookStripeStatus(account.id, live, {
+            cookIdHint: account.metadata?.cook_id ?? null,
+          });
+        }
+      } catch {
+        return new Response("Sync failed", { status: 500 });
+      }
+    }
+  }
+
+  // The cook disconnected the platform — pull them out of "ready" immediately.
+  // data.object is the application here, so the account id is on event.account.
+  // We can no longer read the account (access revoked), so write the zeroed state
+  // directly and CLEAR the stored account id — otherwise "Set up payouts" would
+  // retry the dead account forever instead of minting a fresh one.
+  if (event.type === "account.application.deauthorized" && event.account) {
+    try {
+      await syncCookStripeStatus(
+        event.account,
+        {
+          transfersActive: false,
+          payoutsEnabled: false,
+          detailsSubmitted: false,
+          disabledReason: "deauthorized",
+        },
+        { clearAccountId: true }
+      );
+    } catch {
+      return new Response("Sync failed", { status: 500 });
     }
   }
 

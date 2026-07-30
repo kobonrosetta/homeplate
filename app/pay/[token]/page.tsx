@@ -64,10 +64,12 @@ export default async function PayPage({
 
   const { data: cook } = await admin
     .from("cooks")
-    .select("business_name, slug, city, permit_verified, status")
+    .select("business_name, slug, city, permit_verified, status, stripe_ready")
     .eq("id", request.cook_id)
     .maybeSingle();
-  if (!cook || cook.status !== "active") {
+  // stripe_ready matches the action's gate — don't render a payment form the
+  // submit would only bounce.
+  if (!cook || cook.status !== "active" || !cook.stripe_ready) {
     return (
       <Dead
         title="This kitchen isn't taking payments right now"

@@ -26,7 +26,8 @@ are fake data. The tech is ahead of the business.
 - **Next.js 14.2.5**, App Router, React 18, TypeScript, server components + server actions.
 - **Supabase** — Postgres + Auth (email, Google OAuth, **anonymous** sign-ins for guest
   checkout) + Storage + Row-Level Security.
-- **Stripe** — hosted Checkout + webhook. **Test mode.** Connect is NOT built (see gotchas).
+- **Stripe** — hosted Checkout + webhook + **Connect (Express, destination charges)**
+  for automated cook payouts. **Test mode.** (Money flow in gotcha #2.)
 - **Resend** — transactional email.
 - **Groq** — AI helpers (listing descriptions, photo-quality check).
 - **Tailwind** with semantic CSS-variable tokens; **Fraunces** (headings) + **Inter** (body).
@@ -80,7 +81,10 @@ app/                      # App Router — 20 pages, force-dynamic throughout
   auth/callback           # OAuth code exchange
 lib/
   constants.ts            # FEE MATH lives here: round(subtotal*0.08)+30, formatUsd — unit-tested
-  stripe.ts               # fetch-based createCheckoutSession / retrieveSession / verifyStripeSignature
+  stripe.ts               # fetch-based createCheckoutSession (+ Connect destination-charge params) /
+                          #   retrieveSession / verifyStripeSignature / createConnectAccount /
+                          #   createAccountLink / retrieveAccount / accountStatus
+  connect.ts              # syncCookStripeStatus(): service-role write of cook_stripe + cooks.stripe_ready
   orders.ts               # confirmPaidOrder(): idempotent, deducts stock, emails the cook
   email.ts                # sendEmail (Resend REST, key-safe no-op) + wrapEmail (branded HTML)
   listings.ts             # insertListingFromForm (photo gate + extra photos + allergens), uploadCookAvatar,
@@ -102,15 +106,17 @@ middleware.ts             # refreshes the Supabase session cookie
 Server actions live in each route's `actions.ts` (8 of them). Auth/session flows through
 `middleware.ts` → `lib/supabase/middleware.ts`.
 
-## Data model (9 tables)
+## Data model (10 tables)
 
 `profiles` (one per person) · `approved_operators` (the county permit list we match against
-— the trust hook) · `cooks` (a kitchen; belongs to a profile) · **`cook_private`** (a cook's
-home address/geo — owner-only, split out for safety) · `listings` (items, inventory, photos,
-allergens) · `orders` (subtotal = cook's cut, service_fee = your cut, total = buyer pays;
-contact fields) · `order_items` · `reviews` (tied to a completed order) · `payouts` (manual
-cook-payout log). Full schema: `supabase/schema.sql`. Applied-migration history + replay
-instructions: `supabase/MIGRATIONS.md`.
+— the trust hook) · `cooks` (a kitchen; belongs to a profile; `stripe_ready` = can take
+orders) · **`cook_private`** (a cook's home address/geo — owner-only, split out for safety) ·
+**`cook_stripe`** (Connect account id + onboarding status — service-role only) · `listings`
+(items, inventory, photos, allergens) · `orders` (subtotal = cook's cut, service_fee = your
+cut, total = buyer pays; contact fields) · `order_items` · `reviews` (tied to a completed
+order) · `payouts` (legacy manual cook-payout log, pre-Connect). Full schema:
+`supabase/schema.sql`. Applied-migration history + replay instructions:
+`supabase/MIGRATIONS.md`.
 
 ## Security model — do NOT undo these
 
@@ -154,8 +160,32 @@ them re-opens real vulnerabilities:
    operators carry the same `PT…` permit numbers, so cottage bakers auto-verify on a permit
    match exactly like MEHKO). There is still **no scheduled refresh**: re-run the importers
    manually; say "checked periodically", never "refreshed daily".
-2. **Stripe Connect is not built.** 100% of every charge lands in the platform account;
-   cooks are paid **by hand** for the pilot (the payouts pages track who's owed). `stripe_account_id` is an unused column. Don't assume automated payouts exist.
+2. **Stripe Connect (Express) IS built — destination charges** (migration #33 + the
+   Connect PR, Jul 2026). Money flow: buyer pays `total`; `application_fee_amount =
+   service_fee` stays with the platform; Stripe auto-transfers the remainder (= the
+   cook's full `subtotal`) to their connected account; Stripe's processing cut comes
+   out of the platform's fee (net ~4.85%). Key invariants — do NOT undo:
+   - **Readiness = the `transfers` capability being active** (+ `payouts_enabled` +
+     `details_submitted`), rolled up into `cooks.stripe_ready` by
+     `lib/connect.ts syncCookStripeStatus` (webhook + return route). **Never gate on
+     `charges_enabled`** — a transfers-only Express account keeps it false forever.
+   - The connected-**account id lives in `cook_stripe` (service-role only)**, never on
+     the public `cooks` row; `stripe_ready` is the only public flag. It's not in the
+     cook-update trigger allow-list, so a cook session can't forge it.
+   - Browse/kitchen/checkout/pay all require `stripe_ready` — a kitchen invisible to
+     buyers until Express onboarding completes ("Set up payouts" on /dashboard/payouts).
+   - **TWO webhook endpoints at the one URL** — a Stripe endpoint delivers platform
+     events OR connected-account events, never both. Endpoint 1 ("your account"):
+     `checkout.session.completed`, secret `STRIPE_WEBHOOK_SECRET`. Endpoint 2
+     ("Connected accounts"): `account.updated` + `account.application.deauthorized`,
+     secret `STRIPE_CONNECT_WEBHOOK_SECRET`. The route verifies against either.
+     `account.updated` re-fetches the account live (events arrive out of order) and
+     a failed sync returns 5xx so Stripe retries; deauthorization clears the stored
+     account id so the cook can re-onboard fresh.
+   - **Refunds are still manual** and destination charges make naive refunds lose
+     money: always `reverse_transfer=true` + `refund_application_fee=true` (the
+     admin cancellation email spells this out). The `payouts` table is the legacy
+     manual ledger, kept for history.
 3. **Payment confirmation has two paths:** the success-page redirect *and* the webhook.
    `confirmPaidOrder` (in `lib/orders.ts`) is idempotent and shared by both. The webhook is
    only live once `STRIPE_WEBHOOK_SECRET` is set (Stripe CLI locally / dashboard at deploy).
@@ -199,9 +229,12 @@ review-forgery hole + payout-ledger tampering + checkout-trust bugs — see
    (`import-mehko.mjs` / `import-cottage.mjs`).
 2. **Recruit one real cook.** The only thing that tests whether cooks will actually join.
 3. **Go fully live:** rotate all secrets (they were shared in chat / a screenshot — still on
-   Stripe **test** mode), then switch Stripe to live keys + a live-mode webhook and decide
-   the payout path (still manual; Connect not built). Verify a Resend sending domain and
-   update `EMAIL_FROM` to email anyone beyond your own address.
+   Stripe **test** mode), then switch Stripe to live keys + BOTH live-mode webhook
+   endpoints (platform + Connect — see gotcha #2 for the two-secret setup) and
+   have the first real cook complete live Express onboarding (real SSN/bank — payouts are
+   automated via Connect destination charges; refunds still manual). ~~Verify a Resend
+   sending domain~~ ✅ Done 2026-07-30 — `forkfork.app` verified, `EMAIL_FROM` =
+   `orders@forkfork.app` (replies alias to `hello@`), Supabase auth email on custom SMTP.
 
 ## Companion docs
 

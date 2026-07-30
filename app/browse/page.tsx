@@ -16,6 +16,7 @@ export default async function BrowsePage() {
       "id, business_name, slug, city, neighborhood, permit_verified, cuisine_tags, listings(id, photo_url, is_available, price_cents, limited_quantity, quantity_available, kind), reviews(rating)"
     )
     .eq("status", "active")
+    .eq("stripe_ready", true) // only kitchens that can actually take an order + get paid
     .order("business_name", { ascending: true })
     .limit(100);
 

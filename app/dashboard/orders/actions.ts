@@ -79,9 +79,10 @@ export async function advanceOrder(formData: FormData) {
       }
 
       if (status === "cancelled") {
-        // Tell the buyer, and — because refunds are MANUAL in the pilot
-        // (Stripe Connect isn't built) — alert the admins that money is owed
-        // so nobody's silently out of pocket.
+        // Tell the buyer, and — because refunds are MANUAL in the pilot — alert
+        // the admins. Connect IS built now, so the order paid the cook via a
+        // destination charge: a naive refund would leave the cook their cut and
+        // ForkFork out of pocket, so the admin email spells out the correct steps.
         if (order?.contact_email) {
           await sendEmail({
             to: order.contact_email,
@@ -112,8 +113,15 @@ export async function advanceOrder(formData: FormData) {
                  String(orderId)
                )}</strong>. Refund <strong>${formatUsd(
                  order?.total_cents ?? 0
-               )}</strong> to the buyer in the Stripe dashboard (Connect isn't
-               built, so this isn't automatic).</p>`
+               )}</strong> to the buyer in the Stripe dashboard.</p>
+               <p><strong>Important — this order paid the cook via Connect.</strong>
+               When you issue the refund you MUST also <strong>reverse the transfer</strong>
+               and <strong>refund the application fee</strong>
+               (API: <code>reverse_transfer=true, refund_application_fee=true</code>).
+               Otherwise the cook keeps their cut and ForkFork eats the whole refund.</p>
+               <p>If the cook's earnings have already paid out to their bank, reversing can
+               drive their Stripe balance negative (ForkFork covers the shortfall) — so
+               refund before their payout settles whenever possible.</p>`
             ),
           });
         }

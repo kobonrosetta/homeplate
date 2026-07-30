@@ -65,22 +65,7 @@ export async function deleteCook(formData: FormData) {
   revalidatePath("/browse");
 }
 
-// Record a manual payout you sent a cook (for the pilot's by-hand payouts).
-export async function recordPayout(formData: FormData) {
-  const admin = await getAdminUser();
-  if (!admin) return;
-  const id = String(formData.get("cook_id") ?? "");
-  const dollars = parseFloat(String(formData.get("amount") ?? ""));
-  const note = String(formData.get("note") ?? "").trim();
-  // Number.isFinite rejects NaN AND Infinity; the cap stops an admin fat-finger
-  // (e.g. a stray $1,000,000) from silently skewing the "owed to cooks" totals.
-  if (!id || !Number.isFinite(dollars) || dollars <= 0 || dollars > 100000)
-    return;
-  const db = createAdminClient();
-  await db.from("payouts").insert({
-    cook_id: id,
-    amount_cents: Math.round(dollars * 100),
-    note: note || null,
-  });
-  revalidatePath("/admin");
-}
+// recordPayout (the pilot's by-hand payout ledger) was retired when Stripe
+// Connect shipped: destination charges pay the cook automatically at charge
+// time, so a manual "record payout" button would invite paying cooks twice.
+// The payouts table stays as read-only pre-Connect history.

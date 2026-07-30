@@ -34,6 +34,7 @@ export default async function Image({
     .select("id, business_name, city, permit_verified, listings(photo_url)")
     .eq("slug", params.slug)
     .eq("status", "active")
+    .eq("stripe_ready", true) // match the kitchen page: no OG card for a 404
     .eq("listings.is_available", true)
     // Food only — an 'extra' (gift ribbon, tote) must never be the hero image.
     .eq("listings.kind", "dish")

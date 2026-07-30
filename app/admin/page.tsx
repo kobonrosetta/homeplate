@@ -10,7 +10,6 @@ import {
   rejectCook,
   renameCook,
   deleteCook,
-  recordPayout,
 } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +32,7 @@ export default async function AdminPage() {
   const { data: cooks } = await db
     .from("cooks")
     .select(
-      "id, business_name, profile_id, permit_number, permit_verified, operation_type, city, bio, status, approved_operator_id, created_at"
+      "id, business_name, profile_id, permit_number, permit_verified, operation_type, city, bio, status, stripe_ready, approved_operator_id, created_at"
     )
     .order("created_at", { ascending: false });
   const list = (cooks ?? []).sort(
@@ -62,12 +61,17 @@ export default async function AdminPage() {
     .order("created_at", { ascending: false });
   const allOrders = orders ?? [];
   const paidOrders = allOrders.filter((o: any) => PAID.has(o.status));
-  const completed = allOrders.filter((o: any) => o.status === "completed");
 
-  // Payouts already recorded.
+  // Legacy manual payouts (pre-Connect history) + each cook's Stripe status.
   const { data: payouts } = await db
     .from("payouts")
     .select("cook_id, amount_cents");
+  const { data: stripeRows } = await db
+    .from("cook_stripe")
+    .select("cook_id, stripe_account_id, details_submitted, disabled_reason");
+  const stripeByCook = new Map(
+    (stripeRows ?? []).map((r: any) => [r.cook_id, r])
+  );
 
   const sumBy = (rows: any[], key: string, field: string) => {
     const m = new Map<string, number>();
@@ -81,7 +85,9 @@ export default async function AdminPage() {
   };
 
   const orderCountByCook = countByCook(allOrders); // any status (delete guard)
-  const earnedByCook = sumBy(completed, "cook_id", "subtotal_cents");
+  // Destination transfers happen at charge time, so every PAID order's subtotal
+  // has already moved to the cook.
+  const transferredByCook = sumBy(paidOrders, "cook_id", "subtotal_cents");
   const paidOutByCook = sumBy(payouts ?? [], "cook_id", "amount_cents");
 
   // Contact details: emails (from auth) + phones (from profiles).
@@ -131,15 +137,14 @@ export default async function AdminPage() {
     }
   }
 
-  // Marketplace pulse.
+  // Marketplace pulse. With Connect, a cook's cut moves to them at CHARGE time
+  // (destination transfer) — nothing is "owed", so the old owed stat is gone.
   const gmv = paidOrders.reduce((n, o: any) => n + o.total_cents, 0);
   const feeRevenue = paidOrders.reduce((n, o: any) => n + o.service_fee_cents, 0);
-  const totalEarned = completed.reduce((n, o: any) => n + o.subtotal_cents, 0);
-  const totalPaidOut = (payouts ?? []).reduce(
-    (n, p: any) => n + p.amount_cents,
+  const cookEarnings = paidOrders.reduce(
+    (n, o: any) => n + o.subtotal_cents,
     0
   );
-  const owedTotal = totalEarned - totalPaidOut;
   const recent = paidOrders.slice(0, 6);
   const pendingCount = list.filter((c: any) => c.status === "pending").length;
 
@@ -152,7 +157,11 @@ export default async function AdminPage() {
         <Stat label="Paid orders" value={String(paidOrders.length)} />
         <Stat label="Buyer spend (GMV)" value={formatUsd(gmv)} />
         <Stat label="Your fees" value={formatUsd(feeRevenue)} />
-        <Stat label="Owed to cooks" value={formatUsd(owedTotal)} accent />
+        <Stat
+          label="To cooks (auto via Stripe)"
+          value={formatUsd(cookEarnings)}
+          accent
+        />
       </div>
 
       {recent.length > 0 && (
@@ -194,9 +203,9 @@ export default async function AdminPage() {
               ? opById.get(c.approved_operator_id)
               : null;
             const orderCount = orderCountByCook.get(c.id) ?? 0;
-            const earned = earnedByCook.get(c.id) ?? 0;
+            const transferred = transferredByCook.get(c.id) ?? 0;
             const paidOut = paidOutByCook.get(c.id) ?? 0;
-            const owed = earned - paidOut;
+            const stripe = stripeByCook.get(c.id);
             const email = emailById.get(c.profile_id);
             const phone = phoneById.get(c.profile_id);
             return (
@@ -302,37 +311,37 @@ export default async function AdminPage() {
                   </div>
                 </div>
 
-                {/* Payouts */}
+                {/* Payouts — automated via Connect; nothing to hand-pay. */}
                 <div className="mt-3 flex flex-wrap items-center gap-4 rounded-lg bg-card p-3 text-sm">
-                  <span className="text-muted">
-                    Earned <span className="text-ink">{formatUsd(earned)}</span>
-                  </span>
-                  <span className="text-muted">
-                    Paid out <span className="text-ink">{formatUsd(paidOut)}</span>
-                  </span>
-                  <span className="text-muted">
-                    Owed{" "}
-                    <span className="font-semibold text-ink">
-                      {formatUsd(owed)}
+                  {c.stripe_ready ? (
+                    <span className="font-medium text-emerald-700">
+                      ✓ Payouts active
                     </span>
+                  ) : stripe?.details_submitted ? (
+                    <span className="font-medium text-amber-700">
+                      ⏳ Stripe reviewing
+                      {stripe?.disabled_reason
+                        ? ` — ${stripe.disabled_reason}`
+                        : ""}
+                    </span>
+                  ) : (
+                    <span className="font-medium text-amber-700">
+                      ⚠ Payouts not set up — kitchen hidden from buyers
+                      {stripe?.disabled_reason
+                        ? ` (${stripe.disabled_reason})`
+                        : ""}
+                    </span>
+                  )}
+                  <span className="text-muted">
+                    Sent via Stripe{" "}
+                    <span className="text-ink">{formatUsd(transferred)}</span>
                   </span>
-                  <form
-                    action={recordPayout}
-                    className="ml-auto flex items-center gap-2"
-                  >
-                    <input type="hidden" name="cook_id" value={c.id} />
-                    <input
-                      name="amount"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      className="w-24 rounded-lg border border-line px-2 py-1 text-sm text-ink outline-none focus:border-muted"
-                    />
-                    <button className="rounded-full border border-line px-3 py-1 text-sm text-ink hover:bg-line/50">
-                      Record payout
-                    </button>
-                  </form>
+                  {paidOut > 0 && (
+                    <span className="text-muted">
+                      Paid by hand (legacy){" "}
+                      <span className="text-ink">{formatUsd(paidOut)}</span>
+                    </span>
+                  )}
                 </div>
 
                 <form action={renameCook} className="mt-3 flex items-center gap-2">
