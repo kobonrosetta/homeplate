@@ -17,8 +17,8 @@ price; buyers pay a service fee (8% + $0.30) on top at checkout.
 Current reality: a **complete, working marketplace loop, deployed and live on Render**
 (Stripe still test mode) — discover → pay → cook sees the order + buyer contact →
 advances status ("I'm on it" → ready → completed) → buyer reviews → inventory deducts
-and sells out. The **real Santa Clara County MEHKO permit list is loaded** and signup
-verification runs against it. There are still **zero real cooks** — the demo kitchens
+and sells out. The **real Santa Clara County MEHKO + cottage-food permit lists are
+loaded** and signup verification runs against them. There are still **zero real cooks** — the demo kitchens
 are fake data. The tech is ahead of the business.
 
 ## Stack
@@ -149,9 +149,11 @@ them re-opens real vulnerabilities:
    match only; the kitchen NAME is deliberately advisory (cooks brand differently from
    their permit name — the admin console shows an exact/partial/none tier), and an optional
    permit-photo upload (private bucket) backs the human review. Cooks can never self-activate
-   (migration 17); admin approval is the real gate. The cottage-food county list is NOT
-   loaded yet — bakers are reviewed by hand. There is still **no scheduled refresh**: re-run
-   the importer manually; say "checked periodically", never "refreshed daily".
+   (migration 17); admin approval is the real gate. The Santa Clara cottage-food list is
+   loaded too (323 operators, imported 2026-07-29 via `scripts/import-cottage.mjs`; cottage
+   operators carry the same `PT…` permit numbers, so cottage bakers auto-verify on a permit
+   match exactly like MEHKO). There is still **no scheduled refresh**: re-run the importers
+   manually; say "checked periodically", never "refreshed daily".
 2. **Stripe Connect is not built.** 100% of every charge lands in the platform account;
    cooks are paid **by hand** for the pilot (the payouts pages track who's owed). `stripe_account_id` is an unused column. Don't assume automated payouts exist.
 3. **Payment confirmation has two paths:** the success-page redirect *and* the webhook.
@@ -191,9 +193,10 @@ redirects configured. A second security batch (Jul 23 2026) closed a reopened
 review-forgery hole + payout-ledger tampering + checkout-trust bugs — see
 `PROJECT_REVIEW.md` and `supabase/harden-orders.sql`. What remains is **not more features**:
 
-1. ~~Load real Santa Clara County permit data~~ ✅ **Done 2026-07-24** (174 MEHKO permits,
-   permit-gated auto-verify + advisory name tiers + optional permit photo + admin review).
-   Remaining data nice-to-have: import the county's cottage-food list the same way.
+1. ~~Load real Santa Clara County permit data~~ ✅ **Done** — 174 MEHKO permits (2026-07-24)
+   + 323 cottage-food operators (2026-07-29), permit-gated auto-verify + advisory name tiers
+   + optional permit photo + admin review. Both load via re-runnable scripts
+   (`import-mehko.mjs` / `import-cottage.mjs`).
 2. **Recruit one real cook.** The only thing that tests whether cooks will actually join.
 3. **Go fully live:** rotate all secrets (they were shared in chat / a screenshot — still on
    Stripe **test** mode), then switch Stripe to live keys + a live-mode webhook and decide
