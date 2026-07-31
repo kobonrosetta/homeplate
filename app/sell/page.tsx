@@ -436,6 +436,15 @@ function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
                   owe you, and ForkFork passes your full listed price on to
                   you.
                 </span>
+                <span className="block">
+                  <Link
+                    href="/cook-agreement"
+                    target="_blank"
+                    className="font-medium text-brand underline hover:no-underline"
+                  >
+                    Read the full Cook Agreement →
+                  </Link>
+                </span>
               </span>
             </details>
           </p>

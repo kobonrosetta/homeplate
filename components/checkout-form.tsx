@@ -193,6 +193,17 @@ export default function CheckoutForm({
       <p className="text-center text-xs text-faint">
         No account needed — pay as a guest. Secure payment by Stripe.
       </p>
+      <p className="text-center text-xs text-faint">
+        By placing an order you agree to the{" "}
+        <a href="/terms" className="underline hover:text-ink">
+          Terms of Service
+        </a>{" "}
+        and{" "}
+        <a href="/refunds" className="underline hover:text-ink">
+          Refund Policy
+        </a>
+        .
+      </p>
       </form>
     </>
   );

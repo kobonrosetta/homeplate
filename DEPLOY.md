@@ -88,9 +88,10 @@ when creating the endpoint):
 (Also enable **Connect** itself once per Stripe account: Dashboard → Connect →
 Get started, Express accounts. Saving either env var redeploys the service.)
 
-**c) Resend email (optional for pilot)** — to email anyone besides yourself, verify a sending
-domain in Resend and update `EMAIL_FROM` to an address on that domain. Until then, emails
-only reach your own Resend account address.
+**c) Resend email** — ✅ done (Jul 2026): `forkfork.app` is a verified Resend sending
+domain and `EMAIL_FROM` is `ForkFork <orders@forkfork.app>` (replies alias to
+`hello@forkfork.app`), so transactional email reaches real users. On a fresh setup you'd
+verify a sending domain in Resend and set `EMAIL_FROM` to an address on it.
 
 ## 5. Test the live loop
 On the live URL: sign up → as a cook create a kitchen + a dish (it stays pending until you

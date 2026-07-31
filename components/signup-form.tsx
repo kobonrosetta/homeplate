@@ -55,6 +55,18 @@ export default function SignupForm({
 
       <SubmitButton pendingLabel="Creating…">Create account</SubmitButton>
 
+      <p className="text-center text-xs text-faint">
+        By creating an account you agree to the{" "}
+        <Link href="/terms" className="underline hover:text-ink">
+          Terms of Service
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy" className="underline hover:text-ink">
+          Privacy Policy
+        </Link>
+        .
+      </p>
+
       {!selling && (
         <p className="pt-1 text-center text-sm text-muted">
           Run a permitted kitchen?{" "}
