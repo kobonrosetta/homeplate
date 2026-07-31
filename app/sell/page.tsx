@@ -315,7 +315,7 @@ function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
       <h1 className="text-2xl font-semibold text-ink">Last step — submit for review</h1>
       <div className="mt-3 rounded-xl bg-card p-3 text-sm text-muted shadow-soft">
         {cottage
-          ? "Last step. Our team reviews your Cottage Food registration with the county by hand, and your address stays private. You'll hear back by email within about a day."
+          ? "Last step. We match your registration number to Santa Clara County's cottage-food operator list, and your address stays private. You'll hear back by email within about a day."
           : "Last step. We match your permit to Santa Clara County's published MEHKO list, and your address stays private. You'll hear back by email within about a day."}
       </div>
       {email && (
@@ -367,34 +367,39 @@ function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
           <TextField label="City" name="city" required placeholder="Sunnyvale" />
           <TextField label="ZIP" name="zip" placeholder="94086" />
         </div>
-        <div className="space-y-3 rounded-xl bg-card p-4 shadow-soft">
-          <div>
-            <p className="text-sm font-medium text-ink">Sales tax, handled</p>
-            <p className="mt-1 text-xs text-muted">
-              {cottage
-                ? "Selling only cold baked goods? You usually don't need this — cold to-go food generally isn't taxed in California. Skip it unless you'll sell anything served hot."
-                : "California taxes hot food sales. Your prices will include it, and your dashboard tracks exactly what you'll owe — you just need a free seller's permit from the state."}
+        {/* Sales tax only applies to hot prepared food (MEHKO). Cottage bakers
+            sell shelf-stable goods and see no tax UI anywhere — matching the
+            dashboard and Settings gating. */}
+        {!cottage && (
+          <div className="space-y-3 rounded-xl bg-card p-4 shadow-soft">
+            <div>
+              <p className="text-sm font-medium text-ink">Sales tax, handled</p>
+              <p className="mt-1 text-xs text-muted">
+                California taxes hot food sales. Your prices will include it, and
+                your dashboard tracks exactly what you&apos;ll owe — you just need
+                a free seller&apos;s permit from the state.
+              </p>
+            </div>
+            <TextField
+              label="CDTFA seller's permit number (add it later if you like)"
+              name="cdtfa_permit"
+              placeholder="e.g. 123-456789"
+            />
+            <p className="text-xs text-faint">
+              Free at{" "}
+              <a
+                href="https://www.cdtfa.ca.gov"
+                target="_blank"
+                rel="noreferrer"
+                className="underline hover:text-ink"
+              >
+                cdtfa.ca.gov
+              </a>{" "}
+              — about 15 minutes online. Required before your kitchen goes live;
+              we&apos;ll remind you.
             </p>
           </div>
-          <TextField
-            label="CDTFA seller's permit number (add it later if you like)"
-            name="cdtfa_permit"
-            placeholder="e.g. 123-456789"
-          />
-          <p className="text-xs text-faint">
-            Free at{" "}
-            <a
-              href="https://www.cdtfa.ca.gov"
-              target="_blank"
-              rel="noreferrer"
-              className="underline hover:text-ink"
-            >
-              cdtfa.ca.gov
-            </a>{" "}
-            — about 15 minutes online.
-            {cottage ? "" : " Required before your kitchen goes live; we'll remind you."}
-          </p>
-        </div>
+        )}
 
         <label className="block">
           <span className="text-sm font-medium text-ink">

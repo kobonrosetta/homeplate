@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentCook } from "@/lib/cook";
 import { restockOrderItems } from "@/lib/orders";
 import { escapeHtml, sendEmail, wrapEmail } from "@/lib/email";
-import { formatUsd } from "@/lib/constants";
+import { formatUsd, SUPPORT_EMAIL } from "@/lib/constants";
 
 // Target status -> the statuses an order may come FROM. Pending never appears:
 // an unpaid order can't be advanced, completed, or cancelled by a cook — only
@@ -93,9 +93,11 @@ export async function advanceOrder(formData: FormData) {
                  order.contact_name
                    ? `, ${escapeHtml(order.contact_name)}`
                    : ""
-               }. You'll be refunded the full ${formatUsd(
+               }. Your full ${formatUsd(
                  order.total_cents ?? 0
-               )} — reach out if you don't see it within a few days.</p>`
+               )} refund is on the way. If it hasn't appeared in a few days, email ${escapeHtml(
+                 SUPPORT_EMAIL
+               )} and we'll chase it down.</p>`
             ),
           });
         }

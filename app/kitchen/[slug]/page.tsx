@@ -175,7 +175,7 @@ export default async function KitchenPage({
           <p className="mt-1.5 text-muted">
             {[cook.neighborhood, cook.city].filter(Boolean).join(", ")}
             {cook.neighborhood || cook.city ? " · " : ""}
-            {cook.operation_type === "mehko" ? "Home kitchen" : "Cottage food"}
+            {cook.operation_type === "mehko" ? "Home kitchen" : "Home bakery"}
           </p>
           {reviewCount > 0 ? (
             <p className="mt-1 text-sm font-medium text-amber-600">
@@ -332,7 +332,7 @@ export default async function KitchenPage({
         <>
           <h2 className="mt-10 text-lg font-semibold text-ink">Extras</h2>
           <p className="mt-1 text-sm text-muted">
-            Add-ons from this kitchen — added to your cart like anything else.
+            Little extras from this kitchen to round out your order.
           </p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             {extras.map((l: any) => {
@@ -416,7 +416,8 @@ export default async function KitchenPage({
               {cook.owner_name || `The cook behind ${cook.business_name}`}
             </p>
             <p className="mt-0.5 text-sm text-muted">
-              Home cook{cook.city ? ` in ${cook.city}` : ""}
+              {cook.operation_type === "mehko" ? "Home cook" : "Home baker"}
+              {cook.city ? ` in ${cook.city}` : ""}
               {joinedLabel ? ` · on ForkFork since ${joinedLabel}` : ""}
             </p>
             {cook.bio && (

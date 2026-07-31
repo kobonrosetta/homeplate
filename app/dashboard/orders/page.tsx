@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 const STATUS: Record<string, { label: string; cls: string }> = {
   confirmed: { label: "New · paid", cls: "bg-amber-100 text-amber-900" },
   in_progress: { label: "In progress", cls: "bg-indigo-100 text-indigo-900" },
-  ready: { label: "Ready for pickup", cls: "bg-blue-100 text-blue-900" },
+  ready: { label: "Ready", cls: "bg-blue-100 text-blue-900" },
   completed: { label: "Completed", cls: "bg-emerald-100 text-emerald-800" },
   cancelled: { label: "Cancelled", cls: "bg-red-100 text-red-800" },
 };

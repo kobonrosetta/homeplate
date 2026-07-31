@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { retrieveSession } from "@/lib/stripe";
 import { confirmPaidOrder } from "@/lib/orders";
 import { pickupLocation } from "@/lib/handoff";
-import { formatUsd } from "@/lib/constants";
+import { formatUsd, SUPPORT_EMAIL } from "@/lib/constants";
 import ClearCart from "@/components/clear-cart";
 import ClaimAccount from "@/components/claim-account";
 import FollowToggle from "@/components/follow-toggle";
@@ -25,7 +25,7 @@ export default async function CheckoutSuccessPage({
     return (
       <Fallback
         title="No order found"
-        body="We couldn't find a checkout session to confirm."
+        body="We couldn't find an order to confirm. If you just paid, check your email for a confirmation."
       />
     );
   }
@@ -35,7 +35,7 @@ export default async function CheckoutSuccessPage({
     return (
       <Fallback
         title="Couldn't verify payment"
-        body="If you were charged, don't worry — reach out and we'll sort it out."
+        body={`If you were charged, don't worry — email ${SUPPORT_EMAIL} and we'll sort it out.`}
       />
     );
   }

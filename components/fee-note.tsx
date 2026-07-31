@@ -22,8 +22,7 @@ export default function FeeNote({
     const total = priceCents + calcServiceFeeCents(priceCents);
     return (
       <p className={`text-xs text-faint ${className}`}>
-        + {pct}% + {flat} service fee · about {formatUsd(total)} total at
-        checkout
+        + {pct}% + {flat} service fee · {formatUsd(total)} total at checkout
       </p>
     );
   }

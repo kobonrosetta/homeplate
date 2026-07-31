@@ -61,7 +61,7 @@ export default async function BrowsePage() {
       <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <p className="text-muted">
           {kitchens.length > 0
-            ? `${kitchens.length} verified home ${
+            ? `${kitchens.length} home ${
                 kitchens.length === 1 ? "kitchen" : "kitchens"
               } open now.`
             : "Verified home cooks and bakers."}
@@ -76,7 +76,7 @@ export default async function BrowsePage() {
           </span>
           <span>
             Every kitchen is matched against Santa Clara County’s
-            approved-operator list before it can sell — no anonymous sellers.{" "}
+            approved-operator list before it can sell.{" "}
             <Link
               href="/verified"
               className="font-medium text-brand underline-offset-2 hover:underline"
@@ -88,7 +88,7 @@ export default async function BrowsePage() {
       )}
 
       {kitchens.length === 0 ? (
-        <div className="mt-10"><EmptyState title="No kitchens open yet." subtitle="Check back soon." /></div>
+        <div className="mt-10"><EmptyState title="No kitchens open yet." subtitle="We're onboarding Santa Clara County's first home kitchens now." /></div>
       ) : (
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {kitchens.map((k, i) => (

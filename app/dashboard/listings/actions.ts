@@ -207,9 +207,10 @@ export async function deleteListing(formData: FormData) {
     .eq("id", id)
     .eq("cook_id", cook.id);
   if (error) {
+    console.error("deleteListing failed", error);
     redirect(
       "/dashboard/menu?error=" +
-        encodeURIComponent(`Couldn't delete this listing: ${error.message}`)
+        encodeURIComponent("Couldn't delete this listing — please try again.")
     );
   }
   revalidatePath("/dashboard", "layout");

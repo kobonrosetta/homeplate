@@ -48,7 +48,9 @@ export async function generateMetadata({
   const title = `${listing.title} — ${cook.business_name}`;
   const description = (
     listing.description ||
-    `${formatUsd(listing.price_cents)} · homemade by a county-permitted kitchen on ForkFork.`
+    `${formatUsd(listing.price_cents)} · homemade in ${
+      cook.permit_verified ? "a county-verified home kitchen" : "a local home kitchen"
+    } — order on ForkFork.`
   ).slice(0, 200);
 
   return {

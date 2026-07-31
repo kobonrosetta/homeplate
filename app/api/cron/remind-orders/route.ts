@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { escapeHtml, sendEmail, wrapEmail } from "@/lib/email";
+import { SITE_URL } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -72,7 +73,7 @@ export async function POST(req: Request) {
          <p><strong>${items}</strong></p>
          <p>This paid order came in about ${minutes} minutes ago and hasn't been
          started yet. The buyer is waiting to hear you're on it.</p>
-         <p>Open My Kitchen → Orders and tap <strong>"I'm on it"</strong>.</p>`
+         <p><a href="${SITE_URL}/dashboard/orders" style="color:#b45309;font-weight:600;text-decoration:none">Open your orders →</a> Tap <strong>"I'm on it"</strong> to let the buyer know.</p>`
       ),
     });
     reminded++;

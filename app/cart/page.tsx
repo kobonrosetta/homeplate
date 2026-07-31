@@ -123,7 +123,7 @@ export default function CartPage() {
         onClick={() => router.push("/checkout")}
         className="mt-6 w-full rounded-full bg-brand px-6 py-3 font-medium text-white hover:bg-brand/90"
       >
-        Proceed to checkout
+        Go to checkout
       </button>
     </main>
   );

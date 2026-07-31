@@ -54,7 +54,7 @@ export default function HeaderNav({
             </Link>
             {isCook && (
               <Link href="/dashboard" className={pill}>
-                My Kitchen
+                My kitchen
               </Link>
             )}
             {showAdmin && (

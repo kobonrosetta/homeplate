@@ -326,7 +326,7 @@ export default async function SettingsPage({
             />
             <p className="mt-1 text-xs text-faint">
               Shared with a buyer only after they order, to coordinate the
-              handoff. Leave blank to keep it private.
+              handoff. Never shown publicly.
             </p>
           </div>
         </section>

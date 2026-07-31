@@ -20,18 +20,29 @@ export default function VerifiedPage() {
       </p>
 
       <div className="mt-8 space-y-6">
-        <Point n="1" title="Checked against the county&rsquo;s records">
-          MEHKO kitchens (hot, home-cooked meals) are matched against Santa
-          Clara County&rsquo;s published list of approved home-kitchen operators.
-          Cottage-food bakers are reviewed against their county registration by
-          hand. Either way, no valid permit means no selling on ForkFork.
+        <Point n="1" title="A real county permit, not a promise">
+          Every kitchen holds a current permit from Santa Clara County — a
+          MEHKO permit for hot, home-cooked meals, or a Cottage Food
+          registration for baked and shelf-stable goods. No valid permit means
+          no selling on ForkFork.
         </Point>
-        <Point n="2" title="A real health permit on file">
-          Every kitchen holds a valid county permit — either a MEHKO permit (for
-          hot, home-cooked meals) or a Cottage Food registration (for baked and
-          shelf-stable goods). The same clearance a licensed home baker carries.
+        <Point n="2" title="Inspected and trained under state law">
+          A MEHKO cook&rsquo;s actual home kitchen passes a county health
+          inspection before the permit issues — by the same department that
+          inspects restaurants — and the cook holds food-safety certification,
+          just like a restaurant kitchen manager. Cottage-food bakers complete
+          state-approved food-safety training and may only sell foods
+          California classifies as low-risk to make at home: breads, pastries,
+          jams and other shelf-stable goods — never anything that needs
+          refrigeration.
         </Point>
-        <Point n="3" title="Reviewed by a person before going live">
+        <Point n="3" title="Checked against the county&rsquo;s own records">
+          We match every kitchen&rsquo;s permit against Santa Clara
+          County&rsquo;s published lists of approved operators — both MEHKO and
+          cottage food — and re-check those lists periodically. The county is
+          the source of truth, not us.
+        </Point>
+        <Point n="4" title="Reviewed by a person before going live">
           Someone on our team confirms the match and approves the kitchen before
           it can take a single order — no automatic approvals.
         </Point>
@@ -40,9 +51,11 @@ export default function VerifiedPage() {
       <div className="mt-8 rounded-xl bg-card p-5 shadow-soft">
         <p className="text-sm leading-relaxed text-ink">
           <span className="font-medium">What that means for you:</span> you&rsquo;re
-          ordering from a permitted kitchen with a real name and address on file
-          and reviews from real orders — cleared by the county, backed by us. Not a
-          stranger in a Facebook group.
+          ordering from a county-permitted kitchen with a real name and
+          address on file and reviews from real orders — cleared by the county,
+          backed by us. And portions are small-batch by design: state law caps
+          how much a home kitchen can sell, so this stays real home cooking.
+          Not a stranger in a Facebook group.
         </p>
       </div>
 

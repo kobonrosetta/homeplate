@@ -71,8 +71,9 @@ export async function startCheckout(formData: FormData) {
     redirect(`${to}?error=${encodeURIComponent(msg)}`);
 
   if (!cookId || requested.length === 0) err("/cart", "Your cart is empty.");
-  if (!contactEmail) err("/checkout", "An email is required.");
-  if (!contactPhone) err("/checkout", "A phone number is required.");
+  if (!contactEmail) err("/checkout", "Add your email — that's where your receipt goes.");
+  if (!contactPhone)
+    err("/checkout", "Add a phone number so the kitchen can reach you about this order.");
   if (fulfillment === "delivery" && !deliveryAddress)
     err("/checkout", "A delivery address is required.");
 
@@ -149,7 +150,7 @@ export async function startCheckout(formData: FormData) {
   if (drifted) {
     err(
       "/cart",
-      "Prices changed since you added these items — your cart has been updated, please review it."
+      "Prices changed since you added these items. We've updated your cart — take a look before paying."
     );
   }
 
@@ -257,8 +258,13 @@ export async function startCheckout(formData: FormData) {
     })
     .select("id")
     .single();
-  if (orderErr || !order)
-    err("/checkout", orderErr?.message ?? "Could not start your order.");
+  if (orderErr || !order) {
+    console.error("checkout: order insert failed", orderErr);
+    err(
+      "/checkout",
+      "Something went wrong starting your order — your card wasn't charged. Please try again."
+    );
+  }
 
   // Server-authored line items (built above from authoritative DB prices),
   // written with the service role — end users have no order_items INSERT policy
@@ -268,7 +274,13 @@ export async function startCheckout(formData: FormData) {
   const { error: itemsErr } = await createAdminClient()
     .from("order_items")
     .insert(items.map((i) => ({ order_id: order!.id, ...i })));
-  if (itemsErr) err("/checkout", itemsErr.message);
+  if (itemsErr) {
+    console.error("checkout: order_items insert failed", itemsErr);
+    err(
+      "/checkout",
+      "Something went wrong starting your order — your card wasn't charged. Please try again."
+    );
+  }
 
   const h = headers();
   const origin =
@@ -297,8 +309,12 @@ export async function startCheckout(formData: FormData) {
       destinationAccountId: cookStripe!.stripe_account_id,
     });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Payment could not be started.";
-    redirect(`/checkout?error=${encodeURIComponent(msg)}`);
+    console.error("checkout: stripe session failed", e);
+    redirect(
+      `/checkout?error=${encodeURIComponent(
+        "We couldn't reach payment just now — your card wasn't charged. Please try again."
+      )}`
+    );
   }
 
   redirect(session.url);

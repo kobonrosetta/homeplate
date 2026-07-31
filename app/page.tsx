@@ -57,15 +57,16 @@ export default async function Home() {
             href="/verified"
             className="text-sm font-medium text-brand underline-offset-4 hover:underline"
           >
-            ✓ Every kitchen is county-approved &amp; verified
+            ✓ Every kitchen verified against the county&rsquo;s approved list
           </Link>
           <h1 className="mt-4 text-5xl font-semibold leading-[1.05] tracking-tight text-ink sm:text-6xl">
-            Exceptional food from the best home kitchens near you.
+            The best food near you isn&rsquo;t from a restaurant.
           </h1>
           <p className="mt-5 text-lg leading-relaxed text-muted">
-            The bakers and cooks your neighbors rave about — the sourdough, the
-            tamales, the pastries — now in one place. Permit-verified, not a
-            Facebook group. Order ahead, pick up or get it delivered.
+            It&rsquo;s from your neighbors — the tamales, the sourdough, the
+            pastries people cross town for, made in home kitchens Santa Clara
+            County has permitted and inspected. Order ahead, then pick up or
+            get it delivered.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
@@ -86,16 +87,16 @@ export default async function Home() {
       <section className="border-t border-line bg-card/60">
         <div className="mx-auto grid max-w-6xl gap-8 px-6 py-14 sm:grid-cols-3">
           <Feature
-            title="Verified, not sketchy"
-            body="Every kitchen is matched against the county's approved-operator list before they can sell. You know it's legit."
+            title="Held to restaurant rules — at home"
+            body="Hot-meal kitchens are permitted and inspected by the county health department, the same office that inspects restaurants. Bakers are registered under California's cottage food law, with state-required food-safety training."
           />
           <Feature
-            title="Cooks keep what they earn"
-            body="Makers keep 100% of their price. A small service fee at checkout keeps the lights on — no gouging."
+            title="Verified twice before day one"
+            body="We match every permit against Santa Clara County's own approved-operator list, then a person reviews each kitchen before it can take a single order. Not cleared by the county? Not on ForkFork."
           />
           <Feature
-            title="Built for quality, not cheap"
-            body="This isn't fast food. It's the artisan down the street who happens to be the best baker you've ever tasted."
+            title="Your money goes to the cook"
+            body="Cooks keep 100% of the price they set — the small service fee at checkout is what runs ForkFork. You're paying the person who made your dinner, not a middleman."
           />
         </div>
       </section>

@@ -6,6 +6,22 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { safeNext } from "@/lib/safe-next";
 
+// Supabase auth errors are machine-voiced ("Invalid login credentials") and
+// land in the form-error box at the exact moment a user is already frustrated.
+// Map the common ones to human copy; fall back to the raw message otherwise.
+function friendlyAuthError(raw: string | null | undefined): string {
+  const m = (raw ?? "").toLowerCase();
+  if (m.includes("invalid login credentials"))
+    return "That email and password don't match. Try again, or reset your password.";
+  if (m.includes("already registered") || m.includes("already been registered"))
+    return "You already have an account with that email — sign in instead.";
+  if (m.includes("password should be at least"))
+    return "Your password needs to be at least 6 characters.";
+  if (m.includes("email not confirmed"))
+    return "Please confirm your email first — check your inbox for the link.";
+  return raw && raw.trim() ? raw : "Something went wrong. Please try again.";
+}
+
 export async function login(formData: FormData) {
   // Where to land after signing in (e.g. back to the kitchen a guest wanted
   // to follow). Validated as an internal path; defaults home.
@@ -19,7 +35,7 @@ export async function login(formData: FormData) {
   if (error) {
     redirect(
       "/login?error=" +
-        encodeURIComponent(error.message) +
+        encodeURIComponent(friendlyAuthError(error.message)) +
         (next !== "/" ? `&next=${encodeURIComponent(next)}` : "")
     );
   }
@@ -48,7 +64,7 @@ export async function signup(formData: FormData) {
   if (error) {
     redirect(
       "/signup?error=" +
-        encodeURIComponent(error.message) +
+        encodeURIComponent(friendlyAuthError(error.message)) +
         (intent === "sell" ? "&intent=sell" : "") +
         (next !== "/browse" && next !== "/sell?start=1"
           ? `&next=${encodeURIComponent(next)}`
