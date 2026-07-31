@@ -22,12 +22,13 @@ export async function confirmPaidOrder(
     .update({ status: "confirmed", stripe_payment_intent_id: paymentIntentId })
     .eq("id", orderId)
     .eq("status", "pending")
-    .select("id, custom_request_id");
+    .select("id, custom_request_id, cook_id");
   if (!confirmed || confirmed.length === 0) return; // already handled
 
   // A paid payment-link order retires its link (idempotent — the pending
   // guard above means this runs at most once per order).
   const requestId = confirmed[0].custom_request_id;
+  const orderCookId = confirmed[0].cook_id;
   if (requestId) {
     await admin
       .from("custom_requests")
@@ -45,10 +46,13 @@ export async function confirmPaidOrder(
     if (!line.listing_id) continue;
     const { data: listing } = await admin
       .from("listings")
-      .select("limited_quantity, quantity_available")
+      .select("limited_quantity, quantity_available, cook_id")
       .eq("id", line.listing_id)
       .maybeSingle();
-    if (listing?.limited_quantity) {
+    // Defense-in-depth: only ever touch stock for a listing that belongs to
+    // THIS order's cook, so no cross-cook line item can zero a competitor's
+    // inventory (order_items are server-authored now, but belt-and-braces).
+    if (listing?.limited_quantity && listing.cook_id === orderCookId) {
       const next = Math.max(0, (listing.quantity_available ?? 0) - line.quantity);
       await admin
         .from("listings")
@@ -68,6 +72,12 @@ export async function confirmPaidOrder(
  */
 export async function restockOrderItems(orderId: string): Promise<void> {
   const admin = createAdminClient();
+  const { data: order } = await admin
+    .from("orders")
+    .select("cook_id")
+    .eq("id", orderId)
+    .maybeSingle();
+  const orderCookId = order?.cook_id ?? null;
   const { data: lines } = await admin
     .from("order_items")
     .select("listing_id, quantity")
@@ -77,10 +87,12 @@ export async function restockOrderItems(orderId: string): Promise<void> {
     if (!line.listing_id) continue;
     const { data: listing } = await admin
       .from("listings")
-      .select("limited_quantity, quantity_available")
+      .select("limited_quantity, quantity_available, cook_id")
       .eq("id", line.listing_id)
       .maybeSingle();
-    if (listing?.limited_quantity) {
+    // Mirror of the deduction guard — only restock a listing owned by this
+    // order's cook.
+    if (listing?.limited_quantity && listing.cook_id === orderCookId) {
       await admin
         .from("listings")
         .update({

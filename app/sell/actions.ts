@@ -13,7 +13,7 @@ import {
   permitFileProblem,
   readPickupWindows,
 } from "@/lib/listings";
-import { sendEmail, wrapEmail } from "@/lib/email";
+import { escapeHtml, sendEmail, wrapEmail } from "@/lib/email";
 import { normalizePermit, isExpired } from "@/lib/match";
 
 async function requireCookUser() {
@@ -311,13 +311,15 @@ export async function wizardFinalize(formData: FormData) {
         }`,
         html: wrapEmail(
           `<h2>A kitchen is waiting for approval</h2>
-           <p><strong>${cook?.business_name ?? "A kitchen"}</strong> ${
+           <p><strong>${escapeHtml(cook?.business_name ?? "A kitchen")}</strong> ${
              normalizedPermit
-               ? `submitted permit ${normalizedPermit} ${
+               ? `submitted permit ${escapeHtml(normalizedPermit)} ${
                    verified
                      ? "(matched the county list)"
                      : match
-                       ? `(matched the county list but the permit EXPIRED ${match.expires_at})`
+                       ? `(matched the county list but the permit EXPIRED ${escapeHtml(
+                           String(match.expires_at)
+                         )})`
                        : "(no county match)"
                  }`
                : "submitted with NO permit number — follow up before approving"

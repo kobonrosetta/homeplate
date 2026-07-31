@@ -144,6 +144,13 @@ them re-opens real vulnerabilities:
   name/address. Admins view via short-lived signed URLs only. Never make this bucket
   public or add end-user policies to it.
 - **Orders RLS**: buyers see only their orders; cooks update only their kitchen's.
+- **`order_items` are server-authored** (migration 35): end users have **no INSERT
+  policy** — both checkout paths write line items via the service role from
+  authoritative DB prices. Do NOT restore a buyer-session `order_items` insert or a
+  client INSERT policy: the old policy never checked that `listing_id` belonged to the
+  order's cook, so a buyer could inject a competitor's limited-inventory listing into
+  their own order and zero that cook's stock on payment (verified live). `confirmPaidOrder`
+  also guards stock writes on `listing.cook_id === order.cook_id`.
 - **AI routes** require a signed-in user (401 otherwise).
 - `lib/supabase/admin.ts` (service-role, god-mode) is **server-only** — never import it into
   a client component.
