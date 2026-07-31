@@ -11,7 +11,11 @@ const TABS = [
   { href: "/dashboard/settings", label: "Settings" },
 ];
 
-export default function DashboardTabs() {
+export default function DashboardTabs({
+  payoutsPending = false,
+}: {
+  payoutsPending?: boolean;
+}) {
   const path = usePathname();
 
   function isActive(href: string) {
@@ -35,6 +39,12 @@ export default function DashboardTabs() {
           }
         >
           {t.label}
+          {payoutsPending && t.href === "/dashboard/payouts" && (
+            <span
+              aria-hidden
+              className="ml-1.5 inline-block h-2 w-2 rounded-full bg-amber-500 align-middle"
+            />
+          )}
         </Link>
       ))}
     </nav>
