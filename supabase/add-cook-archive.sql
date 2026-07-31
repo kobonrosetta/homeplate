@@ -1,0 +1,12 @@
+-- Full-control admin: archive a kitchen (hide it everywhere, keep all records)
+-- for kitchens that can't be hard-deleted because they have order history.
+-- Migration #34. Run in the Supabase SQL editor. Safe to re-run.
+--
+-- archived_at is SERVICE-ROLE ONLY: it is deliberately NOT in the
+-- enforce_cook_update_rules editable[] allow-list, so a cook session can't
+-- self-(un)archive (the trigger raises 'protected'); the admin service role
+-- bypasses the trigger. Archiving also flips an active/paused kitchen to
+-- 'suspended' (done in code), and every buyer-facing surface already gates on
+-- status='active' — so no buyer-query change is needed here; archived_at only
+-- controls whether the kitchen shows in the default admin list.
+alter table cooks add column if not exists archived_at timestamptz;
