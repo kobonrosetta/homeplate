@@ -236,7 +236,8 @@ export async function startCheckout(formData: FormData) {
     err("/cart", "This order is too small to process — add another item.");
 
   // Create the order in a pending (unpaid) state. The buyer's own RLS policy
-  // allows inserting an order + items for themselves.
+  // lets them insert an order for themselves; the line items below are written
+  // server-side with the service role (buyers have no order_items INSERT policy).
   const { data: order, error: orderErr } = await supabase
     .from("orders")
     .insert({
@@ -259,7 +260,12 @@ export async function startCheckout(formData: FormData) {
   if (orderErr || !order)
     err("/checkout", orderErr?.message ?? "Could not start your order.");
 
-  const { error: itemsErr } = await supabase
+  // Server-authored line items (built above from authoritative DB prices),
+  // written with the service role — end users have no order_items INSERT policy
+  // (see supabase/harden-order-items-server-authored.sql). This stops a buyer
+  // injecting a competitor's listing_id into their order to zero that cook's
+  // stock when payment confirms.
+  const { error: itemsErr } = await createAdminClient()
     .from("order_items")
     .insert(items.map((i) => ({ order_id: order!.id, ...i })));
   if (itemsErr) err("/checkout", itemsErr.message);

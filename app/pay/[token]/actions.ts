@@ -101,7 +101,9 @@ export async function payLinkCheckout(formData: FormData) {
     .single();
   if (orderErr || !order) err("Could not start your order — please try again.");
 
-  const { error: itemErr } = await supabase.from("order_items").insert({
+  // Server-authored line item, written with the service role — buyers have no
+  // order_items INSERT policy (see harden-order-items-server-authored.sql).
+  const { error: itemErr } = await admin.from("order_items").insert({
     order_id: order!.id,
     listing_id: null,
     title: request.title + depositNote,
