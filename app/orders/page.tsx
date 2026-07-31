@@ -170,7 +170,7 @@ export default async function BuyerOrdersPage() {
                           Pickup{o.pickup_time ? ` · ${o.pickup_time}` : ""}:{" "}
                         </span>
                         {pickupAddr ??
-                          "the kitchen will message you the address"}
+                          "The kitchen will message you the pickup address."}
                       </p>
                     )}
                     {kitchenPhone && (

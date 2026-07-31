@@ -94,7 +94,7 @@ export default function ReviewsSection({ reviews }: { reviews: Review[] }) {
               {r.comment ? (
                 <p className="mt-1 text-sm text-ink">{r.comment}</p>
               ) : (
-                <p className="mt-1 text-sm text-faint">No comment left.</p>
+                <p className="mt-1 text-sm text-faint">Rating only — no written review.</p>
               )}
             </div>
           ))

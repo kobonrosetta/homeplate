@@ -13,7 +13,9 @@ export default function CartButton({ icon = false }: { icon?: boolean }) {
     return (
       <Link
         href="/cart"
-        aria-label={count > 0 ? `Cart, ${count} items` : "Cart"}
+        aria-label={
+          count > 0 ? `Cart, ${count} ${count === 1 ? "item" : "items"}` : "Cart"
+        }
         className="relative p-2 text-ink"
       >
         <CartIcon />

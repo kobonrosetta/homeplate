@@ -116,11 +116,10 @@ export async function wizardSaveKitchen(formData: FormData) {
       if (!(error?.code === "23505" && /slug/i.test(error.message))) break;
     }
     if (lastError || !cookId) {
+      console.error("wizardSaveKitchen: cook insert failed", lastError);
       redirect(
         "/sell?error=" +
-          encodeURIComponent(
-            lastError?.message ?? "Could not create your kitchen."
-          )
+          encodeURIComponent("Couldn't create your kitchen — please try again.")
       );
     }
     await supabase.from("profiles").update({ is_cook: true }).eq("id", user.id);

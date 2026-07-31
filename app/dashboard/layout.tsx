@@ -28,7 +28,9 @@ export default async function DashboardLayout({
         <p className="mt-0.5 text-sm text-muted">
           {cook.status === "active"
             ? cook.stripe_ready
-              ? "✓ County-verified · live"
+              ? cook.permit_verified
+                ? "✓ County-verified · live"
+                : "Live"
               : "✓ Approved · set up payouts to go live"
             : cook.status === "pending"
               ? "Under review — we'll email you when you're approved"

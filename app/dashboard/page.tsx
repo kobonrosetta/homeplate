@@ -183,7 +183,8 @@ export default async function DashboardOverview() {
     <div className="space-y-6">
       {cook.status === "pending" && (
         <p className="rounded-lg bg-brand/10 px-4 py-3 text-sm text-brand">
-          Build your menu now — it goes live the moment you&apos;re approved.
+          Build your menu now — it goes live the moment you&apos;re approved and
+          payouts are set up.
         </p>
       )}
 
@@ -204,7 +205,7 @@ export default async function DashboardOverview() {
           <p className="mt-1 text-sm text-muted">
             This link is your storefront — drop it in your WhatsApp groups,
             Instagram bio, anywhere your people are. It unfurls with your food
-            photo and your verified badge.
+            photo{cook.permit_verified ? " and your verified badge" : ""}.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <ShareLink

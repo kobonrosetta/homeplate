@@ -140,7 +140,7 @@ export default function CheckoutForm({
               <option value="">Another time — I&apos;ll arrange it with the kitchen</option>
             </select>
             <p className="mt-1 text-xs text-faint">
-              Your pickup details are in your confirmation email and Purchases.
+              We&apos;ll email you the pickup address after you pay.
             </p>
           </Field>
         ) : (
@@ -151,7 +151,7 @@ export default function CheckoutForm({
               className={INPUT}
             />
             <p className="mt-1 text-xs text-faint">
-              Your pickup details are in your confirmation email and Purchases.
+              We&apos;ll email you the pickup address after you pay.
             </p>
           </Field>
         )

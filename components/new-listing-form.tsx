@@ -378,7 +378,7 @@ export default function NewListingForm({
                 />
                 {score !== null && !photoOk && (
                   <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-red-600/25 text-xs font-semibold text-red-700">
-                    ✕ Rejected
+                    Needs a retake
                   </span>
                 )}
               </div>
@@ -396,7 +396,7 @@ export default function NewListingForm({
             {!checking && score !== null && !photoOk && (
               <div className="mt-3 rounded-lg border border-red-300 bg-red-50 p-3">
                 <p className="font-medium text-red-800">
-                  This photo can’t be used — scored {score}/100
+                  This photo won’t do your food justice — scored {score}/100
                 </p>
                 <p className="mt-1 text-sm text-red-700">
                   {feedback ? `${feedback} ` : ""}Upload a clear, well-lit photo of

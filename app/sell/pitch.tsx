@@ -59,7 +59,7 @@ export default function CookPitch({ signedIn = false }: { signedIn?: boolean }) 
           />
           <Perk
             title="Your home stays private"
-            body="Buyers see your city and nothing more until they've placed an order. Your address never appears on your public page."
+            body="Buyers see your city — never your street address — until they've placed an order. Your home address never appears on your public page."
           />
           <Perk
             title="The boring parts run themselves"
@@ -71,7 +71,7 @@ export default function CookPitch({ signedIn = false }: { signedIn?: boolean }) 
       {/* How it works */}
       <section className="mx-auto max-w-6xl px-6 py-16">
         <h2 className="text-3xl font-semibold tracking-tight text-ink">
-          Three steps, one afternoon
+          Three steps, about ten minutes
         </h2>
         <div className="mt-8 grid gap-8 sm:grid-cols-3">
           <Step
@@ -87,7 +87,7 @@ export default function CookPitch({ signedIn = false }: { signedIn?: boolean }) 
           <Step
             n="3"
             title="Get verified, go live"
-            body="Add your address. A permit number speeds verification but isn't required — a person reviews and approves your kitchen, usually within a day."
+            body="Add your address and permit number. Don't have the number handy? Submit anyway — a person reviews and approves every kitchen, usually within a day."
           />
         </div>
       </section>

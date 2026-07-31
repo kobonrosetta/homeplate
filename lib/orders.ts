@@ -1,7 +1,12 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { escapeHtml, sendEmail, wrapEmail } from "@/lib/email";
-import { formatUsd } from "@/lib/constants";
+import { formatUsd, SITE_URL } from "@/lib/constants";
 import { pickupLocation } from "@/lib/handoff";
+
+// Inline email link/button — matches the brand accent in wrapEmail.
+function emailLink(href: string, label: string): string {
+  return `<a href="${href}" style="color:#b45309;font-weight:600;text-decoration:none">${label}</a>`;
+}
 
 /**
  * Mark a paid order confirmed and deduct stock for limited items — exactly once.
@@ -112,7 +117,7 @@ async function notifyOrderConfirmed(
     const { data: order } = await admin
       .from("orders")
       .select(
-        "cook_id, fulfillment, pickup_time, delivery_address, contact_name, contact_phone, contact_email, notes, subtotal_cents, total_cents, order_items(title, quantity)"
+        "buyer_id, cook_id, fulfillment, pickup_time, delivery_address, contact_name, contact_phone, contact_email, notes, subtotal_cents, total_cents, order_items(title, quantity)"
       )
       .eq("id", orderId)
       .maybeSingle();
@@ -152,6 +157,13 @@ async function notifyOrderConfirmed(
       const items = (order.order_items ?? [])
         .map((i: any) => `${i.quantity}× ${escapeHtml(i.title)}`)
         .join(", ");
+      // Plain (unescaped) item summary for the subject line, capped so an inbox
+      // preview stays scannable.
+      const plainItems = (order.order_items ?? [])
+        .map((i: any) => `${i.quantity}× ${i.title}`)
+        .join(", ");
+      const subjectItems =
+        plainItems.length > 60 ? `${plainItems.slice(0, 57)}…` : plainItems;
       const where =
         order.fulfillment === "delivery"
           ? `Deliver to ${escapeHtml(order.delivery_address ?? "")}`
@@ -195,7 +207,7 @@ async function notifyOrderConfirmed(
           .join(" · ");
         await sendEmail({
           to: cookEmail,
-          subject: `New order — ${kitchen}`,
+          subject: subjectItems ? `New paid order: ${subjectItems}` : "New paid order",
           html: wrapEmail(
             `<h2>You've got a new order</h2>
              <p><strong>${items}</strong></p>
@@ -207,13 +219,30 @@ async function notifyOrderConfirmed(
                  ? `<p><strong>Note:</strong> ${escapeHtml(order.notes)}</p>`
                  : ""
              }
-             <p>Open My Kitchen to manage it.</p>`
+             <p>${emailLink(
+               `${SITE_URL}/dashboard/orders`,
+               "Open your orders →"
+             )} Tap "I'm on it" so your buyer knows it's in hand.</p>`
           ),
         });
       }
 
-      // 2) Send the buyer their receipt / confirmation.
+      // 2) Send the buyer their receipt / confirmation. Guest checkouts run on
+      // an anonymous account with no Purchases page, so only signed-in buyers
+      // get the "find it under Purchases" line — guests are pointed at the
+      // email itself as their record.
       if (order.contact_email) {
+        let buyerIsGuest = false;
+        if (order.buyer_id) {
+          const bu = await admin.auth.admin.getUserById(order.buyer_id);
+          buyerIsGuest = Boolean(bu?.data?.user?.is_anonymous);
+        }
+        const receiptLine = buyerIsGuest
+          ? `<p>This email is your receipt — keep it for the pickup details above.</p>`
+          : `<p>${emailLink(
+              `${SITE_URL}/orders`,
+              "See your orders"
+            )} anytime, or keep this email as your receipt.</p>`;
         await sendEmail({
           to: order.contact_email,
           subject: `Order confirmed — ${kitchen}`,
@@ -226,7 +255,7 @@ async function notifyOrderConfirmed(
              <p>You paid <strong>${formatUsd(order.total_cents ?? 0)}</strong></p>
              ${buyerHandoff}
              ${contactLineBuyer}
-             <p>You can find these details anytime under <strong>Purchases</strong>.</p>`
+             ${receiptLine}`
           ),
         });
       }

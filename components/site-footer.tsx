@@ -8,8 +8,8 @@ export default function SiteFooter() {
       <div className="mx-auto max-w-6xl px-6 py-8 text-sm text-muted">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <span>
-            © {new Date().getFullYear()} ForkFork · A marketplace for
-            county-approved home food operators.
+            © {new Date().getFullYear()} ForkFork · County-verified home
+            kitchens in Santa Clara County.
           </span>
           <Link href="/sell" className="font-medium text-ink hover:text-brand">
             Run a permitted kitchen? Apply to sell →
