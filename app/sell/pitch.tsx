@@ -1,10 +1,12 @@
 import Link from "next/link";
 
-// Public pitch shown at /sell when nobody (or only a guest session) is signed
-// in. The footer's "Apply to sell" link lands here, so this is the first thing
-// a curious cook ever sees — it has to sell the program, not a login wall.
-// Signed-in users never see this; they go straight into the wizard.
-export default function CookPitch() {
+// Public pitch shown at /sell before someone commits to opening a kitchen. Seen
+// by logged-out visitors AND signed-in non-cooks (e.g. a buyer who taps "Apply
+// to sell") — it has to sell the program AND make "you're opening a kitchen" a
+// deliberate choice, not a login wall. `signedIn` swaps the CTA from account
+// signup to starting the wizard directly (they already have an account).
+export default function CookPitch({ signedIn = false }: { signedIn?: boolean }) {
+  const applyHref = signedIn ? "/sell?start=1" : "/signup?intent=sell";
   return (
     <main className="min-h-screen">
       {/* Hero */}
@@ -23,17 +25,19 @@ export default function CookPitch() {
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <Link
-              href="/signup?intent=sell"
+              href={applyHref}
               className="rounded-full bg-brand px-6 py-3 font-medium text-white hover:bg-brand/90"
             >
-              Apply to sell — it&apos;s free
+              {signedIn ? "Start your application" : "Apply to sell — it's free"}
             </Link>
-            <Link
-              href="/login?next=/sell"
-              className="text-sm font-medium text-muted hover:text-ink"
-            >
-              Already on ForkFork? Sign in →
-            </Link>
+            {!signedIn && (
+              <Link
+                href="/login?next=/sell"
+                className="text-sm font-medium text-muted hover:text-ink"
+              >
+                Already on ForkFork? Sign in →
+              </Link>
+            )}
           </div>
           <p className="mt-4 text-sm text-muted">
             About ten minutes, and your progress saves after each step — leave
@@ -137,7 +141,7 @@ export default function CookPitch() {
             first kitchens set the tone — and get the spotlight.
           </p>
           <Link
-            href="/signup?intent=sell"
+            href={applyHref}
             className="mt-6 inline-block rounded-full bg-brand px-6 py-3 font-medium text-white hover:bg-brand/90"
           >
             Start your application

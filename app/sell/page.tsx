@@ -21,18 +21,25 @@ export const dynamic = "force-dynamic";
 export default async function SellPage({
   searchParams,
 }: {
-  searchParams: { step?: string; error?: string };
+  searchParams: { step?: string; error?: string; start?: string };
 }) {
   // Not signed in (or just a guest-checkout session)? This is a prospective
   // cook clicking "Apply to sell" — show the pitch, not a login wall.
   const { user, cook } = await getCurrentCook();
-  if (!user || user.is_anonymous) return <CookPitch />;
+  const signedIn = !!user && !user.is_anonymous;
+  if (!signedIn) return <CookPitch />;
 
   // Wizard already finished → straight to the dashboard. A permit is now
   // optional, so "finished" keys off city (only ever set at Step 3 finalize
   // during onboarding), with permit_number as a fallback for kitchens created
   // before the permit became optional.
   if (cook?.city || cook?.permit_number) redirect("/dashboard");
+
+  // Signed in but not yet a cook → show the pitch first, so opening a kitchen is
+  // a deliberate opt-in and a buyer who taps "Apply to sell" doesn't stumble into
+  // the wizard. ?start=1 (set by the pitch's own CTA and by the sell-intent
+  // signup redirect) skips straight to Step 1.
+  if (!cook && searchParams.start !== "1") return <CookPitch signedIn />;
 
   // Which step to show. No kitchen yet → step 1. Kitchen started → step 2 by
   // default, but ?step lets them jump back to edit or forward to verify.

@@ -34,7 +34,7 @@ export async function signup(formData: FormData) {
   // intent-based default. Validated as an internal path.
   const next = safeNext(
     formData.get("next") as string | null,
-    intent === "sell" ? "/sell" : "/browse"
+    intent === "sell" ? "/sell?start=1" : "/browse"
   );
   const supabase = createClient();
   const { error } = await supabase.auth.signUp({
@@ -50,7 +50,7 @@ export async function signup(formData: FormData) {
       "/signup?error=" +
         encodeURIComponent(error.message) +
         (intent === "sell" ? "&intent=sell" : "") +
-        (next !== "/browse" && next !== "/sell"
+        (next !== "/browse" && next !== "/sell?start=1"
           ? `&next=${encodeURIComponent(next)}`
           : "")
     );

@@ -20,7 +20,14 @@ export default function SignupPage({
     : "/login";
   return (
     <main className="mx-auto flex min-h-[78vh] max-w-md flex-col justify-center px-6 py-12">
-      <h1 className="text-2xl font-semibold text-ink">Create your account</h1>
+      {selling && (
+        <span className="mb-3 inline-flex items-center gap-1.5 self-start rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">
+          ✓ For permitted Santa Clara County kitchens
+        </span>
+      )}
+      <h1 className="text-2xl font-semibold text-ink">
+        {selling ? "Open your kitchen on ForkFork" : "Create your account"}
+      </h1>
       <p className="mt-1 text-muted">
         {selling
           ? "One quick account, then straight into your kitchen application."

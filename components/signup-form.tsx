@@ -20,7 +20,7 @@ export default function SignupForm({
   selling?: boolean;
   next?: string;
 }) {
-  const fallback = selling ? "/sell" : "/browse";
+  const fallback = selling ? "/sell?start=1" : "/browse";
   const dest = safeNext(next, fallback);
   return (
     <form action={action} className="mt-6 space-y-4">
