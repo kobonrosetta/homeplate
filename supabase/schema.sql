@@ -58,6 +58,7 @@ create table cooks (
   cover_url             text,
   stripe_ready          boolean not null default false,  -- can receive money + get paid out (set by the Stripe webhook)
   status                cook_status not null default 'pending',
+  archived_at           timestamptz,                     -- admin-archived: hidden everywhere, records kept (service-role only)
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now()
 );

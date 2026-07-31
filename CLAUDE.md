@@ -111,7 +111,8 @@ Server actions live in each route's `actions.ts`. Auth/session flows through
 
 `profiles` (one per person) · `approved_operators` (the county permit list we match against
 — the trust hook) · `cooks` (a kitchen; belongs to a profile; `stripe_ready` = can take
-orders) · **`cook_private`** (a cook's home address/geo — owner-only, split out for safety) ·
+orders; `archived_at` = admin-archived, hidden but records kept) · **`cook_private`** (a
+cook's home address/geo — owner-only, split out for safety) ·
 **`cook_stripe`** (Connect account id + onboarding status — service-role only) · `listings`
 (items, inventory, photos, allergens) · `orders` (subtotal = cook's cut, service_fee = your
 cut, total = buyer pays; contact fields) · `order_items` · `reviews` (tied to a completed
@@ -191,7 +192,14 @@ them re-opens real vulnerabilities:
    `confirmPaidOrder` (in `lib/orders.ts`) is idempotent and shared by both. The webhook is
    only live once `STRIPE_WEBHOOK_SECRET` is set (Stripe CLI locally / dashboard at deploy).
 4. **Guest checkout** uses Supabase **anonymous** sign-ins; buyers can later claim the account.
-5. **Admin access** is gated purely by the `ADMIN_EMAILS` env var (`lib/admin.ts`).
+5. **Admin access** is gated purely by the `ADMIN_EMAILS` env var (`lib/admin.ts`); every
+   admin write runs through the service role AFTER the `getAdminUser()` gate. The console is
+   `/admin` (list) + `/admin/kitchen/[id]` (full detail): status lifecycle
+   (approve/pause/suspend/reactivate/send-to-review, decoupled from a manual verified-badge
+   toggle), **Archive** (hide + keep records — for kitchens with orders; hard-delete stays
+   0-order-only), field editing (`updateCookFields`, whitelisted columns — not slug/money),
+   and listing/review moderation. Actions live in `app/admin/actions.ts`, shared UI in
+   `app/admin/ui.tsx`.
 6. **Migrations are run by hand** in the Supabase SQL editor — this is NOT a Supabase-CLI
    project. Log every new one in `supabase/MIGRATIONS.md`. Do **not** enable Supabase's
    GitHub integration (the loose SQL files aren't in its expected `migrations/` format).
