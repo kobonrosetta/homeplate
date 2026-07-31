@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAdminUser } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyCookStatusChange } from "@/lib/cook-notify";
 
 const COOK_STATUSES = new Set(["pending", "active", "paused", "suspended"]);
 
@@ -24,7 +25,25 @@ export async function setCookStatus(formData: FormData) {
   const status = String(formData.get("status") ?? "");
   if (!id || !COOK_STATUSES.has(status)) return;
   const db = createAdminClient();
+  // Read the prior state so we can tell a real transition from a no-op re-click
+  // and phrase the email correctly (first approval vs reactivation, live vs
+  // payouts-pending).
+  const { data: before } = await db
+    .from("cooks")
+    .select("status, business_name, slug, profile_id, stripe_ready")
+    .eq("id", id)
+    .maybeSingle();
   await db.from("cooks").update({ status }).eq("id", id);
+  if (before) {
+    await notifyCookStatusChange({
+      profileId: before.profile_id,
+      businessName: before.business_name,
+      slug: before.slug,
+      stripeReady: before.stripe_ready === true,
+      prevStatus: before.status,
+      newStatus: status,
+    });
+  }
   bumpAdmin(id);
 }
 
