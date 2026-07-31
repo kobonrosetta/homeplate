@@ -14,7 +14,7 @@ export default function ForgotPasswordPage({
       <h1 className="text-2xl font-semibold text-ink">Reset your password</h1>
 
       {sent ? (
-        <div className="mt-4 rounded-lg border border-line bg-card p-4 text-sm text-ink">
+        <div className="mt-4 rounded-xl bg-card p-4 text-sm text-ink shadow-soft">
           If an account exists for that email, we&apos;ve sent a link to reset
           your password. Check your inbox — and your spam folder, just in case.
           The link expires after a little while, so use it soon.

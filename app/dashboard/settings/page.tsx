@@ -42,7 +42,7 @@ export default async function SettingsPage({
       {/* Approved but payouts not finished: the kitchen is NOT visible anywhere
           yet, so don't claim "live" (or offer to hide what's already hidden). */}
       {cook.status === "active" && !cook.stripe_ready && (
-        <div className="mt-4 rounded-lg border border-line bg-card p-4">
+        <div className="mt-4 rounded-xl bg-card p-4 shadow-soft">
           <p className="text-sm font-medium text-ink">
             Approved — goes live once payouts are set up
           </p>
@@ -63,7 +63,7 @@ export default async function SettingsPage({
         cook.status === "paused") && (
         <form
           action={toggleKitchenPause}
-          className="mt-4 flex items-center justify-between gap-4 rounded-lg border border-line bg-card p-4"
+          className="mt-4 flex items-center justify-between gap-4 rounded-xl bg-card p-4 shadow-soft"
         >
           <div>
             <p className="text-sm font-medium text-ink">
@@ -287,7 +287,7 @@ export default async function SettingsPage({
         <section className="space-y-5">
           <SectionHeader>How buyers get their food</SectionHeader>
 
-          <div className="space-y-4 rounded-lg border border-line p-4">
+          <div className="space-y-4 rounded-xl bg-card p-4 shadow-soft">
             <div className="space-y-3">
               <CheckboxField
                 label="Pickup available"

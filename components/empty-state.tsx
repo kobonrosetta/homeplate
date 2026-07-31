@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import ForkMark from "@/components/fork-mark";
 
 // One empty-state box, rendered consistently everywhere (previously the dashed
 // box drifted in radius/padding across pages, and a couple of empties had no
@@ -21,6 +22,7 @@ export default function EmptyState({
         className ? ` ${className}` : ""
       }`}
     >
+      <ForkMark size={26} className="mx-auto mb-3 text-faint" />
       <p className="font-medium text-ink">{title}</p>
       {subtitle && (
         <p className="mx-auto mt-1 max-w-md text-sm text-muted">{subtitle}</p>

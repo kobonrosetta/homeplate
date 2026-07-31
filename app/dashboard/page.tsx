@@ -187,7 +187,7 @@ export default async function DashboardOverview() {
         </p>
       )}
 
-      <div className="rounded-xl border border-line p-5">
+      <div className="rounded-xl bg-card p-5 shadow-soft">
         <p className="text-sm text-muted">Earned on completed orders</p>
         <p className="mt-1 text-3xl font-semibold text-ink">{formatUsd(earned)}</p>
         <p className="mt-1 text-sm text-muted">
@@ -199,7 +199,7 @@ export default async function DashboardOverview() {
       {/* stripe_ready too — until then /kitchen/[slug] 404s, and telling a cook
           to broadcast a dead link would burn their one announcement moment. */}
       {cook.status === "active" && cook.stripe_ready && (
-        <div className="rounded-xl border border-line bg-card p-5">
+        <div className="rounded-xl bg-card p-5 shadow-soft">
           <p className="text-sm font-medium text-ink">Share your kitchen</p>
           <p className="mt-1 text-sm text-muted">
             This link is your storefront — drop it in your WhatsApp groups,
@@ -217,7 +217,7 @@ export default async function DashboardOverview() {
       )}
 
       {showTaxes && (
-        <div id="taxes" className="rounded-xl border border-line p-5">
+        <div id="taxes" className="rounded-xl bg-card p-5 shadow-soft">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <p className="text-sm text-muted">Taxes · {qtr.label}</p>
             <p className="text-xs text-faint">
@@ -247,7 +247,7 @@ export default async function DashboardOverview() {
           )}
 
           {currentRows.length > 0 && (
-            <div className="mt-3 divide-y divide-line overflow-hidden rounded-lg border border-line text-sm">
+            <div className="mt-3 divide-y divide-line overflow-hidden rounded-lg bg-bg text-sm">
               {currentRows.map((r) => (
                 <div
                   key={r.name}
@@ -307,7 +307,7 @@ export default async function DashboardOverview() {
             <EmptyState title="You're all caught up." />
           </div>
         ) : (
-          <div className="mt-2 divide-y divide-line overflow-hidden rounded-xl border border-line">
+          <div className="mt-2 divide-y divide-line overflow-hidden rounded-xl bg-card shadow-soft">
             {tasks.map((t, i) => (
               <Link
                 key={i}

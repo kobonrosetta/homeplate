@@ -10,6 +10,7 @@ import ReviewsSection from "@/components/reviews-section";
 import VerifiedBadge from "@/components/verified-badge";
 import SoldOutTag from "@/components/sold-out-tag";
 import EmptyState from "@/components/empty-state";
+import ForkMark from "@/components/fork-mark";
 
 export const dynamic = "force-dynamic";
 
@@ -235,7 +236,7 @@ export default async function KitchenPage({
         <div className="mt-4"><EmptyState title="No items available right now." /></div>
       ) : (
         <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((l: any) => {
+          {items.map((l: any, i: number) => {
             const soldOut = l.limited_quantity && l.quantity_available <= 0;
             const lowStock =
               l.limited_quantity &&
@@ -244,9 +245,10 @@ export default async function KitchenPage({
             return (
               <div
                 key={l.id}
-                className={`group flex flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-soft transition hover:shadow-lift ${
+                className={`rise group flex flex-col overflow-hidden rounded-2xl bg-card shadow-soft transition hover:shadow-lift ${
                   soldOut ? "opacity-60" : ""
                 }`}
+                style={{ animationDelay: `${Math.min(i * 60, 480)}ms` }}
               >
                 <Link
                   href={`/listing/${l.id}`}
@@ -260,8 +262,8 @@ export default async function KitchenPage({
                       className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-4xl text-faint">
-                      🍽️
+                    <div className="flex h-full w-full items-center justify-center text-faint">
+                      <ForkMark size={44} />
                     </div>
                   )}
                 </Link>
@@ -338,7 +340,7 @@ export default async function KitchenPage({
               return (
                 <div
                   key={l.id}
-                  className={`flex items-center gap-3 rounded-xl border border-line bg-card p-3 ${
+                  className={`flex items-center gap-3 rounded-xl bg-card p-3 shadow-soft ${
                     soldOut ? "opacity-60" : ""
                   }`}
                 >

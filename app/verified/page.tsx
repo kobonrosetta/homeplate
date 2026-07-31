@@ -37,7 +37,7 @@ export default function VerifiedPage() {
         </Point>
       </div>
 
-      <div className="mt-8 rounded-xl border border-line bg-card p-5">
+      <div className="mt-8 rounded-xl bg-card p-5 shadow-soft">
         <p className="text-sm leading-relaxed text-ink">
           <span className="font-medium">What that means for you:</span> you&rsquo;re
           ordering from a permitted kitchen with a real name and address on file

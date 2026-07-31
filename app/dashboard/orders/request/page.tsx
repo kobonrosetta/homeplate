@@ -34,7 +34,7 @@ export default function NewPaymentRequestPage({
           required
           placeholder="95"
         />
-        <div className="space-y-2 rounded-lg border border-line p-4">
+        <div className="space-y-2 rounded-xl bg-card p-4 shadow-soft">
           <p className="text-sm font-medium text-ink">Collect now</p>
           <label className="flex items-center gap-2 text-sm text-ink">
             <input type="radio" name="charge_kind" value="full" defaultChecked />

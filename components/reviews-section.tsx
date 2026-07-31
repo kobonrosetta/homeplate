@@ -29,7 +29,7 @@ export default function ReviewsSection({ reviews }: { reviews: Review[] }) {
       <h2 className="text-lg font-semibold text-ink">Reviews</h2>
 
       {showDistribution && (
-        <div className="mt-4 flex flex-col gap-5 rounded-xl border border-line p-5 sm:flex-row sm:items-center">
+        <div className="mt-4 flex flex-col gap-5 rounded-xl bg-card p-5 shadow-soft sm:flex-row sm:items-center">
           <div className="shrink-0 text-center">
             <div className="text-4xl font-semibold text-ink">
               {avg.toFixed(1)}
@@ -79,7 +79,7 @@ export default function ReviewsSection({ reviews }: { reviews: Review[] }) {
           <p className="text-sm text-muted">No written reviews yet.</p>
         ) : (
           list.map((r, i) => (
-            <div key={i} className="rounded-xl border border-line p-4">
+            <div key={i} className="rounded-xl bg-card p-4 shadow-soft">
               <div className="flex items-center justify-between">
                 <div className="text-amber-500">
                   {"★".repeat(r.rating)}

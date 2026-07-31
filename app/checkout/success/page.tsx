@@ -87,7 +87,7 @@ export default async function CheckoutSuccessPage({
   if (!isOwner) {
     return (
       <main className="mx-auto max-w-xl px-6 py-16">
-        <div className="rounded-2xl border border-line p-8 text-center">
+        <div className="rise rounded-2xl bg-card p-8 text-center shadow-soft">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-2xl text-emerald-700">
             ✓
           </div>
@@ -153,7 +153,7 @@ export default async function CheckoutSuccessPage({
   return (
     <main className="mx-auto max-w-xl px-6 py-16">
       <ClearCart />
-      <div className="rounded-2xl border border-line p-8 text-center">
+      <div className="rise rounded-2xl bg-card p-8 text-center shadow-soft">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-2xl text-emerald-700">
           ✓
         </div>
@@ -164,7 +164,7 @@ export default async function CheckoutSuccessPage({
         </p>
 
         {order && (
-          <div className="mt-6 space-y-2 rounded-xl border border-line p-4 text-left text-sm">
+          <div className="mt-6 space-y-2 rounded-xl bg-bg p-4 text-left text-sm">
             {(order.order_items ?? []).map((it: any, i: number) => (
               <div key={i} className="flex justify-between gap-4">
                 <span className="text-ink">
@@ -202,7 +202,7 @@ export default async function CheckoutSuccessPage({
         {isGuest && <ClaimAccount defaultEmail={order?.contact_email ?? ""} />}
 
         {showFollow && (
-          <div className="mt-6 flex flex-col items-center gap-2 rounded-xl border border-line bg-card p-4">
+          <div className="mt-6 flex flex-col items-center gap-2 rounded-xl bg-bg p-4">
             <p className="text-sm text-ink">
               Love {kitchenName || "this kitchen"}? Get an email when they post
               something new.
@@ -225,7 +225,7 @@ export default async function CheckoutSuccessPage({
           {!isGuest && (
             <Link
               href="/orders"
-              className="inline-block rounded-full border border-line px-6 py-3 font-medium text-ink hover:bg-card"
+              className="inline-block rounded-full border border-line px-6 py-3 font-medium text-ink hover:bg-bg"
             >
               See your purchases
             </Link>

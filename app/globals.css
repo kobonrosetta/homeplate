@@ -33,7 +33,15 @@ html {
 }
 
 body {
-  background: rgb(var(--bg));
+  /* A barely-there warm wash at the top of every page — depth without a
+     "gradient look". Sits on the cream base; also reads in dark mode. */
+  background:
+    radial-gradient(
+      1100px 480px at 50% -120px,
+      rgb(var(--brand) / 0.05),
+      transparent 62%
+    ),
+    rgb(var(--bg));
   color: rgb(var(--ink));
   font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -59,14 +67,30 @@ h3.uppercase {
   font-family: var(--font-fraunces), Georgia, serif;
 }
 
-/* Warm, layered elevation (single light source). Reads lush, not dated. */
-.shadow-soft {
-  box-shadow:
-    0 1px 2px rgb(92 62 36 / 0.05),
-    0 8px 20px rgb(92 62 36 / 0.06);
+/* Warm elevation now lives in tailwind.config.ts (theme.extend.boxShadow) so
+   variants like hover:shadow-lift actually compile. */
+
+/* The one orchestrated motion moment: content rises in once on load.
+   Stagger with an inline animation-delay (index-based, capped). Nothing else
+   on the site animates on its own — restraint IS the design.
+   fill-mode is `backwards` (NOT `both`): backwards hides pre-delay content for
+   the stagger, while releasing the element after the animation so hover
+   transforms and opacity utilities on the same element keep working. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
-.shadow-lift {
-  box-shadow:
-    0 2px 6px rgb(92 62 36 / 0.07),
-    0 18px 36px rgb(92 62 36 / 0.11);
+.rise {
+  animation: rise 0.45s cubic-bezier(0.2, 0.7, 0.3, 1) backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
 }

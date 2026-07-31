@@ -84,7 +84,7 @@ export default async function PayPage({
 
   return (
     <main className="mx-auto max-w-lg px-6 py-12">
-      <div className="rounded-2xl border border-line bg-card p-6 shadow-soft">
+      <div className="rise rounded-2xl bg-card p-6 shadow-soft">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.11em] text-faint">

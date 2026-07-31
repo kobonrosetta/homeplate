@@ -7,6 +7,7 @@ import { useCart, lineKey } from "@/components/cart-context";
 import CartSync from "@/components/cart-sync";
 import { formatUsd, calcServiceFeeCents } from "@/lib/constants";
 import { FormError } from "@/components/form";
+import ForkMark from "@/components/fork-mark";
 
 // Checkout bounces its errors here (?error=...) — e.g. "no longer available"
 // or "prices changed". useSearchParams needs a Suspense boundary.
@@ -63,7 +64,7 @@ export default function CartPage() {
         </Link>
       </p>
 
-      <ul className="mt-6 divide-y divide-line rounded-lg border border-line">
+      <ul className="mt-6 divide-y divide-line rounded-xl bg-card shadow-soft">
         {cart.items.map((i) => (
           <li key={lineKey(i)} className="flex items-center gap-4 px-4 py-4">
             {i.photoUrl ? (
@@ -75,7 +76,7 @@ export default function CartPage() {
               />
             ) : (
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-line text-faint">
-                🍽️
+                <ForkMark size={22} />
               </div>
             )}
             <div className="min-w-0 flex-1">
@@ -107,7 +108,7 @@ export default function CartPage() {
         ))}
       </ul>
 
-      <div className="mt-6 space-y-2 rounded-lg border border-line p-4 text-sm">
+      <div className="mt-6 space-y-2 rounded-xl bg-card p-4 text-sm shadow-soft">
         <Row label="Subtotal (the cook receives this)" value={formatUsd(subtotalCents)} />
         <Row label="Service fee (8% + $0.30)" value={formatUsd(fee)} />
         <div className="border-t border-line pt-2">

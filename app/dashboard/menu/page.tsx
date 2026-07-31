@@ -5,6 +5,7 @@ import { getCurrentCook } from "@/lib/cook";
 import { formatUsd } from "@/lib/constants";
 import { FormError } from "@/components/form";
 import EmptyState from "@/components/empty-state";
+import ForkMark from "@/components/fork-mark";
 import { toggleListing, deleteListing } from "../listings/actions";
 
 export default async function MenuPage({
@@ -47,7 +48,7 @@ export default async function MenuPage({
           />
         </div>
       ) : (
-        <ul className="mt-6 divide-y divide-line rounded-lg border border-line">
+        <ul className="mt-6 divide-y divide-line rounded-xl bg-card shadow-soft">
           {items.map((l: any) => (
             <li key={l.id} className="flex items-center justify-between gap-4 px-4 py-4">
               <div className="flex min-w-0 items-center gap-3">
@@ -60,7 +61,7 @@ export default async function MenuPage({
                   />
                 ) : (
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-line text-faint">
-                    🍽️
+                    <ForkMark size={20} />
                   </div>
                 )}
                 <div className="min-w-0">
