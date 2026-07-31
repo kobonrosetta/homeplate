@@ -42,6 +42,7 @@ Scroll to **Environment Variables**. Add **every** key from your `.env.local` (t
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | same as local |
 | `STRIPE_SECRET_KEY` | same as local |
 | `STRIPE_WEBHOOK_SECRET` | **leave blank for now** — you set it in step 4b |
+| `STRIPE_CONNECT_WEBHOOK_SECRET` | **leave blank for now** — you set it in step 4b (second endpoint) |
 | `GROQ_API_KEY` | same as local |
 | `RESEND_API_KEY` | same as local |
 | `EMAIL_FROM` | same as local for now |
@@ -66,12 +67,26 @@ Supabase dashboard → **Authentication → URL Configuration**:
 - **Site URL:** `https://homeplate-jyd2.onrender.com`
 - **Redirect URLs:** add `https://homeplate-jyd2.onrender.com/**`
 
-**b) Stripe webhook** — so payments confirm reliably (not just on the success page).
-Stripe dashboard → **Developers → Webhooks → Add endpoint**:
+**b) Stripe webhooks — TWO endpoints at the same URL.** A Stripe endpoint delivers
+*either* your-account events *or* connected-account events, never both — so payment
+confirmation and cook payout-status sync each need their own endpoint (and each
+endpoint has its own signing secret).
+
+Endpoint 1 — payments (events on **your account**):
+- Stripe dashboard → **Developers → Webhooks → Add endpoint**
 - **Endpoint URL:** `https://homeplate-jyd2.onrender.com/api/stripe/webhook`
-- **Event to send:** `checkout.session.completed`
-- Create it, then copy the **Signing secret** (`whsec_…`).
-- Back in Render → your service → **Environment** → set `STRIPE_WEBHOOK_SECRET` to that value → **Save** (Render redeploys automatically).
+- **Events:** `checkout.session.completed`
+- Copy its **Signing secret** (`whsec_…`) → Render env `STRIPE_WEBHOOK_SECRET`.
+
+Endpoint 2 — cook payouts (events on **Connected accounts** — pick that option
+when creating the endpoint):
+- Same **Endpoint URL** as above.
+- **Events:** `account.updated`, `account.application.deauthorized`
+- Copy **its** signing secret (a different `whsec_…`) → Render env
+  `STRIPE_CONNECT_WEBHOOK_SECRET`.
+
+(Also enable **Connect** itself once per Stripe account: Dashboard → Connect →
+Get started, Express accounts. Saving either env var redeploys the service.)
 
 **c) Resend email (optional for pilot)** — to email anyone besides yourself, verify a sending
 domain in Resend and update `EMAIL_FROM` to an address on that domain. Until then, emails
@@ -79,14 +94,21 @@ only reach your own Resend account address.
 
 ## 5. Test the live loop
 On the live URL: sign up → as a cook create a kitchen + a dish (it stays pending until you
-approve it at `/admin`) → as a buyer add to cart → check out with a Stripe **test card**
-`4242 4242 4242 4242` (any future date, any CVC) → confirm the cook sees the order and the
-email arrives.
+approve it at `/admin`) → **as the cook, open `/dashboard/payouts` → "Set up payouts with
+Stripe" and complete Stripe's test-mode Express onboarding** (test SSN `000-00-0000`,
+routing `110000000`, account `000123456789`) — the kitchen only appears in browse once
+payouts are active → as a buyer add to cart → check out with a Stripe **test card**
+`4242 4242 4242 4242` (any future date, any CVC) → confirm the cook sees the order, the
+email arrives, and in the Stripe test dashboard the payment shows the application fee with
+the cook's subtotal transferred to their connected account.
 
 ## ⚠️ Before real customers / real money
 - **Rotate every secret.** The keys in `.env.local` were shared in chat. Regenerate the
   Supabase service-role key, Stripe secret key, Groq key, and Resend key; update them in
   **both** Render and your local `.env.local`.
 - **Upgrade to the $7/mo instance** so the site never cold-starts.
-- **Switch Stripe to live mode** (live keys + a live webhook secret) — separate step; see
-  `PROJECT_REVIEW.md` for the payout decision that goes with it.
+- **Switch Stripe to live mode:** live keys, **both** live webhook endpoints re-created in
+  live mode (step 4b — each with its new signing secret), Connect enabled in live mode,
+  and your first real cook completes real Express onboarding (actual SSN + bank).
+  Refunds are still a manual admin step — reverse the transfer + refund the application
+  fee (the admin cancellation email spells it out).

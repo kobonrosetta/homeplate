@@ -75,7 +75,8 @@ create table cook_private (
 
 -- ---------- cook_stripe (Connect account id + onboarding status — SERVICE-ROLE ONLY) ----------
 -- Kept off `cooks` (RLS filters rows, not columns) so the anon key can never read
--- a cook's acct_ id off the REST API. Written only by the account.updated webhook.
+-- a cook's acct_ id off the REST API. Written only by the service role (the
+-- onboarding action, the return-route sync, and the account.updated webhook).
 create table cook_stripe (
   cook_id           uuid primary key references cooks(id) on delete cascade,
   stripe_account_id text,
@@ -148,6 +149,7 @@ create index on orders (cook_id);
 create index on order_items (order_id);
 create index on reviews (cook_id);
 create index on cooks (status);
+create unique index cook_stripe_account_id_idx on cook_stripe (stripe_account_id);
 
 -- ============================================================
 --  Row Level Security (RLS)

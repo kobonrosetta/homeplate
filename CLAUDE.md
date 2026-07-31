@@ -77,7 +77,8 @@ app/                      # App Router — 20 pages, force-dynamic throughout
   verified/               # "what County-verified means" explainer
   (auth)/login, signup    # auth route group
   api/ai/describe, api/ai/photo-check   # Groq (auth-gated)
-  api/stripe/webhook      # payment confirmation (needs STRIPE_WEBHOOK_SECRET to be live)
+  api/stripe/webhook      # payment confirmation + Connect account lifecycle (TWO Stripe
+                          #   endpoints, one URL: STRIPE_WEBHOOK_SECRET + STRIPE_CONNECT_WEBHOOK_SECRET)
   auth/callback           # OAuth code exchange
 lib/
   constants.ts            # FEE MATH lives here: round(subtotal*0.08)+30, formatUsd — unit-tested
@@ -103,7 +104,7 @@ supabase/                # hand-run SQL migrations — see supabase/MIGRATIONS.m
 middleware.ts             # refreshes the Supabase session cookie
 ```
 
-Server actions live in each route's `actions.ts` (8 of them). Auth/session flows through
+Server actions live in each route's `actions.ts`. Auth/session flows through
 `middleware.ts` → `lib/supabase/middleware.ts`.
 
 ## Data model (10 tables)

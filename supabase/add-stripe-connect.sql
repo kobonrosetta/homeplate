@@ -27,8 +27,9 @@ create unique index if not exists cook_stripe_account_id_idx
 
 -- Public-safe gate flag: true once the cook can actually receive money and get
 -- paid out. Drives browse visibility, the checkout gate, and the dashboard nudge.
--- Written ONLY by the service role (the account.updated webhook). It is NOT in
--- the enforce_cook_update_rules editable[] allow-list, so a cook session can't
+-- Written ONLY by the service role (the status sync shared by the account.updated
+-- webhook and the onboarding return route). It is NOT in the
+-- enforce_cook_update_rules editable[] allow-list, so a cook session can't
 -- forge it (the trigger raises 'protected'); the service role bypasses the trigger.
 alter table cooks add column if not exists stripe_ready boolean not null default false;
 

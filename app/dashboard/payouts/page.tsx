@@ -16,16 +16,18 @@ export default async function PayoutsPage({
   const { cook } = await getCurrentCook();
   if (!cook) redirect("/sell");
 
-  // Earnings = the cook's cut on completed orders (RLS lets them read their own).
-  // With Connect, Stripe transfers this to their bank automatically — this figure
-  // is a reference; exact payout dates live in the cook's Stripe dashboard.
+  // Earnings = the cook's cut on PAID orders (RLS lets them read their own).
+  // Destination transfers move the money at CHARGE time, so this uses the same
+  // paid-status set as the admin console — the figure matches what Stripe
+  // actually sent; exact deposit dates live in the cook's Stripe dashboard.
+  const PAID = new Set(["confirmed", "in_progress", "ready", "completed"]);
   const supabase = createClient();
   const { data: orders } = await supabase
     .from("orders")
     .select("status, subtotal_cents")
     .eq("cook_id", cook.id);
   const earned = (orders ?? [])
-    .filter((o: any) => o.status === "completed")
+    .filter((o: any) => PAID.has(o.status))
     .reduce((n: number, o: any) => n + (o.subtotal_cents ?? 0), 0);
 
   // Payout status + any legacy manual payouts (both service-role only).
@@ -61,7 +63,7 @@ export default async function PayoutsPage({
           </p>
           <div className="grid gap-4 sm:grid-cols-1">
             <Stat
-              label="Earned so far (completed orders)"
+              label="Earned so far (paid orders)"
               value={formatUsd(earned)}
               accent
             />
@@ -76,7 +78,9 @@ export default async function PayoutsPage({
           </h3>
           <p className="mt-1 text-sm text-muted">
             {inReview
-              ? "Stripe is verifying your details — usually just a few minutes. Add anything they still need below."
+              ? stripe?.disabled_reason
+                ? `Stripe needs something more from you (${stripe.disabled_reason}) — continue below to finish.`
+                : "Stripe is verifying your details — usually just a few minutes. Add anything they still need below."
               : "Connect a bank account through Stripe so you can take orders and your earnings land automatically. You keep 100% of your listed price; ForkFork only ever takes its service fee from the buyer."}
           </p>
           <form action={startStripeOnboarding} className="mt-4">
@@ -90,7 +94,9 @@ export default async function PayoutsPage({
             </button>
           </form>
           <p className="mt-3 text-xs text-faint">
-            Your kitchen goes live to buyers the moment payouts are active.
+            {cook.status === "active"
+              ? "Your kitchen goes live to buyers the moment payouts are active."
+              : "Do this anytime — your kitchen goes live once payouts are active and your application is approved."}
           </p>
         </div>
       )}
