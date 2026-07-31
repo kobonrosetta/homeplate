@@ -15,7 +15,9 @@ export const dynamic = "force-dynamic";
 
 // One cook fetch per request, shared by generateMetadata and the page body —
 // they render in the same pass and used to issue two identical-row queries.
-// The active-only filter here IS the page's visibility rule; keep them one.
+// The active + payout-ready filter here IS the page's visibility rule; keep them
+// one. A kitchen that can't take an order (no completed Stripe onboarding) is not
+// a live storefront, so it 404s just like a paused one.
 const getActiveCook = cache(async (slug: string) => {
   const supabase = createClient();
   const { data } = await supabase
@@ -25,6 +27,7 @@ const getActiveCook = cache(async (slug: string) => {
     )
     .eq("slug", slug)
     .eq("status", "active")
+    .eq("stripe_ready", true)
     .maybeSingle();
   return data;
 });

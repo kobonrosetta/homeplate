@@ -21,7 +21,7 @@ The full marketplace loop works end to end: discover → pay (real Stripe test) 
 
 - [x] **Cook home addresses are public.** ✅ FIXED (Jul 2026) — split into owner-only `cook_private`; verified the public key now gets HTTP 400 / empty, server reveal still works. RLS filters rows, not columns, so the browser's anon key can read `street_address` + `latitude/longitude` straight from the REST API (`cooks` policy, `schema.sql:149`). The UI hiding it is not a security boundary. For home-based cooks this is a physical-safety/PII leak. Fix: split private columns into a separate table or a `public_cooks` view; lock the base table to owner-only.
 - [x] **No Stripe webhook.** ✅ BUILT (Jul 2026) — `/api/stripe/webhook` with signature verification + shared idempotent confirm/deduct logic (`lib/orders.ts`). **Not live until `STRIPE_WEBHOOK_SECRET` is set** (Stripe CLI locally / dashboard endpoint at deploy). Payment was confirmed only on the success-page redirect (`app/checkout/success/page.tsx`). If a buyer pays but never lands there (closed tab, dropped connection), Stripe keeps the money, the order stays `pending` forever, the cook never sees it, nothing ships, inventory never moves. Fix: handle `checkout.session.completed` server-side.
-- [ ] **No payout rails.** Stripe Connect is not built — `stripe_account_id` is an unused column. 100% of every payment lands in the platform account with no code to pay cooks. Fine to pay by hand for a tiny pilot, but "cooks keep 100%" has no automated path yet. The Payouts tab is a dead-end stub.
+- [x] **No payout rails.** ✅ BUILT (Jul 2026) — Stripe **Connect (Express)** with destination charges: each order's `application_fee_amount` keeps ForkFork's fee and auto-transfers the cook their full subtotal at charge time. The account id lives in the service-role-only `cook_stripe` table (migration #33 — **not yet run**; it also drops the old unused public `stripe_account_id` column); `/dashboard/payouts` is the cook's onboarding hub; kitchens stay hidden until payout-ready; the manual-payout ledger was retired (recording one now would double-pay). Refunds remain manual — reverse the transfer + refund the application fee (the admin email spells it out).
 - [ ] **Rotate all secrets.** Live keys are in `.env.local` and were shared in chat — Supabase service-role (full god-mode), Stripe secret, Groq, DB password. Rotate before production.
 
 ## HIGH
@@ -52,7 +52,7 @@ All fixed in code the same day; the DB items go live when migration #16 runs.
 - [x] Remove 23 leftover `.fuse_hidden*` editor temp files before any deploy/copy. ✅ they were actually *committed to git* — `git rm`'d and gitignored Jul 23 2026.
 - [x] Remove unused `stripe` + `@stripe/stripe-js` npm deps (imported nowhere). ✅ Jul 23 2026.
 - [ ] `cooks.latitude/longitude` are never read — the distance search doesn't exist yet (scrub them in the address fix regardless).
-- [ ] README "What's built" checkboxes are stale/unchecked and still say "Stripe Connect" (not built). Fix before anyone does due diligence.
+- [x] README "What's built" checkboxes are stale/unchecked and still say "Stripe Connect" (not built). ✅ Fixed with the Connect PR (Jul 2026).
 - [x] Run `supabase/one-kitchen-per-user.sql` ✅ applied (Jul 2026) — no dupes existed; unique constraint added, verified a second-kitchen insert now returns 409.
 - [ ] Purge test kitchens/junk data (e.g. the dragon-photo / "THC" test listing). (Partial Jul 27 2026: all fake permits deleted — the three demo kitchens are now UNVERIFIED since their badges rode on a fake permit; kitchens/listings themselves still need replacing.)
 - [ ] **Verification is a signup-time snapshot** — 🅵 DEFERRED (Jul 2026, fine at pilot scale where the admin reviews every kitchen). Re-running the importer doesn't re-match existing cooks, and an expired/revoked county permit never un-verifies an approved kitchen. When cook count grows: make the importer a reconciliation pass (re-match + un-verify expired) and surface it in admin.
@@ -65,7 +65,7 @@ All fixed in code the same day; the DB items go live when migration #16 runs.
 | Milestone | State |
 |---|---|
 | 1–4 Scaffold, auth/roles, cook side, buyer side | Done |
-| 5 Checkout | Done — but **plain** Stripe, **not** Connect (label is misleading) |
+| 5 Checkout | Done — Stripe **Connect destination charges** (cook auto-paid at charge time) |
 | 6 Orders, reviews, notifications | Done — incl. order emails + "I'm on it" + reminder cron (Jul 2026) |
 | Inventory (made-to-order / set number) | Done |
 | 7 Test e2e + deploy | Done — **live on Render** (Jul 2026); Stripe still test mode |

@@ -16,14 +16,14 @@ Premium positioning: the best home kitchens near you, verified against the count
 |---|---|
 | **Next.js** | The app itself — every page people see and click, plus the server logic behind it. |
 | **Supabase** | The backend — database, logins, and photo storage, ready-made. |
-| **Stripe** | The money — checkout and the service fee (test mode for the pilot; cook payouts are manual — Connect isn't built yet). |
+| **Stripe** | The money — checkout, the service fee, and **Connect (Express)**: each order auto-pays the cook their full listed price at charge time (test mode for the pilot). |
 | **Render** | Hosting — where the app lives on the internet (deploys straight from the GitHub repo). Live at `homeplate-jyd2.onrender.com`. |
 
 ---
 
 ## The data model (plain English)
 
-Nine tables, and how they connect:
+Ten tables, and how they connect:
 
 - **profiles** — one row per person, whether they're a buyer or a cook.
 - **cooks** — a kitchen's public profile (business name, permit, city, pickup/delivery). Belongs to a profile.
@@ -33,7 +33,8 @@ Nine tables, and how they connect:
 - **orders** — a purchase. Records `subtotal` (the cook keeps 100%), `service_fee` (your 8% + $0.30), `total` (what the buyer pays), and buyer contact.
 - **order_items** — the individual lines inside an order.
 - **reviews** — a buyer's rating of a kitchen, tied to a real completed order.
-- **payouts** — a log of manual payouts to cooks (for the pilot, before Stripe Connect).
+- **cook_stripe** — a cook's Stripe Connect account id + onboarding status (service-role only; buyers and even the cook's own session can't read it). The public `cooks.stripe_ready` flag it maintains is what lets a kitchen appear and take orders.
+- **payouts** — the legacy log of manual payouts from before Stripe Connect (kept as read-only history).
 
 The full schema with comments is in [`supabase/schema.sql`](./supabase/schema.sql).
 
@@ -54,7 +55,7 @@ npm install
 ### 3. Create a free Stripe account
 1. Go to [stripe.com](https://stripe.com) and sign up.
 2. **Developers → API keys** — copy your publishable and secret keys (use **test mode** while building).
-3. (We'll turn on Stripe Connect for cook payouts in a later step.)
+3. Enable **Connect** (Dashboard → Connect → Get started, Express accounts) — cook payouts are automated via destination charges. Webhooks need TWO endpoints at the same URL (platform + connected-account events), each with its own signing secret (`STRIPE_WEBHOOK_SECRET` / `STRIPE_CONNECT_WEBHOOK_SECRET`) — see [`DEPLOY.md`](./DEPLOY.md).
 
 ### 4. Add your keys
 ```bash
@@ -109,10 +110,12 @@ ForkFork/
 - [x] Admin console, cook onboarding wizard, payouts view
 - [x] Security hardening (incl. a Jul 2026 batch: order-forgery + payout-ledger + checkout-trust fixes) + visual polish
 - [x] **Deployed live on Render** — env wired, Stripe webhook verified against the live URL
+- [x] Stripe **Connect (Express)** — automated cook payouts via destination charges (test mode; refunds still manual)
 
 **Still to launch (not features):** recruit one real cook · rotate secrets and switch
 Stripe from test to live mode. (Real county permit data: ✅ loaded Jul 2026.) See
 [`CLAUDE.md`](./CLAUDE.md) and [`PROJECT_REVIEW.md`](./PROJECT_REVIEW.md) for the full picture.
 
-> Note: Stripe **Connect** (automated cook payouts) isn't built yet — payouts are manual
-> for the pilot, and "Checkout" above is plain Stripe in test mode.
+> Note: Stripe **Connect** (Express) is built — checkout uses destination charges, so each
+> order automatically routes the cook 100% of their listed price. Still **test mode**;
+> refunds remain a manual admin step for the pilot.

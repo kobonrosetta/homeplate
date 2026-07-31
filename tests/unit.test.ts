@@ -12,6 +12,7 @@ import {
   isExpired,
 } from "../lib/match";
 import { deriveUnitPrice, cartLineKey } from "../lib/options";
+import { accountStatus } from "../lib/stripe";
 import {
   SANTA_CLARA_COUNTY_RATE,
   taxRateForCity,
@@ -177,6 +178,54 @@ check("tax: quarter ranges are exclusive at the boundary", () => {
   const q = quarterOf(new Date(2026, 6, 1)); // Jul 1
   assert.ok(q.start.getTime() === new Date(2026, 6, 1).getTime());
   assert.ok(q.end.getTime() === new Date(2026, 9, 1).getTime());
+});
+
+// ---- Stripe Connect: accountStatus readiness mapping ----
+// Readiness must key on the TRANSFERS capability — a transfers-only Express
+// account keeps charges_enabled=false forever, so charges_enabled must never
+// influence the result (that exact bug would block every order).
+check("connect: fully onboarded account maps to all-true", () => {
+  const s = accountStatus({
+    capabilities: { transfers: "active" },
+    payouts_enabled: true,
+    details_submitted: true,
+    charges_enabled: false, // normal for transfers-only; must not matter
+    requirements: { disabled_reason: null },
+  });
+  assert.deepEqual(s, {
+    transfersActive: true,
+    payoutsEnabled: true,
+    detailsSubmitted: true,
+    disabledReason: null,
+  });
+});
+check("connect: pending/inactive transfers capability is not active", () => {
+  for (const cap of ["pending", "inactive", undefined]) {
+    const s = accountStatus({
+      capabilities: { transfers: cap },
+      payouts_enabled: true,
+      details_submitted: true,
+    });
+    assert.equal(s.transfersActive, false);
+  }
+});
+check("connect: missing/garbage account object fails closed", () => {
+  for (const acct of [{}, null, undefined, { capabilities: null }]) {
+    const s = accountStatus(acct);
+    assert.equal(s.transfersActive, false);
+    assert.equal(s.payoutsEnabled, false);
+    assert.equal(s.detailsSubmitted, false);
+    assert.equal(s.disabledReason, null);
+  }
+});
+check("connect: disabled_reason is surfaced", () => {
+  const s = accountStatus({
+    capabilities: { transfers: "inactive" },
+    payouts_enabled: false,
+    details_submitted: true,
+    requirements: { disabled_reason: "requirements.past_due" },
+  });
+  assert.equal(s.disabledReason, "requirements.past_due");
 });
 
 console.log("\n" + pass + " passed, " + fail + " failed");

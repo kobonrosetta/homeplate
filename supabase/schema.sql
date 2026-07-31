@@ -56,7 +56,7 @@ create table cooks (
   delivery_notes        text,
   avatar_url            text,
   cover_url             text,
-  stripe_account_id     text,                            -- their Stripe Connect account
+  stripe_ready          boolean not null default false,  -- can receive money + get paid out (set by the Stripe webhook)
   status                cook_status not null default 'pending',
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now()
@@ -71,6 +71,20 @@ create table cook_private (
   latitude       double precision,
   longitude      double precision,
   updated_at     timestamptz not null default now()
+);
+
+-- ---------- cook_stripe (Connect account id + onboarding status — SERVICE-ROLE ONLY) ----------
+-- Kept off `cooks` (RLS filters rows, not columns) so the anon key can never read
+-- a cook's acct_ id off the REST API. Written only by the service role (the
+-- onboarding action, the return-route sync, and the account.updated webhook).
+create table cook_stripe (
+  cook_id           uuid primary key references cooks(id) on delete cascade,
+  stripe_account_id text,
+  transfers_active  boolean not null default false,   -- the destination-charge readiness signal (NOT charges_enabled)
+  payouts_enabled   boolean not null default false,
+  details_submitted boolean not null default false,
+  disabled_reason   text,
+  updated_at        timestamptz not null default now()
 );
 
 -- ---------- listings (the items for sale) ----------
@@ -135,6 +149,7 @@ create index on orders (cook_id);
 create index on order_items (order_id);
 create index on reviews (cook_id);
 create index on cooks (status);
+create unique index cook_stripe_account_id_idx on cook_stripe (stripe_account_id);
 
 -- ============================================================
 --  Row Level Security (RLS)
@@ -144,6 +159,7 @@ create index on cooks (status);
 alter table profiles           enable row level security;
 alter table cooks              enable row level security;
 alter table cook_private       enable row level security;
+alter table cook_stripe        enable row level security;  -- no policies below: service-role only
 alter table listings           enable row level security;
 alter table orders             enable row level security;
 alter table order_items        enable row level security;

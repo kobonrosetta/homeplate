@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getCurrentCook } from "@/lib/cook";
 import { createClient } from "@/lib/supabase/server";
 import { updateKitchen } from "../edit/actions";
@@ -38,7 +39,28 @@ export default async function SettingsPage({
     <div className="max-w-xl">
       <h2 className="text-lg font-semibold text-ink">Kitchen settings</h2>
 
-      {(cook.status === "active" || cook.status === "paused") && (
+      {/* Approved but payouts not finished: the kitchen is NOT visible anywhere
+          yet, so don't claim "live" (or offer to hide what's already hidden). */}
+      {cook.status === "active" && !cook.stripe_ready && (
+        <div className="mt-4 rounded-lg border border-line bg-card p-4">
+          <p className="text-sm font-medium text-ink">
+            Approved — goes live once payouts are set up
+          </p>
+          <p className="mt-0.5 text-xs text-muted">
+            Your kitchen stays hidden from buyers until Stripe payout setup is
+            done.{" "}
+            <Link
+              href="/dashboard/payouts"
+              className="font-medium text-brand underline-offset-2 hover:underline"
+            >
+              Set up payouts →
+            </Link>
+          </p>
+        </div>
+      )}
+
+      {((cook.status === "active" && cook.stripe_ready) ||
+        cook.status === "paused") && (
         <form
           action={toggleKitchenPause}
           className="mt-4 flex items-center justify-between gap-4 rounded-lg border border-line bg-card p-4"

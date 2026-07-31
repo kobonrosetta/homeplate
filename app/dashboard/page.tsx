@@ -147,6 +147,12 @@ export default async function DashboardOverview() {
       urgent:
         prevQtr.dueDate.getTime() - now.getTime() < 7 * 24 * 60 * 60 * 1000,
     });
+  if (cook.status === "active" && !cook.stripe_ready)
+    tasks.push({
+      label: "Set up payouts to get paid — your kitchen goes live once it's done",
+      href: "/dashboard/payouts",
+      urgent: true,
+    });
   if (totalListings === 0)
     tasks.push({
       label: "Add your first item to start selling",
@@ -190,7 +196,9 @@ export default async function DashboardOverview() {
         </p>
       </div>
 
-      {cook.status === "active" && (
+      {/* stripe_ready too — until then /kitchen/[slug] 404s, and telling a cook
+          to broadcast a dead link would burn their one announcement moment. */}
+      {cook.status === "active" && cook.stripe_ready && (
         <div className="rounded-xl border border-line bg-card p-5">
           <p className="text-sm font-medium text-ink">Share your kitchen</p>
           <p className="mt-1 text-sm text-muted">
@@ -328,7 +336,7 @@ export default async function DashboardOverview() {
         >
           Manage menu
         </Link>
-        {cook.status === "active" && (
+        {cook.status === "active" && cook.stripe_ready && (
           <Link
             href={`/kitchen/${cook.slug}`}
             className="rounded-full border border-line px-5 py-2.5 text-sm font-medium text-ink hover:bg-card"

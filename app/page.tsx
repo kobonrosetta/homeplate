@@ -15,13 +15,14 @@ export default async function Home() {
   if (user) redirect("/browse");
 
   // Real kitchens for the hero slideshow — same criteria as Browse (active,
-  // something in stock), narrowed to ones with a photo to show.
+  // payout-ready, something in stock), narrowed to ones with a photo to show.
   const { data: cooksData } = await supabase
     .from("cooks")
     .select(
       "business_name, slug, city, permit_verified, listings(photo_url, is_available, price_cents, limited_quantity, quantity_available)"
     )
     .eq("status", "active")
+    .eq("stripe_ready", true)
     .limit(20);
 
   const heroKitchens: HeroKitchen[] = (cooksData ?? [])

@@ -24,6 +24,11 @@ export async function createCheckoutSession(params: {
   cancelUrl: string;
   metadata?: Record<string, string>;
   customerEmail?: string;
+  // Connect destination charge: when both are set, the buyer is charged the full
+  // total, `applicationFeeCents` stays with the platform, and the remainder
+  // (= the cook's subtotal) is transferred to their connected account.
+  applicationFeeCents?: number;
+  destinationAccountId?: string;
 }): Promise<{ id: string; url: string }> {
   const key = secretKey();
   if (!key) throw new Error("Payments aren't set up yet (missing Stripe key).");
@@ -41,6 +46,23 @@ export async function createCheckoutSession(params: {
   });
   for (const [k, v] of Object.entries(params.metadata ?? {})) {
     body.set(`metadata[${k}]`, v);
+  }
+  // Route the cook's cut to their connected account (destination charge). The
+  // application fee (ForkFork's service fee) is always < total, so this can
+  // never meet-or-exceed the charge. Both fields are set together or not at all.
+  if (
+    params.destinationAccountId &&
+    typeof params.applicationFeeCents === "number" &&
+    params.applicationFeeCents >= 0
+  ) {
+    body.set(
+      "payment_intent_data[application_fee_amount]",
+      String(params.applicationFeeCents)
+    );
+    body.set(
+      "payment_intent_data[transfer_data][destination]",
+      params.destinationAccountId
+    );
   }
 
   const res = await fetch(`${STRIPE_API}/checkout/sessions`, {
@@ -112,4 +134,116 @@ export function verifyStripeSignature(
     const b = Buffer.from(v1);
     return a.length === b.length && crypto.timingSafeEqual(a, b);
   });
+}
+
+// ---------- Connect (Express) — automated cook payouts ----------
+
+export type ConnectAccountStatus = {
+  transfersActive: boolean; // the transfers capability is 'active' — CAN receive a destination transfer
+  payoutsEnabled: boolean; // funds can leave Stripe for the cook's bank
+  detailsSubmitted: boolean; // finished the hosted onboarding form
+  disabledReason: string | null; // why Stripe is holding them, if any
+};
+
+/**
+ * Map a Stripe account object to our status shape. Shared by retrieveAccount and
+ * the account.updated webhook (which receives the same object). Readiness keys off
+ * the TRANSFERS capability, not charges_enabled — a transfers-only Express account
+ * keeps charges_enabled=false forever, so gating on that would block every order.
+ */
+export function accountStatus(account: any): ConnectAccountStatus {
+  return {
+    transfersActive: account?.capabilities?.transfers === "active",
+    payoutsEnabled: account?.payouts_enabled === true,
+    detailsSubmitted: account?.details_submitted === true,
+    disabledReason: account?.requirements?.disabled_reason ?? null,
+  };
+}
+
+/** Create an Express connected account for a cook (transfers capability only). */
+export async function createConnectAccount(params: {
+  cookId: string;
+  email?: string | null;
+  // Distinguishes account GENERATIONS for the same cook. Stable within one
+  // generation (retries and parallel tabs dedupe to one account via Stripe's
+  // idempotency layer) but different after a deauth-clear, so a dead account
+  // is never resurrected from Stripe's 24h idempotency cache.
+  idempotencySalt: string;
+}): Promise<string> {
+  const key = secretKey();
+  if (!key) throw new Error("Payments aren't set up yet (missing Stripe key).");
+
+  const body = new URLSearchParams();
+  body.set("type", "express");
+  // Destination charges with the platform as merchant of record need ONLY the
+  // transfers capability on the connected account — not card_payments.
+  body.set("capabilities[transfers][requested]", "true");
+  body.set("metadata[cook_id]", params.cookId);
+  if (params.email) body.set("email", params.email);
+
+  const res = await fetch(`${STRIPE_API}/accounts`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Idempotency-Key": `connect-acct-${params.cookId}-${params.idempotencySalt}`,
+    },
+    body: body.toString(),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.error?.message ?? "Could not create your payout account.");
+  }
+  return data.id as string;
+}
+
+/** Create a single-use hosted onboarding link for an Express account. */
+export async function createAccountLink(params: {
+  accountId: string;
+  returnUrl: string;
+  refreshUrl: string;
+}): Promise<string> {
+  const key = secretKey();
+  if (!key) throw new Error("Payments aren't set up yet (missing Stripe key).");
+
+  const body = new URLSearchParams();
+  body.set("account", params.accountId);
+  body.set("return_url", params.returnUrl);
+  body.set("refresh_url", params.refreshUrl);
+  body.set("type", "account_onboarding");
+
+  const res = await fetch(`${STRIPE_API}/account_links`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: body.toString(),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.error?.message ?? "Could not start payout setup.");
+  }
+  return data.url as string;
+}
+
+/**
+ * Read a connected account's live onboarding + capability status.
+ * Returns "gone" when Stripe says the account is definitively unreachable
+ * (deleted / access revoked — 403/404): retrying can never succeed, so callers
+ * should clean up and ack rather than error-and-retry. `null` = transient
+ * failure (worth a retry).
+ */
+export async function retrieveAccount(
+  accountId: string
+): Promise<ConnectAccountStatus | "gone" | null> {
+  const key = secretKey();
+  if (!key) return null;
+  const res = await fetch(`${STRIPE_API}/accounts/${accountId}`, {
+    headers: { Authorization: `Bearer ${key}` },
+  });
+  const data = await res.json().catch(() => null);
+  if (res.status === 403 || res.status === 404) return "gone";
+  if (!res.ok || !data) return null;
+  return accountStatus(data);
 }

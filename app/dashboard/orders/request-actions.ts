@@ -28,6 +28,11 @@ export async function createPaymentRequest(formData: FormData) {
   const err = (msg: string) =>
     redirect("/dashboard/orders/request?error=" + encodeURIComponent(msg));
 
+  // Don't let a cook mint a link their buyer can't pay — /pay/[token] blocks
+  // until Stripe payout onboarding is done, so stop it here with a clear why.
+  if (!cook!.stripe_ready)
+    err("Finish setting up payouts first — your buyer couldn't pay this link.");
+
   if (!title) err("Describe what the payment is for.");
   if (Number.isNaN(priceDollars) || priceDollars <= 0)
     err("Enter the price you agreed on.");

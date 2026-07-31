@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { calcServiceFeeCents } from "@/lib/constants";
 import { createCheckoutSession } from "@/lib/stripe";
 import {
@@ -154,11 +155,23 @@ export async function startCheckout(formData: FormData) {
 
   const { data: cook } = await supabase
     .from("cooks")
-    .select("id, status, delivery_available, pickup_windows")
+    .select("id, status, stripe_ready, delivery_available, pickup_windows")
     .eq("id", cookId)
     .maybeSingle();
   if (!cook || cook.status !== "active")
     err("/cart", "This kitchen isn't available right now.");
+  // Payout backstop: the cook must have finished Stripe onboarding so their cut
+  // is routed to them (browse already hides kitchens that haven't). The connected
+  // account id lives in the service-role-only cook_stripe table.
+  if (!cook!.stripe_ready)
+    err("/cart", "This kitchen isn't accepting orders yet.");
+  const { data: cookStripe } = await createAdminClient()
+    .from("cook_stripe")
+    .select("stripe_account_id")
+    .eq("cook_id", cookId)
+    .maybeSingle();
+  if (!cookStripe?.stripe_account_id)
+    err("/cart", "This kitchen isn't accepting orders yet.");
   if (fulfillment === "delivery" && !cook!.delivery_available)
     err("/checkout", "This kitchen doesn't offer delivery.");
   // The cook owns the schedule: when they define pickup windows, a pickup
@@ -217,6 +230,10 @@ export async function startCheckout(formData: FormData) {
   const subtotal = items.reduce((n, i) => n + i.line_total_cents, 0);
   const fee = calcServiceFeeCents(subtotal);
   const total = subtotal + fee;
+  // Stripe rejects charges under $0.50 — bounce before inserting an order row
+  // we could never collect on (mirrors the pay-link path).
+  if (total < 50)
+    err("/cart", "This order is too small to process — add another item.");
 
   // Create the order in a pending (unpaid) state. The buyer's own RLS policy
   // allows inserting an order + items for themselves.
@@ -269,6 +286,9 @@ export async function startCheckout(formData: FormData) {
       cancelUrl: `${origin}/cart`,
       metadata: { order_id: order!.id },
       customerEmail: contactEmail || user.email || undefined,
+      // Destination charge: the cook receives the subtotal, ForkFork keeps the fee.
+      applicationFeeCents: fee,
+      destinationAccountId: cookStripe!.stripe_account_id,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Payment could not be started.";
