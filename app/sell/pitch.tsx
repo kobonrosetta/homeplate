@@ -12,10 +12,10 @@ export default function CookPitch({ signedIn = false }: { signedIn?: boolean }) 
       {/* Hero */}
       <section className="mx-auto max-w-6xl px-6 pb-16 pt-14 sm:pt-24">
         <div className="max-w-2xl">
-          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">
-            ✓ For Santa Clara County permit holders
-          </span>
-          <h1 className="mt-6 text-5xl font-semibold leading-[1.05] tracking-tight text-ink sm:text-6xl">
+          <p className="text-sm font-medium text-brand">
+            For Santa Clara County permit holders
+          </p>
+          <h1 className="mt-4 text-5xl font-semibold leading-[1.05] tracking-tight text-ink sm:text-6xl">
             You did the hard part. You got the permit.
           </h1>
           <p className="mt-5 text-lg leading-relaxed text-muted">
@@ -132,7 +132,7 @@ export default function CookPitch({ signedIn = false }: { signedIn?: boolean }) 
 
       {/* Closing CTA */}
       <section className="mx-auto max-w-6xl px-6 py-16">
-        <div className="rounded-2xl border border-line bg-card p-8 sm:p-10">
+        <div className="rounded-2xl bg-card p-8 shadow-soft sm:p-10">
           <h2 className="text-2xl font-semibold text-ink">
             Be one of the founding kitchens
           </h2>
@@ -162,9 +162,10 @@ function Perk({ title, body }: { title: string; body: string }) {
 }
 
 function Step({ n, title, body }: { n: string; title: string; body: string }) {
+  // Big Fraunces numeral instead of a numbered circle — the house move.
   return (
     <div>
-      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-800">
+      <span aria-hidden className="font-display text-5xl font-semibold leading-none text-brand/30">
         {n}
       </span>
       <h3 className="mt-3 text-lg font-semibold text-ink">{title}</h3>

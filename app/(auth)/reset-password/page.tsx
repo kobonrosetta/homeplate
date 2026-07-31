@@ -26,7 +26,7 @@ export default async function ResetPasswordPage() {
           <ResetPasswordForm />
         </>
       ) : (
-        <div className="mt-4 rounded-lg border border-line bg-card p-4 text-sm text-ink">
+        <div className="mt-4 rounded-xl bg-card p-4 text-sm text-ink shadow-soft">
           This reset link is invalid or has expired.{" "}
           <Link
             href="/forgot-password"

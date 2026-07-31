@@ -93,7 +93,7 @@ export default async function OrdersPage({
           </h3>
           <div className="mt-3 space-y-3">
             {openRequests.map((r: any) => (
-              <div key={r.id} className="rounded-xl border border-line p-4">
+              <div key={r.id} className="rounded-xl bg-card p-4 shadow-soft">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-medium text-ink">{r.title}</p>
@@ -186,7 +186,7 @@ function OrderCard({ o, active }: { o: any; active?: boolean }) {
 
   return (
     <div
-      className={`rounded-xl border border-line p-5 ${
+      className={`rounded-xl bg-card p-5 shadow-soft ${
         active ? "" : "opacity-70"
       }`}
     >

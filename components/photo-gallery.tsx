@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ForkMark from "@/components/fork-mark";
 
 // Cover photo + clickable thumbnails for a listing's extra photos.
 export default function PhotoGallery({
@@ -14,8 +15,8 @@ export default function PhotoGallery({
 
   if (urls.length === 0) {
     return (
-      <div className="flex aspect-square items-center justify-center rounded-2xl bg-line text-6xl text-faint">
-        🍽️
+      <div className="flex aspect-square items-center justify-center rounded-2xl bg-line text-faint">
+        <ForkMark size={64} />
       </div>
     );
   }

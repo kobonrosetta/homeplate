@@ -55,11 +55,11 @@ export default async function Home() {
         <div className="max-w-2xl">
           <Link
             href="/verified"
-            className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800 hover:bg-emerald-200"
+            className="text-sm font-medium text-brand underline-offset-4 hover:underline"
           >
             ✓ Every kitchen is county-approved &amp; verified
           </Link>
-          <h1 className="mt-6 text-5xl font-semibold leading-[1.05] tracking-tight text-ink sm:text-6xl">
+          <h1 className="mt-4 text-5xl font-semibold leading-[1.05] tracking-tight text-ink sm:text-6xl">
             Exceptional food from the best home kitchens near you.
           </h1>
           <p className="mt-5 text-lg leading-relaxed text-muted">

@@ -175,7 +175,7 @@ export default function CheckoutForm({
         />
       </Field>
 
-      <div className="space-y-2 rounded-xl border border-line p-4 text-sm">
+      <div className="space-y-2 rounded-xl bg-card p-4 text-sm shadow-soft">
         <Row
           label="Subtotal (the cook receives this)"
           value={formatUsd(subtotalCents)}

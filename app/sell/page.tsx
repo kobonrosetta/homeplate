@@ -250,7 +250,7 @@ function Step1({ cook, phone }: { cook: any; phone: string }) {
             reaches you after they order. Never shown publicly.
           </p>
         </div>
-        <div className="space-y-3 rounded-lg border border-line p-4">
+        <div className="space-y-3 rounded-xl bg-card p-4 shadow-soft">
           <p className="text-sm font-medium text-ink">
             How do customers get their food?
           </p>
@@ -313,7 +313,7 @@ function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
   return (
     <div>
       <h1 className="text-2xl font-semibold text-ink">Last step — submit for review</h1>
-      <div className="mt-3 rounded-lg border border-line bg-card p-3 text-sm text-muted">
+      <div className="mt-3 rounded-xl bg-card p-3 text-sm text-muted shadow-soft">
         {cottage
           ? "Last step. Our team reviews your Cottage Food registration with the county by hand, and your address stays private. You'll hear back by email within about a day."
           : "Last step. We match your permit to Santa Clara County's published MEHKO list, and your address stays private. You'll hear back by email within about a day."}
@@ -367,7 +367,7 @@ function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
           <TextField label="City" name="city" required placeholder="Sunnyvale" />
           <TextField label="ZIP" name="zip" placeholder="94086" />
         </div>
-        <div className="space-y-3 rounded-lg border border-line p-4">
+        <div className="space-y-3 rounded-xl bg-card p-4 shadow-soft">
           <div>
             <p className="text-sm font-medium text-ink">Sales tax, handled</p>
             <p className="mt-1 text-xs text-muted">
@@ -418,7 +418,7 @@ function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
               <summary className="inline cursor-pointer">
                 <span className="underline hover:text-ink">Cook Agreement</span>.
               </summary>
-              <span className="mt-2 block space-y-2 rounded-lg border border-line bg-card p-3 text-muted">
+              <span className="mt-2 block space-y-2 rounded-lg bg-card p-3 text-muted shadow-soft">
                 <span className="block">
                   <span className="font-medium text-ink">
                     Your prices include tax.

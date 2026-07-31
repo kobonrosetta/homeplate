@@ -31,9 +31,9 @@ export default async function DashboardLayout({
               ? "✓ County-verified · live"
               : "✓ Approved · set up payouts to go live"
             : cook.status === "pending"
-              ? "⏳ Under review — we'll email you when you're approved"
+              ? "Under review — we'll email you when you're approved"
               : cook.status === "paused"
-                ? "⏸ Paused — hidden from buyers until you resume (Settings)"
+                ? "Paused — hidden from buyers until you resume (Settings)"
                 : "Suspended — contact support"}
           {cook.city ? ` · ${cook.city}` : ""}
         </p>

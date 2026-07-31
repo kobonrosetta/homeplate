@@ -70,7 +70,7 @@ export default async function PayoutsPage({
           </div>
         </>
       ) : (
-        <div className="rounded-xl border border-line bg-card p-5">
+        <div className="rounded-xl bg-card p-5 shadow-soft">
           <h3 className="font-display text-lg font-semibold text-ink">
             {inReview
               ? "Finishing your payout setup"
@@ -106,7 +106,7 @@ export default async function PayoutsPage({
           <h3 className="text-xs font-semibold uppercase tracking-wide text-faint">
             Manual payments
           </h3>
-          <div className="mt-2 divide-y divide-line rounded-xl border border-line">
+          <div className="mt-2 divide-y divide-line rounded-xl bg-card shadow-soft">
             {payouts.map((p: any, i: number) => (
               <div
                 key={i}

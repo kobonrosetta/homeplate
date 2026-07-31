@@ -38,7 +38,7 @@ export default function HeroSlideshow({
 
   return (
     <div
-      className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl border border-line bg-line shadow-lift lg:aspect-[4/5]"
+      className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl bg-line shadow-lift lg:aspect-[4/5]"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}

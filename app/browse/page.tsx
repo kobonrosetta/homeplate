@@ -5,6 +5,7 @@ import { publicArea } from "@/lib/handoff";
 import FeeNote from "@/components/fee-note";
 import VerifiedBadge from "@/components/verified-badge";
 import EmptyState from "@/components/empty-state";
+import ForkMark from "@/components/fork-mark";
 
 export const dynamic = "force-dynamic";
 
@@ -69,7 +70,7 @@ export default async function BrowsePage() {
       </div>
 
       {kitchens.length > 0 && (
-        <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-line bg-card px-4 py-3 text-sm text-muted">
+        <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-card px-4 py-3 text-sm text-muted shadow-soft">
           <span aria-hidden className="font-semibold text-brand">
             ✓
           </span>
@@ -90,11 +91,12 @@ export default async function BrowsePage() {
         <div className="mt-10"><EmptyState title="No kitchens open yet." subtitle="Check back soon." /></div>
       ) : (
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {kitchens.map((k) => (
+          {kitchens.map((k, i) => (
             <Link
               key={k.id}
               href={`/kitchen/${k.slug}`}
-              className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-soft transition duration-200 hover:-translate-y-1 hover:shadow-lift"
+              className="rise group flex flex-col overflow-hidden rounded-2xl bg-card shadow-soft transition duration-200 hover:-translate-y-1 hover:shadow-lift"
+              style={{ animationDelay: `${Math.min(i * 60, 480)}ms` }}
             >
               <div className="relative aspect-[4/3] overflow-hidden bg-line">
                 {k.thumb ? (
@@ -105,8 +107,8 @@ export default async function BrowsePage() {
                     className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                   />
                 ) : (
-                  <div className="flex h-full items-center justify-center text-4xl text-faint">
-                    🍽️
+                  <div className="flex h-full items-center justify-center text-faint">
+                    <ForkMark size={44} />
                   </div>
                 )}
                 {k.verified && (
