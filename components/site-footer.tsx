@@ -16,6 +16,9 @@ export default function SiteFooter() {
           </Link>
         </div>
         <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-faint">
+          <Link href="/faq" className="hover:text-ink hover:underline">
+            FAQ
+          </Link>
           <Link href="/terms" className="hover:text-ink hover:underline">
             Terms of Service
           </Link>
