@@ -28,6 +28,12 @@ export const metadata: Metadata = {
     description: DESCRIPTION,
   },
   twitter: { card: "summary_large_image" },
+  // Google Search Console verification. Set GOOGLE_SITE_VERIFICATION on Render to
+  // the code Google gives you (HTML-tag method); renders
+  // <meta name="google-site-verification" ...>. Omitted when unset.
+  verification: process.env.GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.GOOGLE_SITE_VERIFICATION }
+    : undefined,
 };
 
 // Warm editorial type: Fraunces for display headings, Inter for everything else.
