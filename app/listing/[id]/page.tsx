@@ -8,6 +8,8 @@ import FeeNote from "@/components/fee-note";
 import PhotoGallery from "@/components/photo-gallery";
 import OptionsPicker from "@/components/options-picker";
 import SoldOutTag from "@/components/sold-out-tag";
+import JsonLd from "@/components/json-ld";
+import { listingSchema, breadcrumbSchema } from "@/lib/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +58,7 @@ export async function generateMetadata({
   return {
     title,
     description,
+    alternates: { canonical: `/listing/${params.id}` },
     openGraph: {
       title,
       description,
@@ -106,6 +109,25 @@ export default async function ListingPage({
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
+      <JsonLd
+        data={[
+          listingSchema({
+            id: listing.id,
+            title: listing.title,
+            description: listing.description,
+            image: listing.photo_url,
+            priceCents: listing.price_cents,
+            available: !soldOut,
+            kitchenName: cook.business_name,
+          }),
+          breadcrumbSchema([
+            { name: "Home", path: "/" },
+            { name: "Kitchens", path: "/browse" },
+            { name: cook.business_name, path: `/kitchen/${cook.slug}` },
+            { name: listing.title, path: `/listing/${listing.id}` },
+          ]),
+        ]}
+      />
       <Link href="/browse" className="text-sm text-muted hover:text-ink">
         ← Back
       </Link>

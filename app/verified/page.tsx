@@ -2,6 +2,9 @@ import Link from "next/link";
 
 export const metadata = {
   title: "How ForkFork verifies every kitchen",
+  description:
+    "Every ForkFork kitchen holds a current Santa Clara County permit, is matched against the county's approved-operator list, and is reviewed by a person before it can sell. Here's what county-verified means.",
+  alternates: { canonical: "/verified" },
 };
 
 export default function VerifiedPage() {

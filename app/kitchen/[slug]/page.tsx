@@ -11,6 +11,8 @@ import VerifiedBadge from "@/components/verified-badge";
 import SoldOutTag from "@/components/sold-out-tag";
 import EmptyState from "@/components/empty-state";
 import ForkMark from "@/components/fork-mark";
+import JsonLd from "@/components/json-ld";
+import { kitchenSchema, breadcrumbSchema } from "@/lib/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +58,7 @@ export async function generateMetadata({
   return {
     title,
     description,
+    alternates: { canonical: `/kitchen/${params.slug}` },
     openGraph: {
       title,
       description,
@@ -150,6 +153,26 @@ export default async function KitchenPage({
 
   return (
     <main className="mx-auto max-w-5xl px-6 pt-8 pb-16">
+      <JsonLd
+        data={[
+          kitchenSchema({
+            slug: cook.slug,
+            name: cook.business_name,
+            operationType: cook.operation_type,
+            description: cook.bio,
+            city: cook.city,
+            image: heroImage,
+            ratingValue: avgRating,
+            reviewCount,
+            cuisines: (cook.cuisine_tags ?? []) as string[],
+          }),
+          breadcrumbSchema([
+            { name: "Home", path: "/" },
+            { name: "Kitchens", path: "/browse" },
+            { name: cook.business_name, path: `/kitchen/${cook.slug}` },
+          ]),
+        ]}
+      />
       {/* Cover hero — the storefront's first impression. A cook-set cover wins;
           otherwise the first dish photo stands in, so every kitchen leads with
           food, not text. */}

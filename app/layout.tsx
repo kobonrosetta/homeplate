@@ -5,13 +5,29 @@ import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";
 import { CartProvider } from "@/components/cart-context";
 import { SITE_URL } from "@/lib/constants";
+import JsonLd from "@/components/json-ld";
+import { organizationSchema } from "@/lib/schema";
+
+const TITLE = "ForkFork · county-verified home kitchens near you";
+const DESCRIPTION =
+  "Order hot home-cooked meals and fresh-baked goods from county-verified home kitchens in Santa Clara County. Every chef is checked against the county's approved-operator list.";
 
 export const metadata: Metadata = {
   // Absolute base for Open Graph/Twitter URLs — link unfurls need full URLs.
   metadataBase: new URL(SITE_URL),
-  title: "ForkFork · county-verified home kitchens near you",
-  description:
-    "Order hot home-cooked meals and fresh-baked goods from county-verified home kitchens in Santa Clara County. Every chef is checked against the county's approved-operator list.",
+  title: TITLE,
+  description: DESCRIPTION,
+  // Defaults for every page; kitchen/listing override with their own card.
+  // The root app/opengraph-image.tsx supplies og:image / twitter:image.
+  openGraph: {
+    type: "website",
+    siteName: "ForkFork",
+    locale: "en_US",
+    url: "/",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 // Warm editorial type: Fraunces for display headings, Inter for everything else.
@@ -35,6 +51,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
       <body>
+        <JsonLd data={organizationSchema()} />
         <CartProvider>
           <div className="flex min-h-screen flex-col">
             <SiteHeader />
