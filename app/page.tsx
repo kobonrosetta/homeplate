@@ -63,7 +63,7 @@ export default async function Home() {
             The best food near you isn&rsquo;t from a restaurant.
           </h1>
           <p className="mt-5 text-lg leading-relaxed text-muted">
-            It&rsquo;s from your neighbors — the tamales, the sourdough, the
+            It&rsquo;s from your neighbors: the tamales, the sourdough, the
             pastries people cross town for, made in home kitchens Santa Clara
             County has permitted and inspected. Order ahead, then pick up or
             get it delivered.
@@ -87,7 +87,7 @@ export default async function Home() {
       <section className="border-t border-line bg-card/60">
         <div className="mx-auto grid max-w-6xl gap-8 px-6 py-14 sm:grid-cols-3">
           <Feature
-            title="Held to restaurant rules — at home"
+            title="Held to restaurant rules, at home"
             body="Hot-meal kitchens are permitted and inspected by the county health department, the same office that inspects restaurants. Bakers are registered under California's cottage food law, with state-required food-safety training."
           />
           <Feature
@@ -96,7 +96,7 @@ export default async function Home() {
           />
           <Feature
             title="Your money goes to the cook"
-            body="Cooks keep 100% of the price they set — the small service fee at checkout is what runs ForkFork. You're paying the person who made your dinner, not a middleman."
+            body="Cooks keep 100% of the price they set. The small service fee at checkout is what runs ForkFork. You're paying the person who made your dinner, not a middleman."
           />
         </div>
       </section>

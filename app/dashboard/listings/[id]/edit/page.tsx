@@ -50,7 +50,7 @@ export default async function EditListingPage({
             className="h-16 w-16 rounded-lg object-cover"
           />
           <span className="text-sm text-muted">
-            Current photo — upload a new one below to replace it.
+            Current photo. Upload a new one below to replace it.
           </span>
         </div>
       )}
@@ -81,7 +81,7 @@ export default async function EditListingPage({
       <div className="mt-10 border-t border-line pt-6">
         <h3 className="text-lg font-semibold text-ink">Item options</h3>
         <p className="mt-1 text-sm text-muted">
-          Add dropdowns buyers choose from — sizes, characters, stamps — each
+          Add dropdowns buyers choose from (sizes, characters, stamps). Each
           choice can add to the price. Your item price above is the base.
         </p>
         {searchParams.saved === "options" && (

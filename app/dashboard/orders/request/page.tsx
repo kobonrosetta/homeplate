@@ -16,7 +16,7 @@ export default function NewPaymentRequestPage({
       <h2 className="text-lg font-semibold text-ink">New payment request</h2>
       <p className="mt-1 text-sm text-muted">
         Agreed on a custom order over DM? Create a link your buyer can pay with
-        a card — instead of chasing a Venmo. You keep 100% of your price; the
+        a card, instead of chasing a Venmo. You keep 100% of your price; the
         buyer pays the service fee.
       </p>
 
@@ -42,7 +42,7 @@ export default function NewPaymentRequestPage({
           </label>
           <label className="flex items-center gap-2 text-sm text-ink">
             <input type="radio" name="charge_kind" value="deposit" />
-            50% deposit now — arrange the rest at pickup
+            50% deposit now, arrange the rest at pickup
           </label>
         </div>
         <TextField

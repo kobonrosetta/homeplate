@@ -86,7 +86,7 @@ export default function CheckoutForm({
         />
       </Field>
 
-      <Field label="Email — for your receipt and order updates">
+      <Field label="Email for your receipt and order updates">
         <input
           name="email"
           type="email"
@@ -97,7 +97,7 @@ export default function CheckoutForm({
         />
       </Field>
 
-      <Field label="Phone — so the kitchen can reach you about this order">
+      <Field label="Phone so the kitchen can reach you about this order">
         <input
           name="contact_phone"
           required
@@ -137,7 +137,7 @@ export default function CheckoutForm({
                   {w}
                 </option>
               ))}
-              <option value="">Another time — I&apos;ll arrange it with the kitchen</option>
+              <option value="">Another time (I&apos;ll arrange it with the kitchen)</option>
             </select>
             <p className="mt-1 text-xs text-faint">
               We&apos;ll email you the pickup address after you pay.
@@ -191,7 +191,7 @@ export default function CheckoutForm({
 
       <SubmitButton total={total} />
       <p className="text-center text-xs text-faint">
-        No account needed — pay as a guest. Secure payment by Stripe.
+        No account needed. Pay as a guest, with secure payment by Stripe.
       </p>
       <p className="text-center text-xs text-faint">
         By placing an order you agree to the{" "}

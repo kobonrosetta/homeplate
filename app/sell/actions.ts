@@ -119,7 +119,7 @@ export async function wizardSaveKitchen(formData: FormData) {
       console.error("wizardSaveKitchen: cook insert failed", lastError);
       redirect(
         "/sell?error=" +
-          encodeURIComponent("Couldn't create your kitchen — please try again.")
+          encodeURIComponent("Couldn't create your kitchen. Please try again.")
       );
     }
     await supabase.from("profiles").update({ is_cook: true }).eq("id", user.id);
@@ -238,7 +238,7 @@ export async function wizardFinalize(formData: FormData) {
     redirect(
       "/sell?step=3&error=" +
         encodeURIComponent(
-          "Your permit photo couldn't be uploaded — try again with a smaller image, or leave it off for now."
+          "Your permit photo couldn't be uploaded. Try again with a smaller image, or leave it off for now."
         )
     );
   }
@@ -306,7 +306,7 @@ export async function wizardFinalize(formData: FormData) {
       await sendEmail({
         to: admins,
         subject: `New kitchen pending review${
-          cook?.business_name ? ` — ${cook.business_name}` : ""
+          cook?.business_name ? `: ${cook.business_name}` : ""
         }`,
         html: wrapEmail(
           `<h2>A kitchen is waiting for approval</h2>
@@ -321,7 +321,7 @@ export async function wizardFinalize(formData: FormData) {
                          )})`
                        : "(no county match)"
                  }`
-               : "submitted with NO permit number — follow up before approving"
+               : "submitted with NO permit number; follow up before approving"
            }.</p>
            <p>Review it in the admin console.</p>`
         ),

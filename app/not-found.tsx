@@ -2,7 +2,7 @@ import Link from "next/link";
 import ForkMark from "@/components/fork-mark";
 
 export const metadata = {
-  title: "Page not found — ForkFork",
+  title: "Page not found · ForkFork",
 };
 
 export default function NotFound() {

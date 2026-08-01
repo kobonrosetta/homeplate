@@ -149,7 +149,7 @@ function Step1({ cook, phone }: { cook: any; phone: string }) {
       <h1 className="text-2xl font-semibold text-ink">
         Tell us about your kitchen
       </h1>
-      <p className="mt-1 text-muted">The easy part first — no permit or address yet.</p>
+      <p className="mt-1 text-muted">The easy part first. No permit or address yet.</p>
 
       <form action={wizardSaveKitchen} className="mt-6 space-y-5">
         <TextField
@@ -168,7 +168,7 @@ function Step1({ cook, phone }: { cook: any; phone: string }) {
           />
           <p className="mt-1 text-xs text-faint">
             Shown on your storefront as the person behind the kitchen (“Meet the
-            cook”). A first name is perfect — buyers trust a name and a face far
+            cook”). A first name is perfect; buyers trust a name and a face far
             more than a logo.
           </p>
         </div>
@@ -198,7 +198,7 @@ function Step1({ cook, phone }: { cook: any; phone: string }) {
             className="mt-1 block w-full text-sm text-muted file:mr-4 file:rounded-full file:border-0 file:bg-line file:px-4 file:py-2 file:text-sm file:font-medium hover:file:bg-line"
           />
           <p className="mt-1 text-xs text-faint">
-            A friendly face builds trust — buyers love knowing who&apos;s cooking.
+            A friendly face builds trust, and buyers love knowing who&apos;s cooking.
           </p>
         </label>
         <div className="block">
@@ -220,7 +220,7 @@ function Step1({ cook, phone }: { cook: any; phone: string }) {
             className="mt-1 block w-full text-sm text-muted file:mr-4 file:rounded-full file:border-0 file:bg-line file:px-4 file:py-2 file:text-sm file:font-medium hover:file:bg-line"
           />
           <p className="mt-1 text-xs text-faint">
-            The wide banner across the top of your storefront — a bright,
+            The wide banner across the top of your storefront. A bright,
             appetizing shot of your food or table sets the tone.
           </p>
         </div>
@@ -232,7 +232,7 @@ function Step1({ cook, phone }: { cook: any; phone: string }) {
             placeholder="sourdough, pastries, vegan"
           />
           <p className="mt-1 text-xs text-faint">
-            A few words buyers browse by — e.g. sourdough, vegan, Filipino. Shown
+            A few words buyers browse by: sourdough, vegan, Filipino. Shown
             on your storefront.
           </p>
         </div>
@@ -291,7 +291,7 @@ function Step2({
     <div>
       <h1 className="text-2xl font-semibold text-ink">Add your first dish</h1>
       <p className="mt-1 text-muted">
-        Get one item up now — you can add the rest anytime.
+        Get one item up now. You can add the rest anytime.
       </p>
       <NewListingForm
         action={wizardAddDish}
@@ -302,7 +302,7 @@ function Step2({
       />
       <div className="mt-4 text-center">
         <Link href="/sell?step=3" className="text-sm text-muted hover:text-ink">
-          Skip for now — I&apos;ll add dishes later →
+          Skip for now, I&apos;ll add dishes later →
         </Link>
       </div>
     </div>
@@ -312,7 +312,7 @@ function Step2({
 function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-ink">Last step — submit for review</h1>
+      <h1 className="text-2xl font-semibold text-ink">Last step: submit for review</h1>
       <div className="mt-3 rounded-xl bg-card p-3 text-sm text-muted shadow-soft">
         {cottage
           ? "Last step. We match your registration number to Santa Clara County's cottage-food operator list, and your address stays private. You'll hear back by email within about a day."
@@ -336,7 +336,7 @@ function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
           placeholder={cottage ? "Your county registration #" : "e.g. PT0503912"}
         />
         <p className="-mt-3 text-xs text-faint">
-          Adding it now speeds up verification — but you can submit without it
+          Adding it now speeds up verification, but you can submit without it
           and we&apos;ll follow up before you go live.
           {cottage && (
             <>
@@ -361,7 +361,7 @@ function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
           placeholder="123 Main St"
         />
         <p className="-mt-3 text-xs text-faint">
-          Kept private — buyers only see your city until they place an order.
+          Kept private: buyers only see your city until they place an order.
         </p>
         <div className="grid grid-cols-2 gap-4">
           <TextField label="City" name="city" required placeholder="Sunnyvale" />
@@ -376,7 +376,7 @@ function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
               <p className="text-sm font-medium text-ink">Sales tax, handled</p>
               <p className="mt-1 text-xs text-muted">
                 California taxes hot food sales. Your prices will include it, and
-                your dashboard tracks exactly what you&apos;ll owe — you just need
+                your dashboard tracks exactly what you&apos;ll owe. You just need
                 a free seller&apos;s permit from the state.
               </p>
             </div>
@@ -395,7 +395,7 @@ function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
               >
                 cdtfa.ca.gov
               </a>{" "}
-              — about 15 minutes online. Required before your kitchen goes live;
+              (about 15 minutes online). Required before your kitchen goes live;
               we&apos;ll remind you.
             </p>
           </div>
@@ -412,7 +412,7 @@ function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
             className="mt-1 block w-full text-sm text-muted file:mr-4 file:rounded-full file:border-0 file:bg-line file:px-4 file:py-2 file:text-sm file:font-medium hover:file:bg-line"
           />
           <p className="mt-1 text-xs text-faint">
-            Speeds up your review. Kept private — only the ForkFork team sees it.
+            Speeds up your review. Kept private, and only the ForkFork team sees it.
           </p>
         </label>
 
@@ -429,8 +429,8 @@ function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
                     Your prices include tax.
                   </span>{" "}
                   The price you set for each item includes any California sales
-                  tax due on it. Reporting and paying that tax is yours to do —
-                  your dashboard adds it up for you each quarter.
+                  tax due on it. Reporting and paying that tax is yours to do,
+                  and your dashboard adds it up for you each quarter.
                 </span>
                 <span className="block">
                   <span className="font-medium text-ink">

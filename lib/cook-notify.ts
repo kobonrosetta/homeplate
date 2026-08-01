@@ -55,7 +55,7 @@ export async function notifyCookStatusChange(opts: {
                reactivated ? "active again" : "approved"
              } and buyers can find and order from you now.</p>
              <p>${emailLink(storefront, "View your storefront →")}</p>
-             <p>That link is your storefront — drop it in your WhatsApp groups,
+             <p>That link is your storefront. Drop it in your WhatsApp groups,
              Instagram bio, anywhere your people are. Manage orders and your
              menu from ${emailLink(dashUrl, "your dashboard")}.</p>`
           ),
@@ -65,7 +65,7 @@ export async function notifyCookStatusChange(opts: {
         const payoutsUrl = `${SITE_URL}/dashboard/payouts`;
         await sendEmail({
           to: email,
-          subject: "You're approved — one step to go live on ForkFork",
+          subject: "You're approved: one step to go live on ForkFork",
           html: wrapEmail(
             `<h2>${kitchen} is approved</h2>
              <p>You're through review. One thing left before buyers can see
@@ -83,7 +83,7 @@ export async function notifyCookStatusChange(opts: {
           `<h2>Your kitchen has been suspended</h2>
            <p>${kitchen} is no longer visible to buyers on ForkFork.</p>
            <p>If this is a surprise or you'd like to sort it out, reply to this
-           email or reach us at ${escapeHtml(SUPPORT_EMAIL)} — we're happy to
+           email or reach us at ${escapeHtml(SUPPORT_EMAIL)}. We're happy to
            talk it through.</p>`
         ),
       });

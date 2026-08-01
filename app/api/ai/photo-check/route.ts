@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   const gate = rateLimit(`ai:${user.id}`, 30, 60_000);
   if (!gate.ok) {
     return NextResponse.json(
-      { error: "Too many requests — please wait a moment." },
+      { error: "Too many requests. Please wait a moment." },
       { status: 429, headers: { "Retry-After": String(gate.retryAfter) } }
     );
   }

@@ -44,7 +44,7 @@ export default async function SettingsPage({
       {cook.status === "active" && !cook.stripe_ready && (
         <div className="mt-4 rounded-xl bg-card p-4 shadow-soft">
           <p className="text-sm font-medium text-ink">
-            Approved — goes live once payouts are set up
+            Approved: goes live once payouts are set up
           </p>
           <p className="mt-0.5 text-xs text-muted">
             Your kitchen stays hidden from buyers until Stripe payout setup is
@@ -73,7 +73,7 @@ export default async function SettingsPage({
             </p>
             <p className="mt-0.5 text-xs text-muted">
               {cook.status === "active"
-                ? "Going on vacation or slammed this week? Pause to hide your kitchen — no new orders until you resume."
+                ? "Going on vacation or slammed this week? Pause to hide your kitchen. No new orders until you resume."
                 : "Buyers can't see your kitchen or place orders. Resume whenever you're ready."}
             </p>
           </div>
@@ -113,7 +113,7 @@ export default async function SettingsPage({
             />
             <p className="mt-1 text-xs text-faint">
               Shown on your storefront as the person behind the kitchen (“Meet
-              the cook”). A first name is perfect — buyers trust a name and a
+              the cook”). A first name is perfect; buyers trust a name and a
               face far more than a logo.
             </p>
           </div>
@@ -139,7 +139,7 @@ export default async function SettingsPage({
                     : "Cottage food (baked goods, jams, shelf-stable)"}
                 </p>
                 <p className="mt-1 text-xs text-faint">
-                  Locked to your verified permit type — contact support if your
+                  Locked to your verified permit type. Contact support if your
                   permit itself changed.
                 </p>
               </>
@@ -155,7 +155,7 @@ export default async function SettingsPage({
                   ]}
                 />
                 <p className="mt-1 text-xs text-faint">
-                  Sets how sales tax works — only MEHKO (hot food) sees the tax
+                  Sets how sales tax works: only MEHKO (hot food) sees the tax
                   tools. Change it only if your permit type changed.
                 </p>
               </>
@@ -219,7 +219,7 @@ export default async function SettingsPage({
             <p className="mt-1 text-xs text-faint">
               {cook.cover_url
                 ? "Upload to replace the banner across the top of your storefront."
-                : "The wide banner across the top of your storefront — a bright, appetizing shot of your food or table sets the tone."}
+                : "The wide banner across the top of your storefront. A bright, appetizing shot of your food or table sets the tone."}
             </p>
           </div>
 
@@ -252,7 +252,7 @@ export default async function SettingsPage({
               placeholder="e.g. West Sunnyvale"
             />
             <p className="text-xs text-faint">
-              Shoppers only ever see your <span className="text-ink">city and neighborhood</span> —
+              Shoppers only ever see your <span className="text-ink">city and neighborhood</span>,
               never your street address. If you offer home pickup, your address is
               shared with a buyer after they order; if you meet somewhere else, it&apos;s
               never shared.
@@ -268,7 +268,7 @@ export default async function SettingsPage({
                 placeholder="e.g. 123-456789"
               />
               <p className="mt-1 text-xs text-faint">
-                Private — for remitting California sales tax on hot food. Free at{" "}
+                Private, for remitting California sales tax on hot food. Free at{" "}
                 <a
                   href="https://www.cdtfa.ca.gov"
                   target="_blank"
@@ -335,7 +335,7 @@ export default async function SettingsPage({
       </form>
 
       <p className="mt-4 text-xs text-faint">
-        Permit number and verification can&apos;t be changed here — contact support to
+        Permit number and verification can&apos;t be changed here. Contact support to
         update your permit.
       </p>
     </div>

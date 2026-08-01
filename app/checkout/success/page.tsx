@@ -35,7 +35,7 @@ export default async function CheckoutSuccessPage({
     return (
       <Fallback
         title="Couldn't verify payment"
-        body={`If you were charged, don't worry — email ${SUPPORT_EMAIL} and we'll sort it out.`}
+        body={`If you were charged, don't worry. Email ${SUPPORT_EMAIL} and we'll sort it out.`}
       />
     );
   }

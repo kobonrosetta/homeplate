@@ -64,7 +64,7 @@ export async function startStripeOnboarding() {
     if (saveErr) {
       redirect(
         `/dashboard/payouts?error=${encodeURIComponent(
-          "Couldn't save your payout account — please try again."
+          "Couldn't save your payout account. Please try again."
         )}`
       );
     }

@@ -17,8 +17,8 @@ export default function ClaimAccount({ defaultEmail }: { defaultEmail: string })
   if (done) {
     return (
       <div className="mt-6 rounded-xl bg-bg p-4 text-sm text-ink">
-        ✓ Your order is saved. We emailed you a link to confirm your account —
-        click it to finish, then find this and future orders under{" "}
+        ✓ Your order is saved. We emailed you a link to confirm your account.
+        Click it to finish, then find this and future orders under{" "}
         <Link href="/orders" className="font-medium text-brand hover:underline">
           Purchases
         </Link>
@@ -43,7 +43,7 @@ export default function ClaimAccount({ defaultEmail }: { defaultEmail: string })
 
   return (
     <div className="mt-6 rounded-xl bg-bg p-4 text-left">
-      <p className="text-sm font-medium text-ink">Save your order — create an account</p>
+      <p className="text-sm font-medium text-ink">Save your order: create an account</p>
       <p className="mt-1 text-xs text-muted">
         Set a password to track this order and check out faster next time. Optional.
       </p>

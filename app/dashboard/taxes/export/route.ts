@@ -59,7 +59,7 @@ export async function GET(req: Request) {
   const lines: string[] = [];
   lines.push(
     [
-      esc(`ForkFork tax report — ${qtr.label}`),
+      esc(`ForkFork tax report: ${qtr.label}`),
       esc(`${cook.city?.trim() || "Santa Clara County"} rate ${formatRate(rate)}`),
       esc("prices are tax-included; estimates only"),
     ].join(",")

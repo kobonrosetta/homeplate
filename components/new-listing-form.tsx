@@ -115,8 +115,8 @@ export default function NewListingForm({
         setDescription(data.description);
         setAiNote(
           image
-            ? "Written from your photo — edit it however you like."
-            : "Tip: add a photo, then rewrite — the description will match the actual item."
+            ? "Written from your photo. Edit it however you like."
+            : "Tip: add a photo, then rewrite, and the description will match the actual item."
         );
       } else {
         setAiNote(data.error || "AI is unavailable right now.");
@@ -210,7 +210,7 @@ export default function NewListingForm({
         <span className="text-sm text-ink">
           This is an <strong>extra</strong>, not a dish
           <span className="mt-0.5 block text-xs text-muted">
-            Packaging, cake lettering, gift wrap, upgrades — shown in its own
+            Packaging, cake lettering, gift wrap, upgrades: shown in its own
             &ldquo;Extras&rdquo; section, and the photo doesn&rsquo;t need to be
             food.
           </span>
@@ -340,7 +340,7 @@ export default function NewListingForm({
           </div>
         ) : (
           <p className="mt-2 text-xs text-faint">
-            No cap — buyers can always order. Use the lead-time note below to set
+            No cap, so buyers can always order. Use the lead-time note below to set
             expectations (e.g. “Order by Friday for Sunday pickup”).
           </p>
         )}
@@ -359,7 +359,7 @@ export default function NewListingForm({
         />
         {!preview && (
           <p className="mt-1 text-xs text-faint">
-            Your photo is what sells the dish on your storefront and browse — add
+            Your photo is what sells the dish on your storefront and browse, so add
             a clear, well-lit shot. Then “Write with AI” below can describe it.
           </p>
         )}
@@ -396,7 +396,7 @@ export default function NewListingForm({
             {!checking && score !== null && !photoOk && (
               <div className="mt-3 rounded-lg border border-red-300 bg-red-50 p-3">
                 <p className="font-medium text-red-800">
-                  This photo won’t do your food justice — scored {score}/100
+                  This photo won’t do your food justice (scored {score}/100)
                 </p>
                 <p className="mt-1 text-sm text-red-700">
                   {feedback ? `${feedback} ` : ""}Upload a clear, well-lit photo of
@@ -458,8 +458,8 @@ export default function NewListingForm({
           className={inputClass}
         />
         <p className="mt-1 text-xs text-faint">
-          List anything a buyer with allergies must know — the AI can&apos;t know
-          this, only you do.
+          List anything a buyer with allergies must know. The AI can&apos;t know
+          this, only you can.
         </p>
       </label>
 
@@ -476,7 +476,7 @@ export default function NewListingForm({
         />
         <p className="mt-1 text-xs text-faint">
           Shown on the item page when filled in. Baked goods: this is what your
-          cottage label lists anyway — buyers trust seeing it.
+          cottage label lists anyway, and buyers trust seeing it.
         </p>
       </label>
 
@@ -523,8 +523,8 @@ function TaxHint({
   if (!Number.isFinite(cents) || cents <= 0) return null;
   return (
     <p className="mt-1 text-xs text-faint">
-      Includes {taxPlace ?? "your area"}&rsquo;s {formatRate(taxRate)} sales tax
-      — you keep about {formatUsd(netOfTaxCents(cents, taxRate))}. Your Taxes
+      Includes {taxPlace ?? "your area"}&rsquo;s {formatRate(taxRate)} sales tax,
+      so you keep about {formatUsd(netOfTaxCents(cents, taxRate))}. Your Taxes
       card tracks what you&rsquo;ll owe; nothing to do now.
     </p>
   );

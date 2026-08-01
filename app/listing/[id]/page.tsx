@@ -45,12 +45,12 @@ export async function generateMetadata({
   if (!found) return {};
   const { listing, cook } = found;
 
-  const title = `${listing.title} — ${cook.business_name}`;
+  const title = `${listing.title} · ${cook.business_name}`;
   const description = (
     listing.description ||
     `${formatUsd(listing.price_cents)} · homemade in ${
       cook.permit_verified ? "a county-verified home kitchen" : "a local home kitchen"
-    } — order on ForkFork.`
+    }. Order on ForkFork.`
   ).slice(0, 200);
 
   return {
@@ -125,7 +125,7 @@ export default async function ListingPage({
           )}
           {hasOptions && (
             <p className="mt-1 text-sm text-muted">
-              from {formatUsd(listing.price_cents)} — choose your options below
+              from {formatUsd(listing.price_cents)} · choose your options below
             </p>
           )}
           {listing.limited_quantity &&

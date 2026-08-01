@@ -65,7 +65,7 @@ export default function CartSync() {
           parts.push(`no longer available: ${removed.join(", ")}`);
         if (changed.length)
           parts.push(`price updated: ${changed.join(", ")}`);
-        if (parts.length) setNotice(`We updated your cart — ${parts.join("; ")}.`);
+        if (parts.length) setNotice(`We updated your cart: ${parts.join("; ")}.`);
       }
     );
   }, [loaded, cart, reconcile]);

@@ -19,7 +19,7 @@ export default function CookPitch({ signedIn = false }: { signedIn?: boolean }) 
             You did the hard part. You got the permit.
           </h1>
           <p className="mt-5 text-lg leading-relaxed text-muted">
-            ForkFork turns your county approval into a real storefront — a
+            ForkFork turns your county approval into a real storefront: a
             menu, online payment, and neighbors who can finally find you. You
             keep 100% of every price you set.
           </p>
@@ -28,7 +28,7 @@ export default function CookPitch({ signedIn = false }: { signedIn?: boolean }) 
               href={applyHref}
               className="rounded-full bg-brand px-6 py-3 font-medium text-white hover:bg-brand/90"
             >
-              {signedIn ? "Start your application" : "Apply to sell — it's free"}
+              {signedIn ? "Start your application" : "Apply to sell, it's free"}
             </Link>
             {!signedIn && (
               <Link
@@ -40,7 +40,7 @@ export default function CookPitch({ signedIn = false }: { signedIn?: boolean }) 
             )}
           </div>
           <p className="mt-4 text-sm text-muted">
-            About ten minutes, and your progress saves after each step — leave
+            About ten minutes, and your progress saves after each step. Leave
             and come back anytime.
           </p>
         </div>
@@ -51,7 +51,7 @@ export default function CookPitch({ signedIn = false }: { signedIn?: boolean }) 
         <div className="mx-auto grid max-w-6xl gap-8 px-6 py-14 sm:grid-cols-2">
           <Perk
             title="Keep 100% of your price"
-            body="You price it, you keep it. Buyers pay a small service fee at checkout — there's no commission, no listing fee, no monthly charge."
+            body="You price it, you keep it. Buyers pay a small service fee at checkout. No commission, no listing fee, no monthly charge."
           />
           <Perk
             title="A badge buyers actually trust"
@@ -59,11 +59,11 @@ export default function CookPitch({ signedIn = false }: { signedIn?: boolean }) 
           />
           <Perk
             title="Your home stays private"
-            body="Buyers see your city — never your street address — until they've placed an order. Your home address never appears on your public page."
+            body="Buyers see your city, never your street address, until they've placed an order. Your home address never appears on your public page."
           />
           <Perk
             title="The boring parts run themselves"
-            body="Orders, payments, buyer contact details, email alerts — handled. Sell hot meals? Your dashboard does the sales-tax math too — quarterly totals, one-click export."
+            body="Orders, payments, buyer contact details, email alerts: all handled. Sell hot meals? Your dashboard does the sales-tax math too, with quarterly totals and one-click export."
           />
         </div>
       </section>
@@ -87,7 +87,7 @@ export default function CookPitch({ signedIn = false }: { signedIn?: boolean }) 
           <Step
             n="3"
             title="Get verified, go live"
-            body="Add your address and permit number. Don't have the number handy? Submit anyway — a person reviews and approves every kitchen, usually within a day."
+            body="Add your address and permit number. Don't have the number handy? Submit anyway. A person reviews and approves every kitchen, usually within a day."
           />
         </div>
       </section>
@@ -124,7 +124,7 @@ export default function CookPitch({ signedIn = false }: { signedIn?: boolean }) 
               >
                 register as a cottage food operator
               </a>
-              . Come back when it&apos;s in hand — we&apos;ll be here.
+              . Come back when it&apos;s in hand, and we&apos;ll be here.
             </p>
           </div>
         </div>
@@ -138,7 +138,7 @@ export default function CookPitch({ signedIn = false }: { signedIn?: boolean }) 
           </h2>
           <p className="mt-2 max-w-xl leading-relaxed text-muted">
             ForkFork is launching in Santa Clara County right now, and the
-            first kitchens set the tone — and get the spotlight.
+            first kitchens set the tone and get the spotlight.
           </p>
           <Link
             href={applyHref}

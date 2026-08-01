@@ -16,7 +16,7 @@ export default function ForgotPasswordPage({
       {sent ? (
         <div className="mt-4 rounded-xl bg-card p-4 text-sm text-ink shadow-soft">
           If an account exists for that email, we&apos;ve sent a link to reset
-          your password. Check your inbox — and your spam folder, just in case.
+          your password. Check your inbox, and your spam folder just in case.
           The link expires in about an hour.
         </div>
       ) : (

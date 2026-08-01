@@ -62,7 +62,7 @@ export async function updateListing(formData: FormData) {
   if (priceDollars > 10000) {
     redirect(
       `/dashboard/listings/${id}/edit?error=` +
-        encodeURIComponent("That price looks too high — the maximum is $10,000.")
+        encodeURIComponent("That price looks too high. The maximum is $10,000.")
     );
   }
 
@@ -161,7 +161,7 @@ export async function saveListingOptions(formData: FormData) {
     .from("listing_option_groups")
     .delete()
     .eq("listing_id", listingId);
-  if (delErr) err("Couldn't save options — please try again.");
+  if (delErr) err("Couldn't save options. Please try again.");
 
   for (let gi = 0; gi < cleaned.length; gi++) {
     const g = cleaned[gi];
@@ -170,7 +170,7 @@ export async function saveListingOptions(formData: FormData) {
       .insert({ listing_id: listingId, name: g.name, sort_order: gi })
       .select("id")
       .single();
-    if (gErr || !group) err("Couldn't save options — please try again.");
+    if (gErr || !group) err("Couldn't save options. Please try again.");
     const { error: oErr } = await supabase.from("listing_options").insert(
       g.options.map((o, oi) => ({
         group_id: group!.id,
@@ -179,7 +179,7 @@ export async function saveListingOptions(formData: FormData) {
         sort_order: oi,
       }))
     );
-    if (oErr) err("Couldn't save options — please try again.");
+    if (oErr) err("Couldn't save options. Please try again.");
   }
 
   revalidatePath("/dashboard", "layout");
@@ -210,7 +210,7 @@ export async function deleteListing(formData: FormData) {
     console.error("deleteListing failed", error);
     redirect(
       "/dashboard/menu?error=" +
-        encodeURIComponent("Couldn't delete this listing — please try again.")
+        encodeURIComponent("Couldn't delete this listing. Please try again.")
     );
   }
   revalidatePath("/dashboard", "layout");

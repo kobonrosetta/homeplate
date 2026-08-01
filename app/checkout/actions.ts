@@ -39,7 +39,7 @@ export async function startCheckout(formData: FormData) {
     if (anonErr || !anon.user) {
       redirect(
         `/checkout?error=${encodeURIComponent(
-          "Couldn't start checkout — please try again."
+          "Couldn't start checkout. Please try again."
         )}`
       );
     }
@@ -71,7 +71,7 @@ export async function startCheckout(formData: FormData) {
     redirect(`${to}?error=${encodeURIComponent(msg)}`);
 
   if (!cookId || requested.length === 0) err("/cart", "Your cart is empty.");
-  if (!contactEmail) err("/checkout", "Add your email — that's where your receipt goes.");
+  if (!contactEmail) err("/checkout", "Add your email. That's where your receipt goes.");
   if (!contactPhone)
     err("/checkout", "Add a phone number so the kitchen can reach you about this order.");
   if (fulfillment === "delivery" && !deliveryAddress)
@@ -150,7 +150,7 @@ export async function startCheckout(formData: FormData) {
   if (drifted) {
     err(
       "/cart",
-      "Prices changed since you added these items. We've updated your cart — take a look before paying."
+      "Prices changed since you added these items. We've updated your cart, so take a look before paying."
     );
   }
 
@@ -189,7 +189,7 @@ export async function startCheckout(formData: FormData) {
   ) {
     err(
       "/checkout",
-      "That pickup time isn't offered by this kitchen anymore — please choose one of their current times."
+      "That pickup time isn't offered by this kitchen anymore. Please choose one of their current times."
     );
   }
 
@@ -224,7 +224,7 @@ export async function startCheckout(formData: FormData) {
   if (short) {
     err(
       "/checkout",
-      `"${short.title}" just sold out or doesn't have that many left — please update your cart.`
+      `"${short.title}" just sold out or doesn't have that many left. Please update your cart.`
     );
   }
 
@@ -234,7 +234,7 @@ export async function startCheckout(formData: FormData) {
   // Stripe rejects charges under $0.50 — bounce before inserting an order row
   // we could never collect on (mirrors the pay-link path).
   if (total < 50)
-    err("/cart", "This order is too small to process — add another item.");
+    err("/cart", "This order is too small to process. Add another item.");
 
   // Create the order in a pending (unpaid) state. The buyer's own RLS policy
   // lets them insert an order for themselves; the line items below are written
@@ -262,7 +262,7 @@ export async function startCheckout(formData: FormData) {
     console.error("checkout: order insert failed", orderErr);
     err(
       "/checkout",
-      "Something went wrong starting your order — your card wasn't charged. Please try again."
+      "Something went wrong starting your order. Your card wasn't charged. Please try again."
     );
   }
 
@@ -278,7 +278,7 @@ export async function startCheckout(formData: FormData) {
     console.error("checkout: order_items insert failed", itemsErr);
     err(
       "/checkout",
-      "Something went wrong starting your order — your card wasn't charged. Please try again."
+      "Something went wrong starting your order. Your card wasn't charged. Please try again."
     );
   }
 
@@ -312,7 +312,7 @@ export async function startCheckout(formData: FormData) {
     console.error("checkout: stripe session failed", e);
     redirect(
       `/checkout?error=${encodeURIComponent(
-        "We couldn't reach payment just now — your card wasn't charged. Please try again."
+        "We couldn't reach payment just now. Your card wasn't charged, so please try again."
       )}`
     );
   }

@@ -47,7 +47,7 @@ export default function OptionsEditor({
                   gs.map((x, i) => (i === gi ? { ...x, name: e.target.value } : x))
                 )
               }
-              placeholder='Dropdown name — e.g. "Size" or "Character on top"'
+              placeholder='Dropdown name, e.g. "Size" or "Character on top"'
               className="w-full rounded-lg border border-line bg-card px-3 py-2 text-sm"
             />
             <button
@@ -78,7 +78,7 @@ export default function OptionsEditor({
                       )
                     )
                   }
-                  placeholder={oi === 0 ? 'Choice — e.g. 6" (default)' : "Choice"}
+                  placeholder={oi === 0 ? 'Choice, e.g. 6" (default)' : "Choice"}
                   className="w-full rounded-lg border border-line bg-card px-3 py-2 text-sm"
                 />
                 <div className="flex shrink-0 items-center gap-1 text-sm text-muted">
@@ -174,7 +174,7 @@ export default function OptionsEditor({
       </div>
       <p className="text-xs text-faint">
         Buyers pick one choice from each dropdown. The first choice is the
-        default — make it your base option (+$0). Prices update automatically.
+        default, so make it your base option (+$0). Prices update automatically.
       </p>
     </form>
   );

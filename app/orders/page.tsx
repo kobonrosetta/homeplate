@@ -195,7 +195,7 @@ export default async function BuyerOrdersPage() {
                   (review ? (
                     <p className="mt-3 flex items-center gap-1 text-sm text-muted">
                       You rated <Stars n={review.rating} />
-                      {review.comment ? ` — "${review.comment}"` : ""}
+                      {review.comment ? `: "${review.comment}"` : ""}
                     </p>
                   ) : (
                     <div className="mt-3 border-t border-line pt-3">
