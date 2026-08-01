@@ -1,7 +1,10 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  darkMode: "media",
+  // No auto dark mode: the site ships a single warm-editorial light theme.
+  // "class" (never applied) keeps any future `dark:` utility from firing on a
+  // visitor's system dark-mode setting the way "media" would.
+  darkMode: "class",
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",

@@ -2,7 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Light theme (default) — warm editorial */
+/* Warm editorial — the site's single light theme. There is deliberately no
+   auto dark mode: every visitor gets this cream/amber look regardless of their
+   device setting, so the brand reads the same for everyone. */
 :root {
   --bg: 250 246 239; /* warm cream */
   --card: 255 253 249; /* warm off-white (not clinical white) */
@@ -14,22 +16,10 @@
   --clay: 194 104 61; /* terracotta accent */
 }
 
-/* Dark theme — warm charcoal, follows the visitor's system setting */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: 26 22 19; /* warm near-black, never pure #000 */
-    --card: 40 34 30;
-    --ink: 245 242 237;
-    --muted: 176 166 158;
-    --faint: 124 114 106;
-    --line: 62 55 49;
-    --brand: 224 138 52; /* brighter, slightly desaturated amber for dark */
-    --clay: 208 118 74;
-  }
-}
-
 html {
-  color-scheme: light dark;
+  /* Pin to light so native UI (form controls, scrollbars) never renders dark,
+     even when the visitor's system is in dark mode. */
+  color-scheme: light;
 }
 
 body {
