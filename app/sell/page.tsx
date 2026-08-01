@@ -16,6 +16,13 @@ import {
   FormError,
 } from "@/components/form";
 
+export const metadata = {
+  title: "Sell your food on ForkFork — for Santa Clara County permit holders",
+  description:
+    "Turn your MEHKO or cottage food permit into a real storefront: a menu, online payment, and neighbors who can finally find you. Keep 100% of every price you set.",
+  alternates: { canonical: "/sell" },
+};
+
 export const dynamic = "force-dynamic";
 
 export default async function SellPage({

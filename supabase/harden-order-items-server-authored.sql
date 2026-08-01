@@ -18,3 +18,6 @@
 -- code is live, its buyer-session order_items insert is denied and checkout
 -- breaks. Running it after the code deploy is always safe.
 drop policy if exists "buyer adds items to own order" on order_items;
+
+
+

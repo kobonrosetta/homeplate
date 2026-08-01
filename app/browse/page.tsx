@@ -6,6 +6,13 @@ import VerifiedBadge from "@/components/verified-badge";
 import EmptyState from "@/components/empty-state";
 import ForkMark from "@/components/fork-mark";
 
+export const metadata = {
+  title: "Browse home chefs in Santa Clara County · ForkFork",
+  description:
+    "County-verified home kitchens near you — hot home-cooked meals and fresh-baked goods from permitted Santa Clara County chefs. Order ahead for pickup or delivery.",
+  alternates: { canonical: "/browse" },
+};
+
 export const dynamic = "force-dynamic";
 
 export default async function BrowsePage() {

@@ -2,6 +2,10 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import HeroSlideshow, { type HeroKitchen } from "@/components/hero-slideshow";
 
+export const metadata = {
+  alternates: { canonical: "/" },
+};
+
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
