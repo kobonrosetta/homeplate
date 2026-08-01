@@ -10,11 +10,12 @@ export default function LoginPage({
   searchParams: { error?: string; next?: string };
 }) {
   // ?next= — where to land after signing in (e.g. a kitchen a guest wanted to
-  // follow). Validated; default home. Carried onto Google, the form, the error
-  // redirect (via the action), and the "create an account" cross-link.
-  const dest = safeNext(searchParams.next, "/");
+  // follow). Validated; defaults into the app (Browse), not the marketing home.
+  // Carried onto Google, the form, the error redirect (via the action), and the
+  // "create an account" cross-link.
+  const dest = safeNext(searchParams.next, "/browse");
   const signUpHref =
-    dest !== "/" ? `/signup?next=${encodeURIComponent(dest)}` : "/signup";
+    dest !== "/browse" ? `/signup?next=${encodeURIComponent(dest)}` : "/signup";
   return (
     <main className="mx-auto flex min-h-[78vh] max-w-md flex-col justify-center px-6 py-12">
       <h1 className="text-2xl font-semibold text-ink">Welcome back</h1>

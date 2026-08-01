@@ -23,9 +23,11 @@ function friendlyAuthError(raw: string | null | undefined): string {
 }
 
 export async function login(formData: FormData) {
-  // Where to land after signing in (e.g. back to the kitchen a guest wanted
-  // to follow). Validated as an internal path; defaults home.
-  const next = safeNext(formData.get("next") as string | null, "/");
+  // Where to land after signing in (e.g. back to the kitchen a guest wanted to
+  // follow). Validated as an internal path. Defaults into the app (Browse), not
+  // the marketing home — the home page ("/") now renders for signed-in users too
+  // (the logo returns there), so a fresh login still drops you into the app.
+  const next = safeNext(formData.get("next") as string | null, "/browse");
   const supabase = createClient();
   const { error } = await supabase.auth.signInWithPassword({
     email: String(formData.get("email")),
@@ -36,7 +38,7 @@ export async function login(formData: FormData) {
     redirect(
       "/login?error=" +
         encodeURIComponent(friendlyAuthError(error.message)) +
-        (next !== "/" ? `&next=${encodeURIComponent(next)}` : "")
+        (next !== "/browse" ? `&next=${encodeURIComponent(next)}` : "")
     );
   }
 

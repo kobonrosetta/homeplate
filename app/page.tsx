@@ -1,18 +1,15 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import HeroSlideshow, { type HeroKitchen } from "@/components/hero-slideshow";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  // The landing page is for prospects. Anyone signed in goes straight into the
-  // app (Browse — the marketplace home); cooks reach their kitchen via the header.
+  // The landing page is the site's home for everyone: the ForkFork logo returns
+  // here whether or not you're signed in. Signed-in visitors get into the app
+  // via the header (Browse / My kitchen) and the hero CTA; we no longer bounce
+  // them straight to Browse (login itself still lands them there).
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (user) redirect("/browse");
 
   // Real kitchens for the hero slideshow — same criteria as Browse (active,
   // payout-ready, something in stock), narrowed to ones with a photo to show.
