@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { safeNext } from "@/lib/safe-next";
+import { captureServer } from "@/lib/analytics-server";
 
 // Supabase auth errors are machine-voiced ("Invalid login credentials") and
 // land in the form-error box at the exact moment a user is already frustrated.
@@ -55,7 +56,7 @@ export async function signup(formData: FormData) {
     intent === "sell" ? "/sell?start=1" : "/browse"
   );
   const supabase = createClient();
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email: String(formData.get("email")),
     password: String(formData.get("password")),
     options: {
@@ -73,6 +74,9 @@ export async function signup(formData: FormData) {
           : "")
     );
   }
+
+  // Supply/demand funnel: was this a buyer or a cook-intent signup?
+  captureServer(data.user?.id, "signup", { intent });
 
   revalidatePath("/", "layout");
   redirect(next);
