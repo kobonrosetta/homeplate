@@ -29,12 +29,12 @@ export default function FollowToggle({
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(body?.error || "Couldn't update — please try again.");
+        setError(body?.error || "Couldn't update. Please try again.");
         return;
       }
       setFollowing(Boolean(body?.following));
     } catch {
-      setError("Couldn't update — please try again.");
+      setError("Couldn't update. Please try again.");
     } finally {
       setPending(false);
     }

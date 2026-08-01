@@ -33,10 +33,10 @@ export default async function DashboardLayout({
                 : "Live"
               : "✓ Approved · set up payouts to go live"
             : cook.status === "pending"
-              ? "Under review — we'll email you when you're approved"
+              ? "Under review. We'll email you when you're approved"
               : cook.status === "paused"
-                ? "Paused — hidden from buyers until you resume (Settings)"
-                : "Suspended — contact support"}
+                ? "Paused. Hidden from buyers until you resume in Settings"
+                : "Suspended. Contact support"}
           {cook.city ? ` · ${cook.city}` : ""}
         </p>
       </div>

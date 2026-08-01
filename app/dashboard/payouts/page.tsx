@@ -59,7 +59,7 @@ export default async function PayoutsPage({
           <p className="rounded-lg bg-brand/10 px-4 py-3 text-sm text-brand">
             <strong>Payouts are active.</strong> You keep 100% of your listed
             price, and Stripe sends it to your bank on its regular payout
-            schedule — exact dates are in your Stripe dashboard.
+            schedule; exact dates are in your Stripe dashboard.
           </p>
           <div className="grid gap-4 sm:grid-cols-1">
             <Stat
@@ -79,8 +79,8 @@ export default async function PayoutsPage({
           <p className="mt-1 text-sm text-muted">
             {inReview
               ? stripe?.disabled_reason
-                ? "Stripe still needs a detail or two from you — continue below to finish."
-                : "Stripe is verifying your details — usually just a few minutes. Add anything they still need below."
+                ? "Stripe still needs a detail or two from you. Continue below to finish."
+                : "Stripe is verifying your details, usually just a few minutes. Add anything they still need below."
               : "Connect a bank account through Stripe so you can take orders and your earnings land automatically. You keep 100% of your listed price; ForkFork only ever takes its service fee from the buyer."}
           </p>
           <form action={startStripeOnboarding} className="mt-4">
@@ -96,7 +96,7 @@ export default async function PayoutsPage({
           <p className="mt-3 text-xs text-faint">
             {cook.status === "active"
               ? "Your kitchen goes live to buyers the moment payouts are active."
-              : "Do this anytime — your kitchen goes live once payouts are active and your application is approved."}
+              : "Do this anytime. Your kitchen goes live once payouts are active and your application is approved."}
           </p>
         </div>
       )}

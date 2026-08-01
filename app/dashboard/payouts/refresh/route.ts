@@ -35,7 +35,7 @@ export async function GET(req: Request) {
   } catch {
     return NextResponse.redirect(
       `${origin}/dashboard/payouts?error=${encodeURIComponent(
-        "Couldn't refresh payout setup — please try again."
+        "Couldn't refresh payout setup. Please try again."
       )}`
     );
   }

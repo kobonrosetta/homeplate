@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     );
     await sendEmail({
       to: cookEmail,
-      subject: `Reminder: an order is waiting — ${cook?.business_name ?? "your kitchen"}`,
+      subject: `Reminder: ${cook?.business_name ?? "your kitchen"} has an order waiting`,
       html: wrapEmail(
         `<h2>An order is still waiting</h2>
          <p><strong>${items}</strong></p>

@@ -20,7 +20,7 @@ export default function PickupWindowsField({
         placeholder={"Saturdays 4–6 PM\nSundays noon–2 PM"}
       />
       <p className="mt-1 text-xs text-faint">
-        You set the schedule — buyers choose one of these at checkout. Leave
+        You set the schedule, and buyers choose one of these at checkout. Leave
         empty to let buyers suggest a time instead.
       </p>
     </div>

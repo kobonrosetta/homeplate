@@ -238,14 +238,14 @@ async function notifyOrderConfirmed(
           buyerIsGuest = Boolean(bu?.data?.user?.is_anonymous);
         }
         const receiptLine = buyerIsGuest
-          ? `<p>This email is your receipt — keep it for the pickup details above.</p>`
+          ? `<p>This email is your receipt. Keep it for the pickup details above.</p>`
           : `<p>${emailLink(
               `${SITE_URL}/orders`,
               "See your orders"
             )} anytime, or keep this email as your receipt.</p>`;
         await sendEmail({
           to: order.contact_email,
-          subject: `Order confirmed — ${kitchen}`,
+          subject: `Order confirmed: ${kitchen}`,
           html: wrapEmail(
             `<h2>Your order is confirmed</h2>
              <p>Thanks${

@@ -127,7 +127,7 @@ export default async function DashboardOverview() {
     tasks.push({
       label: `${newOrders} new ${
         newOrders === 1 ? "order" : "orders"
-      } waiting — tap "I'm on it" so the buyer knows`,
+      } waiting. Tap "I'm on it" so the buyer knows`,
       href: "/dashboard/orders",
       urgent: true,
     });
@@ -142,14 +142,14 @@ export default async function DashboardOverview() {
     tasks.push({
       label: `File your ${prevQtr.label} sales tax by ${formatDueDate(
         prevQtr.dueDate
-      )} — your numbers are ready`,
+      )}. Your numbers are ready`,
       href: "/dashboard#taxes",
       urgent:
         prevQtr.dueDate.getTime() - now.getTime() < 7 * 24 * 60 * 60 * 1000,
     });
   if (cook.status === "active" && !cook.stripe_ready)
     tasks.push({
-      label: "Set up payouts to get paid — your kitchen goes live once it's done",
+      label: "Set up payouts to get paid, and your kitchen goes live once it's done",
       href: "/dashboard/payouts",
       urgent: true,
     });
@@ -163,14 +163,14 @@ export default async function DashboardOverview() {
     tasks.push({
       label: `${readyOrders} ${
         readyOrders === 1 ? "order is" : "orders are"
-      } ready — waiting for pickup`,
+      } ready and waiting for pickup`,
       href: "/dashboard/orders",
     });
   if (soldOut > 0)
     tasks.push({
       label: `${soldOut} ${
         soldOut === 1 ? "item is" : "items are"
-      } sold out — restock or switch to made-to-order`,
+      } sold out. Restock or switch to made-to-order`,
       href: "/dashboard/menu",
     });
   if (cook.status === "active" && totalListings > 0 && visible === 0)
@@ -183,7 +183,7 @@ export default async function DashboardOverview() {
     <div className="space-y-6">
       {cook.status === "pending" && (
         <p className="rounded-lg bg-brand/10 px-4 py-3 text-sm text-brand">
-          Build your menu now — it goes live the moment you&apos;re approved and
+          Build your menu now. It goes live the moment you&apos;re approved and
           payouts are set up.
         </p>
       )}
@@ -203,14 +203,14 @@ export default async function DashboardOverview() {
         <div className="rounded-xl bg-card p-5 shadow-soft">
           <p className="text-sm font-medium text-ink">Share your kitchen</p>
           <p className="mt-1 text-sm text-muted">
-            This link is your storefront — drop it in your WhatsApp groups,
+            This link is your storefront. Drop it in your WhatsApp groups,
             Instagram bio, anywhere your people are. It unfurls with your food
             photo{cook.permit_verified ? " and your verified badge" : ""}.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <ShareLink
               url={`${SITE_URL}/kitchen/${cook.slug}`}
-              text={`Order from ${cook.business_name} on ForkFork — county-verified home cooking`}
+              text={`Order from ${cook.business_name} on ForkFork: county-verified home cooking`}
               showUrl
             />
           </div>
@@ -284,7 +284,7 @@ export default async function DashboardOverview() {
               </li>
               <li>Open the sales-and-use-tax return for the quarter.</li>
               <li>
-                Report your taxable sales — the quarter&apos;s hot-food sales
+                Report your taxable sales: the quarter&apos;s hot-food sales
                 minus the tax inside them (the CSV shows every order behind
                 the number).
               </li>

@@ -48,7 +48,7 @@ export default async function PayPage({
   if (request.status === "paid") {
     return (
       <Dead
-        title="Already paid — thank you!"
+        title="Already paid, thank you!"
         body="This order has been paid. The kitchen has your order and will be in touch."
       />
     );

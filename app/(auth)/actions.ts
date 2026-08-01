@@ -14,11 +14,11 @@ function friendlyAuthError(raw: string | null | undefined): string {
   if (m.includes("invalid login credentials"))
     return "That email and password don't match. Try again, or reset your password.";
   if (m.includes("already registered") || m.includes("already been registered"))
-    return "You already have an account with that email — sign in instead.";
+    return "You already have an account with that email. Sign in instead.";
   if (m.includes("password should be at least"))
     return "Your password needs to be at least 6 characters.";
   if (m.includes("email not confirmed"))
-    return "Please confirm your email first — check your inbox for the link.";
+    return "Please confirm your email first. Check your inbox for the link.";
   return raw && raw.trim() ? raw : "Something went wrong. Please try again.";
 }
 

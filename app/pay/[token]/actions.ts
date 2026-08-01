@@ -34,7 +34,7 @@ export async function payLinkCheckout(formData: FormData) {
     .maybeSingle();
   if (!request) redirect("/");
   if (request.status !== "open" || new Date(request.expires_at) < new Date()) {
-    err("This payment link is no longer active — ask the kitchen for a new one.");
+    err("This payment link is no longer active. Ask the kitchen for a new one.");
   }
 
   const { data: cook } = await admin
@@ -65,7 +65,7 @@ export async function payLinkCheckout(formData: FormData) {
   if (!user) {
     const { data: anon, error: anonErr } =
       await supabase.auth.signInAnonymously();
-    if (anonErr || !anon.user) err("Couldn't start checkout — please try again.");
+    if (anonErr || !anon.user) err("Couldn't start checkout. Please try again.");
     user = anon!.user;
   }
 
@@ -99,7 +99,7 @@ export async function payLinkCheckout(formData: FormData) {
     })
     .select("id")
     .single();
-  if (orderErr || !order) err("Could not start your order — please try again.");
+  if (orderErr || !order) err("Could not start your order. Please try again.");
 
   // Server-authored line item, written with the service role — buyers have no
   // order_items INSERT policy (see harden-order-items-server-authored.sql).
@@ -111,7 +111,7 @@ export async function payLinkCheckout(formData: FormData) {
     quantity: 1,
     line_total_cents: subtotal,
   });
-  if (itemErr) err("Could not start your order — please try again.");
+  if (itemErr) err("Could not start your order. Please try again.");
 
   const h = headers();
   const origin =

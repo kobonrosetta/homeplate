@@ -34,7 +34,7 @@ export async function GET(request: Request) {
   if (next === "/reset-password") {
     return NextResponse.redirect(
       `${base}/forgot-password?error=${encodeURIComponent(
-        "That reset link has expired or already been used — request a new one."
+        "That reset link has expired or already been used. Request a new one."
       )}`
     );
   }

@@ -35,7 +35,7 @@ export async function toggleKitchenPause() {
   if (error) {
     redirect(
       "/dashboard/settings?error=" +
-        encodeURIComponent("Couldn't update your kitchen — please try again.")
+        encodeURIComponent("Couldn't update your kitchen. Please try again.")
     );
   }
 

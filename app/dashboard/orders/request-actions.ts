@@ -31,7 +31,7 @@ export async function createPaymentRequest(formData: FormData) {
   // Don't let a cook mint a link their buyer can't pay — /pay/[token] blocks
   // until Stripe payout onboarding is done, so stop it here with a clear why.
   if (!cook!.stripe_ready)
-    err("Finish setting up payouts first — your buyer couldn't pay this link.");
+    err("Finish setting up payouts first. Your buyer couldn't pay this link otherwise.");
 
   if (!title) err("Describe what the payment is for.");
   if (Number.isNaN(priceDollars) || priceDollars <= 0)
@@ -54,7 +54,7 @@ export async function createPaymentRequest(formData: FormData) {
     pickup_date: pickupDate || null,
     note: note || null,
   });
-  if (error) err("Couldn't create the link — please try again.");
+  if (error) err("Couldn't create the link. Please try again.");
 
   revalidatePath("/dashboard/orders");
   redirect("/dashboard/orders?created=" + token);

@@ -63,7 +63,7 @@ export async function advanceOrder(formData: FormData) {
         const delivery = order.fulfillment === "delivery";
         await sendEmail({
           to: order.contact_email,
-          subject: `${delivery ? "On the way" : "Ready for pickup"} — ${kitchen}`,
+          subject: `${delivery ? "On the way" : "Ready for pickup"}: ${kitchen}`,
           html: wrapEmail(
             delivery
               ? `<h2>Your order is on the way</h2>
@@ -86,7 +86,7 @@ export async function advanceOrder(formData: FormData) {
         if (order?.contact_email) {
           await sendEmail({
             to: order.contact_email,
-            subject: `Order cancelled — ${kitchen}`,
+            subject: `Order cancelled: ${kitchen}`,
             html: wrapEmail(
               `<h2>Your order was cancelled</h2>
                <p>${escapeHtml(kitchen)} had to cancel your order${
@@ -108,7 +108,7 @@ export async function advanceOrder(formData: FormData) {
         if (admins.length > 0) {
           await sendEmail({
             to: admins,
-            subject: `Refund owed — cancelled order ${String(orderId).slice(0, 8)}`,
+            subject: `Refund owed: cancelled order ${String(orderId).slice(0, 8)}`,
             html: wrapEmail(
               `<h2>Manual refund needed</h2>
                <p>${escapeHtml(kitchen)} cancelled order <strong>${escapeHtml(
@@ -116,13 +116,13 @@ export async function advanceOrder(formData: FormData) {
                )}</strong>. Refund <strong>${formatUsd(
                  order?.total_cents ?? 0
                )}</strong> to the buyer in the Stripe dashboard.</p>
-               <p><strong>Important — this order paid the cook via Connect.</strong>
+               <p><strong>Important: this order paid the cook via Connect.</strong>
                When you issue the refund you MUST also <strong>reverse the transfer</strong>
                and <strong>refund the application fee</strong>
                (API: <code>reverse_transfer=true, refund_application_fee=true</code>).
                Otherwise the cook keeps their cut and ForkFork eats the whole refund.</p>
                <p>If the cook's earnings have already paid out to their bank, reversing can
-               drive their Stripe balance negative (ForkFork covers the shortfall) — so
+               drive their Stripe balance negative (ForkFork covers the shortfall), so
                refund before their payout settles whenever possible.</p>`
             ),
           });

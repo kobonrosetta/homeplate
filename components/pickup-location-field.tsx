@@ -29,7 +29,7 @@ export default function PickupLocationField({
         Where do buyers pick up their order?
       </p>
       <p className="text-xs text-faint">
-        Only shared with a buyer after they order — never shown on your public
+        Only shared with a buyer after they order, never shown on your public
         page.
       </p>
 
@@ -62,7 +62,7 @@ export default function PickupLocationField({
         <span className="text-sm">
           <span className="font-medium text-ink">Meet somewhere else</span>
           <span className="block text-xs text-muted">
-            A park, a store parking lot — anywhere that isn&apos;t your home.
+            A park, a store parking lot, anywhere that isn&apos;t your home.
           </span>
         </span>
       </label>

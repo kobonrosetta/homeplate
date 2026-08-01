@@ -45,12 +45,12 @@ export async function generateMetadata({
   const cook = await getActiveCook(params.slug);
   if (!cook) return {};
 
-  const title = `${cook.business_name} — ForkFork`;
+  const title = `${cook.business_name} · ForkFork`;
   const description = (
     cook.bio ||
     `${cook.permit_verified ? "County-verified home kitchen" : "Home kitchen"}${
       cook.city ? ` in ${cook.city}` : ""
-    } — browse the menu and order ahead on ForkFork.`
+    }. Browse the menu and order ahead on ForkFork.`
   ).slice(0, 200);
 
   return {

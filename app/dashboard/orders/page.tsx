@@ -74,7 +74,7 @@ export default async function OrdersPage({
       {justCreated && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
           <p className="text-sm font-medium text-emerald-900">
-            ✓ Link ready — send it to your buyer
+            ✓ Link ready. Send it to your buyer
           </p>
           <div className="mt-2">
             <ShareLink url={`${siteUrl}/pay/${justCreated.token}`} showUrl label="Copy link" />
@@ -134,7 +134,7 @@ export default async function OrdersPage({
       <div className="space-y-8">
         <EmptyState
           title="No orders yet"
-          subtitle="The moment a buyer pays, their order shows up here — what they bought, their pickup time or delivery address, and how to reach them."
+          subtitle="The moment a buyer pays, their order shows up here: what they bought, their pickup time or delivery address, and how to reach them."
         />
         {requestsUi}
       </div>

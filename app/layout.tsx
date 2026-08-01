@@ -9,7 +9,7 @@ import { SITE_URL } from "@/lib/constants";
 export const metadata: Metadata = {
   // Absolute base for Open Graph/Twitter URLs — link unfurls need full URLs.
   metadataBase: new URL(SITE_URL),
-  title: "ForkFork — county-verified home kitchens near you",
+  title: "ForkFork · county-verified home kitchens near you",
   description:
     "Order hot home-cooked meals and fresh-baked goods from county-verified home kitchens in Santa Clara County. Every cook is checked against the county's approved-operator list.",
 };
