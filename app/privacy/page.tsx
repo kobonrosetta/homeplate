@@ -61,7 +61,7 @@ export default function PrivacyPage() {
           support, send transactional email (order confirmations, updates,
           password resets, and — if you follow a kitchen — new-dish
           notifications you can stop at any time), prevent fraud and abuse, and
-          comply with law. If a cook uses our AI helpers, the listing text or
+          comply with law. If a chef uses our AI helpers, the listing text or
           photo they submit is processed by our AI provider to generate a
           description or quality check.
         </p>
@@ -69,14 +69,14 @@ export default function PrivacyPage() {
 
       <S n="3" title="When we share it">
         <p>
-          <strong>Between buyers and cooks (the point of the service).</strong>{" "}
-          When you place an order, the cook receives your order details and
+          <strong>Between buyers and chefs (the point of the service).</strong>{" "}
+          When you place an order, the chef receives your order details and
           contact information (name, phone, email, delivery address or note) so
           they can prepare and hand off your food. After you order, you receive
-          the kitchen&rsquo;s pickup details and, where the cook has provided
+          the kitchen&rsquo;s pickup details and, where the chef has provided
           them, their contact info. Cooks&rsquo;
           public storefronts (business name, menu, photos, city) are visible to
-          everyone; a cook&rsquo;s home address is never shown publicly.
+          everyone; a chef&rsquo;s home address is never shown publicly.
         </p>
         <p>
           <strong>Service providers.</strong> We use a small set of processors

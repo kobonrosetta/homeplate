@@ -24,8 +24,8 @@ export default function TermsPage() {
           Refund Policy
         </Link>
         . If you sell on ForkFork, the{" "}
-        <Link href="/cook-agreement" className="text-brand hover:underline">
-          Cook Agreement
+        <Link href="/chef-agreement" className="text-brand hover:underline">
+          Chef Agreement
         </Link>{" "}
         also applies. If you do not agree, do not use the Services.
       </p>
@@ -34,20 +34,20 @@ export default function TermsPage() {
         <p>
           ForkFork is an online <strong>marketplace</strong> that connects
           buyers with <strong>independent home-food operators</strong>{" "}
-          (&ldquo;cooks&rdquo;) who hold a Microenterprise Home Kitchen
+          (&ldquo;chefs&rdquo;) who hold a Microenterprise Home Kitchen
           Operation (MEHKO) permit or a cottage food operation registration or
           permit issued by Santa Clara County, California.
         </p>
         <p>
           <strong>
-            Cooks are independent businesses. ForkFork does not prepare, cook,
+            Chefs are independent businesses. ForkFork does not prepare, cook,
             package, label, store, transport, or sell any food.
           </strong>{" "}
-          Each order is a transaction between you and the cook: the cook is the
+          Each order is a transaction between you and the chef: the chef is the
           seller of the food, sets their own prices and menu, prepares the food
           in their own permitted home kitchen, and is solely responsible for
           food safety, ingredient and allergen accuracy, labeling, packaging,
-          and complying with the laws that apply to their operation. Cooks are
+          and complying with the laws that apply to their operation. Chefs are
           not employees, agents, partners, or joint venturers of ForkFork.
         </p>
       </S>
@@ -56,16 +56,16 @@ export default function TermsPage() {
         <p>
           When a kitchen displays a &ldquo;County-verified&rdquo; badge (or
           similar), it means exactly this: at the time of review, the permit
-          information the cook provided matched an entry on Santa Clara
+          information the chef provided matched an entry on Santa Clara
           County&rsquo;s published list of approved MEHKO or cottage food
-          operators — or our team verified the cook&rsquo;s permit
+          operators — or our team verified the chef&rsquo;s permit
           documentation directly — and a member of our team reviewed the
           application. We check the county list periodically, not in real
           time.
         </p>
         <p>
           The badge is <strong>not</strong> a guarantee, endorsement, or
-          certification of any cook, kitchen, or food item. It does not mean
+          certification of any chef, kitchen, or food item. It does not mean
           ForkFork has inspected any kitchen, tasted any food, or verified
           anything beyond the permit match described above. Permits are issued
           and enforced by the county, not by ForkFork, and a permit&rsquo;s
@@ -78,11 +78,11 @@ export default function TermsPage() {
           Food sold on ForkFork is prepared in home kitchens operating under
           California&rsquo;s home-kitchen and cottage-food laws — not in
           commercial restaurant facilities. Ingredient and allergen information
-          is provided by the cook, and ForkFork does not verify it.
+          is provided by the chef, and ForkFork does not verify it.
         </p>
         <p>
           <strong>
-            If you have a food allergy or dietary restriction, contact the cook
+            If you have a food allergy or dietary restriction, contact the chef
             directly before ordering and make your own judgment about whether
             to order.
           </strong>{" "}
@@ -104,23 +104,23 @@ export default function TermsPage() {
           You agree to provide accurate information (including a working phone
           number and email for order coordination) and to use the Services only
           for lawful, personal, non-commercial purchases unless you are an
-          approved cook.
+          approved chef.
         </p>
       </S>
 
       <S n="5" title="Orders, prices, and payment">
         <p>
-          The listed price of every item is set by the cook, and the cook
+          The listed price of every item is set by the chef, and the chef
           receives 100% of it. At checkout, buyers pay a ForkFork service fee
           (currently 8% of the subtotal plus $0.30), which is shown before you
           pay. Listed prices include any California sales tax due on the item;
-          the cook is responsible for reporting and remitting that tax.
+          the chef is responsible for reporting and remitting that tax.
         </p>
         <p>
           Payments are processed by Stripe. ForkFork does not store your card
           number. When you pay, you authorize the total shown; your payment to
-          ForkFork settles your payment obligation to the cook for that order,
-          and the cook&rsquo;s share is transferred to them through Stripe. An
+          ForkFork settles your payment obligation to the chef for that order,
+          and the chef&rsquo;s share is transferred to them through Stripe. An
           order is a binding purchase once payment is confirmed, subject to the{" "}
           <Link href="/refunds" className="text-brand hover:underline">
             Refund Policy
@@ -128,7 +128,7 @@ export default function TermsPage() {
           .
         </p>
         <p>
-          Pickup and delivery are arranged between you and the cook as shown at
+          Pickup and delivery are arranged between you and the chef as shown at
           checkout. Exact pickup details (and the kitchen&rsquo;s contact info,
           where provided) are shared after you order. Please be on time — food
           is perishable, and a missed pickup is not automatically refundable.
@@ -139,7 +139,7 @@ export default function TermsPage() {
         <p>
           You may post a review only for an order you actually completed.
           Reviews must reflect your genuine experience and must not be
-          defamatory, harassing, discriminatory, or unlawful. Cooks provide
+          defamatory, harassing, discriminatory, or unlawful. Chefs provide
           their own listing content (names, photos, descriptions). ForkFork may
           — but is not obligated to — moderate, edit the display of, or remove
           any content, listing, review, or account at its discretion, including
@@ -181,8 +181,8 @@ export default function TermsPage() {
       <S n="9" title="Limitation of liability">
         <p>
           TO THE FULLEST EXTENT PERMITTED BY LAW: (a) FORKFORK IS NOT LIABLE
-          FOR THE ACTS OR OMISSIONS OF ANY COOK OR BUYER, INCLUDING ANY ILLNESS,
-          INJURY, OR DAMAGE ARISING FROM FOOD PREPARED OR SOLD BY A COOK; (b)
+          FOR THE ACTS OR OMISSIONS OF ANY CHEF OR BUYER, INCLUDING ANY ILLNESS,
+          INJURY, OR DAMAGE ARISING FROM FOOD PREPARED OR SOLD BY A CHEF; (b)
           FORKFORK IS NOT LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL,
           CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR LOST PROFITS; AND (c)
           FORKFORK&rsquo;S TOTAL LIABILITY FOR ANY CLAIM ARISING OUT OF THE
@@ -201,7 +201,7 @@ export default function TermsPage() {
           You agree to indemnify and hold ForkFork harmless from claims,
           damages, and expenses (including reasonable attorneys&rsquo; fees)
           arising from your content, your use of the Services, your violation
-          of these Terms, or — if you are a cook — the food and services you
+          of these Terms, or — if you are a chef — the food and services you
           provide.
         </p>
       </S>
@@ -240,8 +240,8 @@ export default function TermsPage() {
           rest remains in effect. Our failure to enforce a provision is not a
           waiver. You may not assign these Terms; we may assign them in
           connection with a merger, acquisition, or sale of assets. These
-          Terms, the Privacy Policy, the Refund Policy, and (for cooks) the
-          Cook Agreement are the entire agreement between you and ForkFork
+          Terms, the Privacy Policy, the Refund Policy, and (for chefs) the
+          Chef Agreement are the entire agreement between you and ForkFork
           about the Services.
         </p>
         <p>

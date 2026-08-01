@@ -116,12 +116,12 @@ export async function advanceOrder(formData: FormData) {
                )}</strong>. Refund <strong>${formatUsd(
                  order?.total_cents ?? 0
                )}</strong> to the buyer in the Stripe dashboard.</p>
-               <p><strong>Important: this order paid the cook via Connect.</strong>
+               <p><strong>Important: this order paid the chef via Connect.</strong>
                When you issue the refund you MUST also <strong>reverse the transfer</strong>
                and <strong>refund the application fee</strong>
                (API: <code>reverse_transfer=true, refund_application_fee=true</code>).
-               Otherwise the cook keeps their cut and ForkFork eats the whole refund.</p>
-               <p>If the cook's earnings have already paid out to their bank, reversing can
+               Otherwise the chef keeps their cut and ForkFork eats the whole refund.</p>
+               <p>If the chef's earnings have already paid out to their bank, reversing can
                drive their Stripe balance negative (ForkFork covers the shortfall), so
                refund before their payout settles whenever possible.</p>`
             ),

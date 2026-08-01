@@ -329,7 +329,7 @@ export default async function AdminPage({
         <Stat label="Buyer spend (GMV)" value={formatUsd(gmv)} />
         <Stat label="Your fees" value={formatUsd(feeRevenue)} />
         <Stat
-          label="To cooks (auto via Stripe)"
+          label="To chefs (auto via Stripe)"
           value={formatUsd(cookEarnings)}
           accent
         />

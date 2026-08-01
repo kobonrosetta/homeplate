@@ -25,8 +25,8 @@ export default function SiteFooter() {
           <Link href="/refunds" className="hover:text-ink hover:underline">
             Refund Policy
           </Link>
-          <Link href="/cook-agreement" className="hover:text-ink hover:underline">
-            Cook Agreement
+          <Link href="/chef-agreement" className="hover:text-ink hover:underline">
+            Chef Agreement
           </Link>
           <a
             href="mailto:hello@forkfork.app"

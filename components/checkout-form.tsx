@@ -177,7 +177,7 @@ export default function CheckoutForm({
 
       <div className="space-y-2 rounded-xl bg-card p-4 text-sm shadow-soft">
         <Row
-          label="Subtotal (the cook receives this)"
+          label="Subtotal (the chef receives this)"
           value={formatUsd(subtotalCents)}
         />
         <Row label="Service fee (8% + $0.30)" value={formatUsd(fee)} />

@@ -394,7 +394,7 @@ export default async function KitchenPage({
           there's no photo, and it still carries the name + credentials when
           there's no story yet. */}
       <section className="mt-14 border-t border-line pt-10">
-        <h2 className="text-lg font-semibold text-ink">Meet the cook</h2>
+        <h2 className="text-lg font-semibold text-ink">Meet the chef</h2>
         <div className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-start">
           {cook.avatar_url ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -413,10 +413,10 @@ export default async function KitchenPage({
           )}
           <div className="min-w-0 flex-1">
             <p className="font-display text-lg font-semibold text-ink">
-              {cook.owner_name || `The cook behind ${cook.business_name}`}
+              {cook.owner_name || `The chef behind ${cook.business_name}`}
             </p>
             <p className="mt-0.5 text-sm text-muted">
-              {cook.operation_type === "mehko" ? "Home cook" : "Home baker"}
+              {cook.operation_type === "mehko" ? "Home chef" : "Home baker"}
               {cook.city ? ` in ${cook.city}` : ""}
               {joinedLabel ? ` · on ForkFork since ${joinedLabel}` : ""}
             </p>

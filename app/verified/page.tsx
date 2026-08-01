@@ -14,7 +14,7 @@ export default function VerifiedPage() {
         Every kitchen is a real, permitted home food business
       </h1>
       <p className="mt-3 text-lg leading-relaxed text-muted">
-        Not an anonymous seller. A home cook Santa Clara County has cleared to
+        Not an anonymous seller. A home chef Santa Clara County has cleared to
         make and sell food. Here&rsquo;s exactly what the &ldquo;County-verified&rdquo;
         badge means.
       </p>
@@ -29,7 +29,7 @@ export default function VerifiedPage() {
         <Point n="2" title="Inspected and trained under state law">
           A MEHKO cook&rsquo;s actual home kitchen passes a county health
           inspection before the permit issues (by the same department that
-          inspects restaurants), and the cook holds food-safety certification,
+          inspects restaurants), and the chef holds food-safety certification,
           just like a restaurant kitchen manager. Cottage-food bakers complete
           state-approved food-safety training and may only sell foods
           California classifies as low-risk to make at home: breads, pastries,

@@ -62,7 +62,7 @@ export default async function BrowsePage() {
           ? `${kitchens.length} home ${
               kitchens.length === 1 ? "kitchen" : "kitchens"
             } open now.`
-          : "Verified home cooks and bakers."}
+          : "Verified home chefs and bakers."}
       </p>
 
       {kitchens.length > 0 && (
