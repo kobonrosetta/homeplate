@@ -7,6 +7,7 @@ import { useCart } from "@/components/cart-context";
 import CartSync from "@/components/cart-sync";
 import { calcServiceFeeCents, formatUsd } from "@/lib/constants";
 import { startCheckout } from "@/app/checkout/actions";
+import { track } from "@/lib/analytics";
 
 const INPUT =
   "w-full rounded-lg border border-line bg-card px-3 py-2 text-ink outline-none focus:border-muted";
@@ -58,7 +59,17 @@ export default function CheckoutForm({
   return (
     <>
       <CartSync />
-      <form action={startCheckout} className="mt-6 space-y-6">
+      <form
+        action={startCheckout}
+        onSubmit={() =>
+          track("checkout_started", {
+            items: cart.items.length,
+            subtotal_cents: subtotalCents,
+            cook_slug: cart.cook.slug,
+          })
+        }
+        className="mt-6 space-y-6"
+      >
       <input type="hidden" name="cook_id" value={cart.cook.id} />
       <input type="hidden" name="items" value={JSON.stringify(items)} />
       <input type="hidden" name="fulfillment" value={fulfillment} />

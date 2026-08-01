@@ -7,6 +7,7 @@ import { CartProvider } from "@/components/cart-context";
 import { SITE_URL } from "@/lib/constants";
 import JsonLd from "@/components/json-ld";
 import { organizationSchema } from "@/lib/schema";
+import AnalyticsProvider from "@/components/analytics-provider";
 
 const TITLE = "ForkFork · county-verified home kitchens near you";
 const DESCRIPTION =
@@ -58,6 +59,7 @@ export default function RootLayout({
     <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
       <body>
         <JsonLd data={organizationSchema()} />
+        <AnalyticsProvider />
         <CartProvider>
           <div className="flex min-h-screen flex-col">
             <SiteHeader />

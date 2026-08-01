@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useCart, type CartCook } from "@/components/cart-context";
+import { track } from "@/lib/analytics";
 
 export default function AddToCart({
   cook,
@@ -23,6 +24,7 @@ export default function AddToCart({
 
   function doAdd() {
     addItem(cook, item, 1);
+    track("add_to_cart", { cook_slug: cook.slug });
     setAdded(true);
     setTimeout(() => setAdded(false), 1200);
   }
