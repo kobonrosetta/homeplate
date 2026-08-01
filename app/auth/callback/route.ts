@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   // `next` can come from a public link (OAuth redirectTo), so validate it as
   // an internal path — never redirect to an attacker-supplied absolute URL.
-  const next = safeNext(searchParams.get("next"), "/");
+  const next = safeNext(searchParams.get("next"), "/browse");
 
   // Behind a host like Render, request.url is the *internal* address
   // (e.g. http://localhost:10000), so redirecting to its origin sends the user

@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 // "Continue with Google". Supabase handles the OAuth flow; we just send the
 // user off and tell it where to land afterwards (via ?next= on our callback).
 export default function GoogleButton({
-  next = "/",
+  next = "/browse",
   disabled = false,
 }: {
   next?: string;

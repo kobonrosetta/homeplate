@@ -65,7 +65,8 @@ for setup). Note: Resend's API blocks the sandbox unless you send a `User-Agent`
 
 ```
 app/                      # App Router — 20 pages, force-dynamic throughout
-  page.tsx                # marketing landing (redirects signed-in users to /browse)
+  page.tsx                # marketing landing / home — renders for everyone (the logo
+                          #   returns here); login lands signed-in users in /browse
   browse/                 # buyer: kitchen grid (only kitchens with in-stock items)
   kitchen/[slug]/         # buyer: a kitchen's menu + reviews
   listing/[id]/           # buyer: single item
