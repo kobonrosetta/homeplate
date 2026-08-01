@@ -3,16 +3,16 @@ import Link from "next/link";
 import { LegalPage, LegalSection as S } from "@/components/legal-page";
 
 export const metadata: Metadata = {
-  title: "Cook Agreement — ForkFork",
+  title: "Chef Agreement — ForkFork",
   description: "The terms for selling on ForkFork as a permitted home kitchen.",
 };
 
 export default function CookAgreementPage() {
   return (
-    <LegalPage title="Cook Agreement" effective="July 31, 2026">
+    <LegalPage title="Chef Agreement" effective="July 31, 2026">
       <p className="text-[15px] leading-relaxed text-muted">
         This agreement applies to anyone who applies to sell or sells on
-        ForkFork (&ldquo;you,&rdquo; a &ldquo;cook&rdquo;), in addition to the{" "}
+        ForkFork (&ldquo;you,&rdquo; a &ldquo;chef&rdquo;), in addition to the{" "}
         <Link href="/terms" className="text-brand hover:underline">
           Terms of Service
         </Link>{" "}

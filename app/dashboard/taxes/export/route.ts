@@ -19,7 +19,7 @@ const PAID_STATUSES = ["confirmed", "in_progress", "ready", "completed"];
 export async function GET(req: Request) {
   const { cook } = await getCurrentCook();
   if (!cook) {
-    return new Response("Sign in as a cook to download your tax report.", {
+    return new Response("Sign in as a chef to download your tax report.", {
       status: 401,
     });
   }

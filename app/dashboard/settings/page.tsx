@@ -113,7 +113,7 @@ export default async function SettingsPage({
             />
             <p className="mt-1 text-xs text-faint">
               Shown on your storefront as the person behind the kitchen (“Meet
-              the cook”). A first name is perfect; buyers trust a name and a
+              the chef”). A first name is perfect; buyers trust a name and a
               face far more than a logo.
             </p>
           </div>

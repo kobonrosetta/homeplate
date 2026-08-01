@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: "ForkFork · county-verified home kitchens near you",
   description:
-    "Order hot home-cooked meals and fresh-baked goods from county-verified home kitchens in Santa Clara County. Every cook is checked against the county's approved-operator list.",
+    "Order hot home-cooked meals and fresh-baked goods from county-verified home kitchens in Santa Clara County. Every chef is checked against the county's approved-operator list.",
 };
 
 // Warm editorial type: Fraunces for display headings, Inter for everything else.

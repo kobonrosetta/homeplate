@@ -92,8 +92,8 @@ export default async function Home() {
             body="We match every permit against Santa Clara County's own approved-operator list, then a person reviews each kitchen before it can take a single order. Not cleared by the county? Not on ForkFork."
           />
           <Feature
-            title="Your money goes to the cook"
-            body="Cooks keep 100% of the price they set. The small service fee at checkout is what runs ForkFork. You're paying the person who made your dinner, not a middleman."
+            title="Your money goes to the chef"
+            body="Chefs keep 100% of the price they set. The small service fee at checkout is what runs ForkFork. You're paying the person who made your dinner, not a middleman."
           />
         </div>
       </section>

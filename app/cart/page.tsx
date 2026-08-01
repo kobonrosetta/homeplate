@@ -109,7 +109,7 @@ export default function CartPage() {
       </ul>
 
       <div className="mt-6 space-y-2 rounded-xl bg-card p-4 text-sm shadow-soft">
-        <Row label="Subtotal (the cook receives this)" value={formatUsd(subtotalCents)} />
+        <Row label="Subtotal (the chef receives this)" value={formatUsd(subtotalCents)} />
         <Row label="Service fee (8% + $0.30)" value={formatUsd(fee)} />
         <div className="border-t border-line pt-2">
           <Row label="Total" value={formatUsd(total)} bold />

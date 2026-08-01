@@ -17,7 +17,7 @@ function statusLabel(status: string, fulfillment: string): string {
     case "confirmed":
       return "Paid · sent to the kitchen";
     case "in_progress":
-      return "Cook is on it";
+      return "Chef is on it";
     case "ready":
       return fulfillment === "delivery" ? "Out for delivery" : "Ready for pickup";
     case "completed":

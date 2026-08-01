@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 // Shared shell for the legal pages (/terms, /privacy, /refunds,
-// /cook-agreement): one consistent typographic frame so the documents read as a
+// /chef-agreement): one consistent typographic frame so the documents read as a
 // set, with cross-links in the footer of each.
 export function LegalPage({
   title,
@@ -38,8 +38,8 @@ export function LegalPage({
           <Link href="/refunds" className="hover:text-ink hover:underline">
             Refund Policy
           </Link>
-          <Link href="/cook-agreement" className="hover:text-ink hover:underline">
-            Cook Agreement
+          <Link href="/chef-agreement" className="hover:text-ink hover:underline">
+            Chef Agreement
           </Link>
         </p>
       </div>

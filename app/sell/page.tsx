@@ -168,7 +168,7 @@ function Step1({ cook, phone }: { cook: any; phone: string }) {
           />
           <p className="mt-1 text-xs text-faint">
             Shown on your storefront as the person behind the kitchen (“Meet the
-            cook”). A first name is perfect; buyers trust a name and a face far
+            chef”). A first name is perfect; buyers trust a name and a face far
             more than a logo.
           </p>
         </div>
@@ -421,7 +421,7 @@ function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
             By submitting, you agree to the{" "}
             <details className="inline">
               <summary className="inline cursor-pointer">
-                <span className="underline hover:text-ink">Cook Agreement</span>.
+                <span className="underline hover:text-ink">Chef Agreement</span>.
               </summary>
               <span className="mt-2 block space-y-2 rounded-lg bg-card p-3 text-muted shadow-soft">
                 <span className="block">
@@ -443,11 +443,11 @@ function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
                 </span>
                 <span className="block">
                   <Link
-                    href="/cook-agreement"
+                    href="/chef-agreement"
                     target="_blank"
                     className="font-medium text-brand underline hover:no-underline"
                   >
-                    Read the full Cook Agreement →
+                    Read the full Chef Agreement →
                   </Link>
                 </span>
               </span>
