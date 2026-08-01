@@ -2,7 +2,6 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatUsd } from "@/lib/constants";
 import { publicArea } from "@/lib/handoff";
-import FeeNote from "@/components/fee-note";
 import VerifiedBadge from "@/components/verified-badge";
 import EmptyState from "@/components/empty-state";
 import ForkMark from "@/components/fork-mark";
@@ -58,16 +57,13 @@ export default async function BrowsePage() {
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
       <h1 className="text-3xl font-semibold text-ink">Local kitchens</h1>
-      <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <p className="text-muted">
-          {kitchens.length > 0
-            ? `${kitchens.length} home ${
-                kitchens.length === 1 ? "kitchen" : "kitchens"
-              } open now.`
-            : "Verified home cooks and bakers."}
-        </p>
-        <FeeNote />
-      </div>
+      <p className="mt-1 text-muted">
+        {kitchens.length > 0
+          ? `${kitchens.length} home ${
+              kitchens.length === 1 ? "kitchen" : "kitchens"
+            } open now.`
+          : "Verified home cooks and bakers."}
+      </p>
 
       {kitchens.length > 0 && (
         <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-card px-4 py-3 text-sm text-muted shadow-soft">
