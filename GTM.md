@@ -1,7 +1,8 @@
 # ForkFork — Go-To-Market & Outreach Plan
 
 _Owner: Kobon (founder/CEO). Last updated: 2026-08-01. This is a living working
-doc — edit it as reality teaches you things._
+doc — edit it as reality teaches you things. Incorporates the deep competitive
+teardown in `gtm/foodnome-teardown.md`._
 
 ---
 
@@ -22,6 +23,14 @@ recruiting and _keeping_ the first 5–10 real chefs in one small area.** Everyt
 in this plan bends toward that. If you internalize one thing: this is a
 **supply-first, hyperlocal, do-things-that-don't-scale** business, and your
 biggest asset is that you can afford to move slowly because you didn't raise money.
+
+**And there's a deeper question under all of this** that the teardown surfaced and
+you should answer on purpose, not by default: **are you building a business or a
+movement?** The best-run version of exactly this (Foodnome) took 2× your fee and
+_still_ concluded the answer was "movement" — it became a nonprofit that gives
+cooks money instead of taking a cut. Your lean build means you can run ForkFork as
+either, but the answer sets your fee model, whether you chase grants or investors,
+and how you spend the next year. See §10.1.
 
 ---
 
@@ -49,6 +58,17 @@ I researched every prior attempt at this. The pattern is brutal and clarifying.
    from DoorDash / Uber Eats / third-party delivery.** A compliant discovery-and-
    ordering layer is a real, legal gap in the market. That gap is your reason to
    exist.
+4. **Verification is _the_ demand unlock — confirmed by every source.** The
+   recurring category conclusion: _"consumers don't want to buy food from an
+   uncertified kitchen."_ Josephine (3,000+ cooks) died skipping health-department
+   approval. Your county-verification isn't a nice differentiator — it's what makes
+   the demand side possible at all. Treat it as the product's spine.
+5. **Nobody has made marketplace fees alone sustain a for-profit here.** Foodnome
+   charged **15% + a $1,000 onboarding fee** and still went nonprofit; DishDivvy
+   took 15% and folded; "standard" is 15–25% _from cooks_. You take **0% from
+   chefs** — the friendliest economics in the category (great for recruiting), but
+   it means fee revenue is even thinner. Sustainability is a real open question,
+   not a given (§10.1).
 
 ---
 
@@ -61,10 +81,12 @@ I researched every prior attempt at this. The pattern is brutal and clarifying.
   that's a company-level risk you must know.
 - **18 California jurisdictions** now allow MEHKO (LA, San Diego, Riverside,
   Alameda, etc.) — that's your county-by-county expansion runway _if_ SCC works.
-- **Your addressable supply, today, by name: ~497 operators** — 174 MEHKO + 323
-  cottage-food — already loaded in your database. **This is your crown jewel.**
+- **Your addressable supply, today, by name: ~487 operators** — 171 MEHKO + 316
+  cottage-food (the live county count; it drifts as permits issue/expire) —
+  already mapped in `gtm/chef-outreach-crm.csv`. **This is your crown jewel.**
   Most founders spend months figuring out how to find sellers. You have a
   complete, verified list of every legal home food business in your county.
+  **98 of the MEHKOs are in San Jose — that's 57%, and it's your starting cluster.**
 - **The catch — supply is structurally small and capped.** By law a MEHKO can
   sell **30 meals/day, 60/week, ~$107k/year max**. So per-chef GMV is capped, and
   at your 8% + $0.30 fee a chef doing $40k/yr is only ~$3.2k of platform revenue.
@@ -74,7 +96,7 @@ I researched every prior attempt at this. The pattern is brutal and clarifying.
 
 ## 3. Your unfair advantages (lean on these)
 
-1. **The list.** 497 permitted operators, by name, verified against the county.
+1. **The list.** 487 permitted operators, by name, verified against the county.
    Your outreach doesn't start cold — it starts with "I already know you're
    legal." (§6 is the playbook for working it.)
 2. **No VC clock.** You can run this at the slow, patient speed the category
@@ -85,6 +107,16 @@ I researched every prior attempt at this. The pattern is brutal and clarifying.
    one who answers it with the county's own records.
 4. **You fill the legal gap.** MEHKOs can't be on DoorDash. You're the compliant
    way for them to be _found_ and take orders. That's a genuine job-to-be-done.
+5. **The friendliest economics in the category.** Everyone else takes 15–25% _from
+   cooks_ (Foodnome 15% + $1k onboarding, DishDivvy 15%). You take **0% from chefs
+   — they keep 100%.** Say it out loud in every recruiting conversation; it's a
+   real wedge. (Caveat: it also makes fee revenue thin — see §10.1.)
+6. **A recruiting truth + a story that opens doors.** A home restaurant costs
+   **<$1,000 to start** vs. ~$400k for a brick-and-mortar or ~$50k for a food
+   truck — the most persuasive line you have for any cook who ever dreamed of
+   "opening a place." And the movement's demographics (home cooks are ~84% women,
+   ~48% Black/Latino, ~30% first-generation immigrant) are a genuine press,
+   partnership, and grant story a plain "food app" can't tell.
 
 **How to think about Hotplate (your most important "competitor"):**
 
@@ -92,7 +124,7 @@ I researched every prior attempt at this. The pattern is brutal and clarifying.
 > brilliant tool — **if the chef already has an audience.** It does zero discovery
 > and zero verification. It's a cash register, not a storefront in a mall.
 >
-> **ForkFork's wedge: the ~90% of your 497 permit-holders who have NO audience.**
+> **ForkFork's wedge: the ~90% of your 487 permit-holders who have NO audience.**
 > A chef with 8k Instagram followers should use Hotplate. A talented cook with a
 > permit and 40 followers is invisible today — and that's who you serve, by
 > _bringing them customers they could never reach alone._
@@ -145,10 +177,16 @@ This is 80% of your time for the next 1–2 months. See §6 for the playbook.
       status, notes.
 - [ ] Source contact info (§6). Reach out to 20–30 to land the first 5–10.
 - [ ] **Concierge-onboard every single one by hand** — sit with them (in person or
-      video), build their kitchen, shoot/upload photos, write the first listing.
-      Do not rely on self-serve for chef #1–10. White-glove supply is how every
-      marketplace that survived actually started.
+      video), build their kitchen, shoot/upload photos, write the first listing,
+      **and coach their pricing** so they don't underprice into burnout (the #1
+      quiet killer of home food businesses — §7). Do not rely on self-serve for
+      chef #1–10. White-glove supply is how every marketplace that survived started.
 - [ ] Get them **payout-ready** (Stripe Express) so they're live, not stuck.
+- [ ] **Introduce yourself to Santa Clara County Environmental Health as a
+      _partner_, not a scraper.** They run the MEHKO program, own the list, and
+      talk to every permit holder. Every survivor of this category partnered with
+      health departments; Josephine died fighting them. A friendly relationship
+      could mean referrals, legitimacy, and a moat no competitor has.
 
 ### Phase 2 — Seed demand around the cluster (do-things-that-don't-scale)
 Chefs churn fast if orders don't come (Foodnome watched cooks quit when demand
@@ -193,12 +231,18 @@ names, permit numbers, and cities but often not email/phone. To reach them:
 > so neighbors can actually _find_ you and pay you online, and you keep 100% of
 > your price. I'll set the whole thing up for you myself. Want me to build yours?"
 
+**For the aspiring cook (no permit yet), the door-opener:** "A real home food
+business costs under $1,000 to start — versus $400,000 for a restaurant. You've
+already got the kitchen. I'll help you get there." (If you build the permit
+concierge in §10.2, this becomes a full offer, not just a line.)
+
 **Objection handling:**
 - _"I already sell on Instagram / Hotplate."_ → "Keep doing that — this is extra
   discovery from people who _don't_ already follow you, and it's free to try. You
   lose nothing."
-- _"What does it cost me?"_ → "Nothing. No listing fee, no commission, no monthly.
-  You keep your full price; the buyer pays a small service fee."
+- _"What does it cost me?"_ → "Nothing. No listing fee, no commission, no monthly —
+  you keep your full price; the buyer pays a small service fee. Every other
+  platform takes 15–25% out of _your_ pocket. We take zero from you."
 - _"Why should I trust a new platform?"_ → "You don't have to commit — I'll build
   it, you approve it, and you can pause anytime. And I'm local."
 - _"I'm already at my meal cap."_ → Great problem; they're validated demand. Still
@@ -268,17 +312,32 @@ and the free hosting tier (the site naps). Fix both in Phase 0.**
 
 ## 10. Open decisions for you
 
-1. **Is the buyer-paid 8% + $0.30 fee right for cold-start?** It's clean and chef-
+1. **Business or movement? (decide this first — it sets everything else.)** The
+   best-run competitor concluded "movement," went nonprofit, and now _gives_ cooks
+   money (grants, free permitting, training). Your lean build lets you run ForkFork
+   as a scrappy for-profit _or_ a mission org that survives on grants + goodwill.
+   The answer changes your fee model, your funding path (investors vs. grants), and
+   how you spend the year. You don't have to pick the extreme — but pick a
+   direction on purpose.
+2. **Do you build a "permit concierge"? (the biggest product bet.)** Today you only
+   _harvest_ the 487 who already have a permit. The survivors' real growth engine
+   was _creating_ supply: handling county paperwork for aspiring cooks (Foodnome
+   did it free), training them, even granting them money. A concierge — "we get you
+   MEHKO-approved, then you're live on ForkFork" — would expand supply beyond the
+   fixed list, build deep loyalty, and could be a services revenue line. Real work;
+   possibly your best v2. Decide if/when.
+3. **Is the buyer-paid 8% + $0.30 fee right for cold-start?** It's clean and chef-
    friendly, but buyers pay a premium in a market where trust isn't established.
    Consider a temporary lower/zero fee for launch to remove buyer friction, then
    raise it once value is proven. (Data from analytics should drive this.)
-2. **Which sub-geography first?** Pick based on where your 497 cluster densest
-   _and_ where you personally have demand-side reach.
-3. **Delivery or pickup-first?** Pickup is simpler and cheaper to seed; delivery
+4. **Which sub-geography first?** San Jose is the obvious cluster (57% of MEHKOs).
+   Narrow to a sub-area based on where you personally have demand-side reach.
+5. **Delivery or pickup-first?** Pickup is simpler and cheaper to seed; delivery
    widens the radius but adds chef burden. Recommend pickup-first per cluster.
-4. **How much to invest in the COOK Alliance / advocacy angle?** The survivors of
-   this category leaned on the _movement_, not just the app. Being the friendly
-   local face of "legal home cooking in Santa Clara" may be worth more than ads.
+6. **How much to invest in the advocacy / movement angle?** The survivors leaned on
+   the _movement_, not just the app. Being the friendly local face of "legal home
+   cooking in Santa Clara" — and telling the women/immigrant-founder story — may be
+   worth more than ads, and opens press and grants. (Ties to decision #1.)
 
 ---
 
