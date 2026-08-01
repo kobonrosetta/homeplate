@@ -247,7 +247,10 @@ review-forgery hole + payout-ledger tampering + checkout-trust bugs — see
 2. **Recruit one real cook.** The only thing that tests whether cooks will actually join.
 3. **Go fully live:** rotate all secrets (they were shared in chat / a screenshot — still on
    Stripe **test** mode), then switch Stripe to live keys + BOTH live-mode webhook
-   endpoints (platform + Connect — see gotcha #2 for the two-secret setup) and
+   endpoints (platform + Connect — see gotcha #2 for the two-secret setup),
+   **wipe the pre-launch test data** (run `supabase/reset-test-data.sql` by hand in
+   the SQL editor — clears test orders/payouts so the admin + chef dashboards start
+   at zero; deliberately NO destructive button in the UI), and
    have the first real cook complete live Express onboarding (real SSN/bank — payouts are
    automated via Connect destination charges; refunds still manual). ~~Verify a Resend
    sending domain~~ ✅ Done 2026-07-30 — `forkfork.app` verified, `EMAIL_FROM` =
