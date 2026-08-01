@@ -17,7 +17,7 @@ export const MIN_PHOTO_SCORE = 40;
  * instead, on purpose — they should respect whatever host served them.)
  */
 export const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://homeplate-jyd2.onrender.com";
+  process.env.NEXT_PUBLIC_SITE_URL || "https://forkfork.app";
 
 /** Where buyers and cooks are told to write for help (refunds, charge issues). */
 export const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || "hello@forkfork.app";
