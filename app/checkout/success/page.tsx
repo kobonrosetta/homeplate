@@ -8,6 +8,7 @@ import { pickupLocation } from "@/lib/handoff";
 import { formatUsd, SUPPORT_EMAIL } from "@/lib/constants";
 import ClearCart from "@/components/clear-cart";
 import ClaimAccount from "@/components/claim-account";
+import TrackEvent from "@/components/track-event";
 import FollowToggle from "@/components/follow-toggle";
 
 export const dynamic = "force-dynamic";
@@ -153,6 +154,10 @@ export default async function CheckoutSuccessPage({
   return (
     <main className="mx-auto max-w-xl px-6 py-16">
       <ClearCart />
+      <TrackEvent
+        event="order_confirmed"
+        props={{ total_cents: order?.total_cents, fulfillment: order?.fulfillment }}
+      />
       <div className="rise rounded-2xl bg-card p-8 text-center shadow-soft">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-2xl text-emerald-700">
           ✓

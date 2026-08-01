@@ -47,8 +47,12 @@ export default function PrivacyPage() {
         <p>
           <strong>Automatic information.</strong> Standard server logs (IP
           address, browser type, pages requested) and the cookies described
-          below. We do not currently run third-party advertising or analytics
-          trackers.
+          below. We use a privacy-conscious product-analytics service (PostHog)
+          to understand how the site is used — which pages are visited and
+          actions like adding to cart or placing an order. It does not record
+          your screen, and it does not capture what you type into forms (your
+          name, contact details, or address). We do not run third-party
+          advertising trackers or sell your data.
         </p>
       </S>
 
