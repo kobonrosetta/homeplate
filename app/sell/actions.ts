@@ -15,6 +15,7 @@ import {
 } from "@/lib/listings";
 import { escapeHtml, sendEmail, wrapEmail } from "@/lib/email";
 import { normalizePermit, isExpired } from "@/lib/match";
+import { captureServer } from "@/lib/analytics-server";
 
 async function requireCookUser() {
   const supabase = createClient();
@@ -123,6 +124,7 @@ export async function wizardSaveKitchen(formData: FormData) {
       );
     }
     await supabase.from("profiles").update({ is_cook: true }).eq("id", user.id);
+    captureServer(user.id, "kitchen_created", { operation_type: operationType });
   }
 
   // Optional cook photo + storefront cover.
@@ -155,6 +157,7 @@ export async function wizardAddDish(formData: FormData) {
 
   const err = await insertListingFromForm(supabase, cookId!, formData);
   if (err) redirect("/sell?step=2&error=" + encodeURIComponent(err));
+  captureServer(user.id, "listing_created", { source: "wizard" });
   revalidatePath("/", "layout");
   redirect("/sell?step=3");
 }
@@ -330,6 +333,11 @@ export async function wizardFinalize(formData: FormData) {
   } catch {
     /* ignore */
   }
+
+  captureServer(user.id, "kitchen_submitted", {
+    has_permit: Boolean(normalizedPermit),
+    verified: Boolean(verified),
+  });
 
   revalidatePath("/", "layout");
   redirect("/dashboard");

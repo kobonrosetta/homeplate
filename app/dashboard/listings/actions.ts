@@ -9,6 +9,7 @@ import {
   uploadDishPhoto,
 } from "@/lib/listings";
 import { MAX_GROUPS_PER_LISTING, MAX_OPTIONS_PER_GROUP } from "@/lib/options";
+import { captureServer } from "@/lib/analytics-server";
 
 // Make sure the caller is a logged-in cook, and return their kitchen.
 async function requireCook() {
@@ -27,15 +28,16 @@ async function requireCook() {
   const cook = cooks?.[0];
   if (!cook) redirect("/sell");
 
-  return { supabase, cook };
+  return { supabase, user, cook };
 }
 
 export async function createListing(formData: FormData) {
-  const { supabase, cook } = await requireCook();
+  const { supabase, user, cook } = await requireCook();
   const err = await insertListingFromForm(supabase, cook.id, formData);
   if (err) {
     redirect("/dashboard/listings/new?error=" + encodeURIComponent(err));
   }
+  captureServer(user.id, "listing_created", { source: "dashboard" });
   revalidatePath("/dashboard", "layout");
   redirect("/dashboard/menu");
 }
