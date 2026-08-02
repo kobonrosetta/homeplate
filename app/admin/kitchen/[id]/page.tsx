@@ -56,7 +56,7 @@ export default async function AdminKitchenPage({
     cook.approved_operator_id
       ? db
           .from("approved_operators")
-          .select("id, name, permit_number, city, expires_at")
+          .select("id, name, permit_number, city, expires_at, operation_type")
           .eq("id", cook.approved_operator_id)
           .maybeSingle()
       : Promise.resolve({ data: null as any }),

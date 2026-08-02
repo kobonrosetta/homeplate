@@ -204,11 +204,26 @@ export function MatchNote({
     );
   }
   const tier = nameMatchTier(cook.business_name, op.name);
+  // Program mismatch: the permit auto-verifies on NUMBER alone (cottage +
+  // MEHKO share PT… numbers), so a cook who picked the wrong program still
+  // gets the badge — and a mis-tagged MEHKO cook silently loses all tax
+  // tooling. Surface it here so the reviewer flips the type below before
+  // approving. Only meaningful when both sides declare a type.
+  const typeMismatch =
+    op.operation_type && op.operation_type !== cook.operation_type;
+  const label = (t: string) => (t === "mehko" ? "MEHKO" : "cottage food");
   return (
     <div className="mt-0.5">
       <p className="text-emerald-700">
         ✓ permit {op.permit_number} — {op.name}
       </p>
+      {typeMismatch && (
+        <p className="mt-0.5 text-red-600">
+          ⚠ program mismatch — cook selected {label(cook.operation_type)} but
+          this permit is on the {label(op.operation_type)} list. Fix the
+          operation type below before approving.
+        </p>
+      )}
       {tier === "none" && (
         <p className="mt-0.5 text-amber-700">
           ⚠ brand “{cook.business_name}” doesn’t resemble the permit name —
