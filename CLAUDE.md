@@ -245,7 +245,8 @@ review-forgery hole + payout-ledger tampering + checkout-trust bugs — see
    + optional permit photo + admin review. Both load via re-runnable scripts
    (`import-mehko.mjs` / `import-cottage.mjs`).
 2. **Recruit one real cook.** The only thing that tests whether cooks will actually join.
-3. **Go fully live:** rotate all secrets (they were shared in chat / a screenshot — still on
+3. **Go fully live:** follow **`STRIPE_GO_LIVE.md`** (the audited, ordered cutover
+   runbook). In short: rotate all secrets (they were shared in chat / a screenshot — still on
    Stripe **test** mode), then switch Stripe to live keys + BOTH live-mode webhook
    endpoints (platform + Connect — see gotcha #2 for the two-secret setup),
    **wipe the pre-launch test data** (run `supabase/reset-test-data.sql` by hand in

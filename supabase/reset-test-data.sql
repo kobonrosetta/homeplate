@@ -52,6 +52,25 @@ commit;
 --   delete from cooks where id <> 'YOUR-KEEP-KITCHEN-UUID';
 
 
+-- ── BLOCK C · REQUIRED ONCE at the Stripe test→live cutover ─────────────────
+-- Stripe TEST-mode Connect accounts (acct_…) DO NOT EXIST in live mode. Any
+-- kitchen that onboarded while the platform ran test keys is carrying a dead
+-- account id and a stripe_ready=true flag it no longer deserves: it would look
+-- open to buyers while every checkout 400s, and the cook has no self-heal path
+-- (the payouts page thinks setup is done). Run this at the moment you flip
+-- Render to sk_live keys, so those cooks drop to "Set up payouts" and onboard
+-- fresh live accounts.
+--
+-- ⚠️ Run EXACTLY ONCE, at the cutover. NEVER run after real cooks have
+-- completed LIVE onboarding — it would disconnect their real payout accounts.
+-- (Skip it entirely if cook_stripe is already empty, e.g. after Block B.)
+--
+-- begin;
+-- delete from cook_stripe;
+-- update cooks set stripe_ready = false;
+-- commit;
+
+
 -- ── Verify (optional) ───────────────────────────────────────────────────────
 -- Expect 0 for orders/order_items/reviews/custom_requests/payouts after Block A.
 select

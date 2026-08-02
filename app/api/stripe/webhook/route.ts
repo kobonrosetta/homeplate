@@ -33,21 +33,47 @@ export async function POST(req: Request) {
   }
 
   // `account` is the connected-account id present on Connect-endpoint events.
-  let event: { type?: string; account?: string; data?: { object?: any } };
+  let event: {
+    type?: string;
+    account?: string;
+    livemode?: boolean;
+    data?: { object?: any };
+  };
   try {
     event = JSON.parse(rawBody);
   } catch {
     return new Response("Bad payload", { status: 400 });
   }
 
-  if (event.type === "checkout.session.completed") {
+  // Mode fence: only act on events whose live/test mode matches our secret key.
+  // Guards the cutover window where a test endpoint (or a leaked test signing
+  // secret) could otherwise drive real order confirmations. Ack with 200 so
+  // Stripe doesn't retry what we'll never process.
+  const keyIsLive = (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_live");
+  if (typeof event.livemode === "boolean" && event.livemode !== keyIsLive) {
+    return new Response("ok (mode mismatch ignored)", { status: 200 });
+  }
+
+  // async_payment_succeeded is belt-and-braces: sessions are pinned to card
+  // (which settles synchronously), but if a delayed method ever slips in, its
+  // late success still confirms the order via the same idempotent path.
+  if (
+    event.type === "checkout.session.completed" ||
+    event.type === "checkout.session.async_payment_succeeded"
+  ) {
     const session = event.data?.object ?? {};
     if (session.payment_status === "paid" && session.metadata?.order_id) {
       const pi =
         typeof session.payment_intent === "string"
           ? session.payment_intent
           : (session.payment_intent?.id ?? null);
-      await confirmPaidOrder(session.metadata.order_id, pi);
+      try {
+        await confirmPaidOrder(session.metadata.order_id, pi);
+      } catch {
+        // Confirmation write failed (DB hiccup): 5xx so Stripe redelivers —
+        // a 200 here would strand a PAID order in 'pending' forever.
+        return new Response("Confirm failed", { status: 500 });
+      }
     }
   }
 

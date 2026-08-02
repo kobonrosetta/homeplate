@@ -21,4 +21,4 @@ jobs:
           curl -sS --fail-with-body -X POST \
             --max-time 120 --retry 3 --retry-delay 20 --retry-all-errors \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            https://homeplate-jyd2.onrender.com/api/cron/remind-orders
+            https://forkfork.app/api/cron/remind-orders
