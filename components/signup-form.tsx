@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { TextField, SubmitButton } from "@/components/form";
+import { TextField, SubmitButton, CheckboxField } from "@/components/form";
 import GoogleButton, { OrDivider } from "@/components/google-button";
 import { safeNext } from "@/lib/safe-next";
 
@@ -51,6 +51,19 @@ export default function SignupForm({
         required
         autoComplete="new-password"
         minLength={8}
+      />
+
+      {/* Marketing opt-in — different promise for chefs vs buyers, since they
+          want different email. Default-checked (opt-out); flip to opt-in by
+          dropping defaultChecked. Sending happens in an email tool, not here. */}
+      <CheckboxField
+        name="marketing_opt_in"
+        defaultChecked
+        label={
+          selling
+            ? "Email me occasional tips and updates for growing my kitchen."
+            : "Email me when new kitchens open near me."
+        }
       />
 
       <SubmitButton pendingLabel="Creating…">Create account</SubmitButton>

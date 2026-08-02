@@ -69,6 +69,12 @@ export default function PrivacyPage() {
           photo they submit is processed by our AI provider to generate a
           description or quality check.
         </p>
+        <p>
+          <strong>Marketing email is opt-in.</strong> If you check the box at
+          signup, we&rsquo;ll occasionally email you about new kitchens or
+          updates. Every one of those includes an unsubscribe link, and opting
+          out never affects your orders or account.
+        </p>
       </S>
 
       <S n="3" title="When we share it">
