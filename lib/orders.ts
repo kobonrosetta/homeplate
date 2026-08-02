@@ -22,12 +22,20 @@ export async function confirmPaidOrder(
 ): Promise<void> {
   const admin = createAdminClient();
 
-  const { data: confirmed } = await admin
+  const { data: confirmed, error: confirmErr } = await admin
     .from("orders")
     .update({ status: "confirmed", stripe_payment_intent_id: paymentIntentId })
     .eq("id", orderId)
     .eq("status", "pending")
     .select("id, custom_request_id, cook_id");
+  // A FAILED update (DB hiccup) must throw so the webhook 5xxes and Stripe
+  // retries — swallowing it would 200-ack a paid order stuck in 'pending'
+  // forever. (Zero MATCHED rows is different: that's the idempotent
+  // already-handled case below.)
+  if (confirmErr) {
+    console.error("confirmPaidOrder: order update failed", orderId, confirmErr);
+    throw new Error("Order confirmation write failed");
+  }
   if (!confirmed || confirmed.length === 0) return; // already handled
 
   // A paid payment-link order retires its link (idempotent — the pending
@@ -58,11 +66,43 @@ export async function confirmPaidOrder(
     // THIS order's cook, so no cross-cook line item can zero a competitor's
     // inventory (order_items are server-authored now, but belt-and-braces).
     if (listing?.limited_quantity && listing.cook_id === orderCookId) {
-      const next = Math.max(0, (listing.quantity_available ?? 0) - line.quantity);
+      const have = listing.quantity_available ?? 0;
+      const next = Math.max(0, have - line.quantity);
       await admin
         .from("listings")
         .update({ quantity_available: next })
         .eq("id", line.listing_id);
+      // Oversell tripwire: a paid order that clamps below zero means two
+      // buyers paid for the same last portions (stale session / race). The
+      // charge already happened, so alert the admins to arrange the fix
+      // (extra portions or a refund — remember reverse_transfer +
+      // refund_application_fee on a destination charge). Best-effort.
+      if (have - line.quantity < 0) {
+        try {
+          const admins = (process.env.ADMIN_EMAILS ?? "")
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+          if (admins.length) {
+            await sendEmail({
+              to: admins,
+              subject: `OVERSOLD: order ${orderId.slice(0, 8)} paid past available stock`,
+              html: wrapEmail(
+                `<h2>A paid order exceeded available stock</h2>
+                 <p>Order <strong>${escapeHtml(orderId)}</strong> confirmed with
+                 more units than listing ${escapeHtml(String(line.listing_id))}
+                 had left. The buyer HAS been charged. Contact the chef about an
+                 extra portion, or refund in the Stripe dashboard — this order
+                 paid the chef via Connect, so the refund must set
+                 <code>reverse_transfer=true</code> and
+                 <code>refund_application_fee=true</code>.</p>`
+              ),
+            });
+          }
+        } catch {
+          /* alerting must never break confirmation */
+        }
+      }
     }
   }
 

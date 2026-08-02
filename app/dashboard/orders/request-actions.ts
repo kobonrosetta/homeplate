@@ -42,6 +42,14 @@ export async function createPaymentRequest(formData: FormData) {
   // Deposit = half now, rounded up so the balance is never the bigger half.
   const chargeCents =
     chargeKind === "deposit" ? Math.ceil(fullCents / 2) : fullCents;
+  // Stripe's charge floor is $0.50 — catch it at mint time with a clear why,
+  // instead of every buyer bouncing off the link at pay time.
+  if (chargeCents < 50)
+    err(
+      chargeKind === "deposit"
+        ? "That deposit would be under $0.50, which cards can't process. Charge at least $1.00."
+        : "Card payments need at least $0.50. Enter a higher amount."
+    );
 
   const token = randomBytes(16).toString("hex");
   const { error } = await supabase.from("custom_requests").insert({

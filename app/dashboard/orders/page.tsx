@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getCurrentCook } from "@/lib/cook";
 import { createClient } from "@/lib/supabase/server";
-import { formatUsd } from "@/lib/constants";
+import { formatUsd, SITE_URL } from "@/lib/constants";
 import { advanceOrder } from "./actions";
 import { cancelPaymentRequest } from "./request-actions";
 import ShareLink from "@/components/share-link";
@@ -40,7 +40,7 @@ export default async function OrdersPage({
   const justCreated = searchParams.created
     ? openRequests.find((r: any) => r.token === searchParams.created)
     : null;
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = SITE_URL;
 
   const { data: orders } = await supabase
     .from("orders")

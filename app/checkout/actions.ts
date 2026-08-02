@@ -282,10 +282,16 @@ export async function startCheckout(formData: FormData) {
     );
   }
 
+  // Success/cancel URLs use the host that served THIS request (like every other
+  // in-request redirect), falling back to the canonical site URL. Pinning the
+  // env host here would bounce a buyer who checked out on another domain
+  // (www / onrender) onto a host without their session cookie — the success
+  // page would then hide their order details and never clear their cart.
   const h = headers();
-  const origin =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
+  const host = h.get("host");
+  const origin = host
+    ? `${h.get("x-forwarded-proto") ?? "https"}://${host}`
+    : process.env.NEXT_PUBLIC_SITE_URL || "https://forkfork.app";
 
   const lineItems = [
     ...items.map((i) => ({

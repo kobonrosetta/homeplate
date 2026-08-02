@@ -39,7 +39,7 @@ export async function payLinkCheckout(formData: FormData) {
 
   const { data: cook } = await admin
     .from("cooks")
-    .select("id, status, stripe_ready, business_name")
+    .select("id, status, stripe_ready, business_name, operation_type")
     .eq("id", request.cook_id)
     .maybeSingle();
   if (!cook || cook.status !== "active")
@@ -103,6 +103,10 @@ export async function payLinkCheckout(formData: FormData) {
 
   // Server-authored line item, written with the service role — buyers have no
   // order_items INSERT policy (see harden-order-items-server-authored.sql).
+  // served_hot snapshot: custom orders have no listing to read the flag from,
+  // so key it off the kitchen type — a MEHKO's custom order is hot prepared
+  // food (CA-taxable) and must land in the chef's quarterly tax numbers;
+  // cottage goods are shelf-stable and never taxed here.
   const { error: itemErr } = await admin.from("order_items").insert({
     order_id: order!.id,
     listing_id: null,
@@ -110,13 +114,16 @@ export async function payLinkCheckout(formData: FormData) {
     unit_price_cents: subtotal,
     quantity: 1,
     line_total_cents: subtotal,
+    served_hot: cook!.operation_type === "mehko",
   });
   if (itemErr) err("Could not start your order. Please try again.");
 
+  // Same host-first origin rule as startCheckout (session cookie continuity).
   const h = headers();
-  const origin =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
+  const host = h.get("host");
+  const origin = host
+    ? `${h.get("x-forwarded-proto") ?? "https"}://${host}`
+    : process.env.NEXT_PUBLIC_SITE_URL || "https://forkfork.app";
 
   let session: { id: string; url: string };
   try {
@@ -134,8 +141,9 @@ export async function payLinkCheckout(formData: FormData) {
       destinationAccountId: cookStripe!.stripe_account_id,
     });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Payment could not be started.";
-    err(msg);
+    // Log the real Stripe error server-side; never show raw API text to a buyer.
+    console.error("payLinkCheckout: stripe session failed", e);
+    err("We couldn't reach payment just now. You weren't charged, so please try again.");
   }
 
   redirect(session!.url);

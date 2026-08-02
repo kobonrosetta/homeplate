@@ -37,6 +37,15 @@ export async function createCheckoutSession(params: {
   body.set("mode", "payment");
   body.set("success_url", params.successUrl);
   body.set("cancel_url", params.cancelUrl);
+  // Card only (which includes Apple/Google Pay in hosted Checkout). Pinning
+  // this keeps async payment methods (bank debits/BNPL) out: those complete
+  // with payment_status='unpaid' and settle later, a flow our confirm path
+  // deliberately doesn't support at pilot scale.
+  body.set("payment_method_types[0]", "card");
+  // Sessions default to a 24h lifetime, but our stock guard runs at creation
+  // time — a stale tab could pay for food that since sold out. Expire the
+  // session instead (Stripe minimum is 30 minutes; 35 clears clock skew).
+  body.set("expires_at", String(Math.floor(Date.now() / 1000) + 35 * 60));
   if (params.customerEmail) body.set("customer_email", params.customerEmail);
   params.lineItems.forEach((li, i) => {
     body.set(`line_items[${i}][price_data][currency]`, "usd");
@@ -49,21 +58,25 @@ export async function createCheckoutSession(params: {
   }
   // Route the cook's cut to their connected account (destination charge). The
   // application fee (ForkFork's service fee) is always < total, so this can
-  // never meet-or-exceed the charge. Both fields are set together or not at all.
+  // never meet-or-exceed the charge. Both fields are set together — and they
+  // are REQUIRED: every checkout on this platform pays a cook, so silently
+  // omitting them would create a charge the platform keeps 100% of and the
+  // cook is never paid for. Fail loudly instead.
   if (
-    params.destinationAccountId &&
-    typeof params.applicationFeeCents === "number" &&
-    params.applicationFeeCents >= 0
+    !params.destinationAccountId ||
+    typeof params.applicationFeeCents !== "number" ||
+    params.applicationFeeCents < 0
   ) {
-    body.set(
-      "payment_intent_data[application_fee_amount]",
-      String(params.applicationFeeCents)
-    );
-    body.set(
-      "payment_intent_data[transfer_data][destination]",
-      params.destinationAccountId
-    );
+    throw new Error("This kitchen isn't set up for payouts yet.");
   }
+  body.set(
+    "payment_intent_data[application_fee_amount]",
+    String(params.applicationFeeCents)
+  );
+  body.set(
+    "payment_intent_data[transfer_data][destination]",
+    params.destinationAccountId
+  );
 
   const res = await fetch(`${STRIPE_API}/checkout/sessions`, {
     method: "POST",
@@ -88,11 +101,15 @@ export async function retrieveSession(sessionId: string): Promise<{
 } | null> {
   const key = secretKey();
   if (!key) return null;
-  const res = await fetch(`${STRIPE_API}/checkout/sessions/${sessionId}`, {
-    headers: { Authorization: `Bearer ${key}` },
-  });
-  const data = await res.json();
-  if (!res.ok) return null;
+  // sessionId comes from the ?session_id= query param — encode it, and treat a
+  // non-JSON response as a transient failure (null → the success page shows its
+  // "couldn't verify" fallback) rather than crashing a buyer who just paid.
+  const res = await fetch(
+    `${STRIPE_API}/checkout/sessions/${encodeURIComponent(sessionId)}`,
+    { headers: { Authorization: `Bearer ${key}` } }
+  );
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data) return null;
   return {
     payment_status: data.payment_status ?? "unpaid",
     payment_intent:

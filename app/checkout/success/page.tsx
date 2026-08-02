@@ -46,9 +46,15 @@ export default async function CheckoutSuccessPage({
   const admin = createAdminClient();
 
   // Confirm + deduct stock. Idempotent and shared with the Stripe webhook, so
-  // whichever fires first wins and the other is a no-op.
+  // whichever fires first wins and the other is a no-op. A transient confirm
+  // failure must NOT crash this page — Stripe says the payment is real, the
+  // buyer needs their confirmation, and the webhook path will retry the write.
   if (paid && orderId) {
-    await confirmPaidOrder(orderId, session.payment_intent);
+    try {
+      await confirmPaidOrder(orderId, session.payment_intent);
+    } catch (e) {
+      console.error("success page: confirmPaidOrder failed (webhook will retry)", e);
+    }
   }
 
   if (!paid) {
