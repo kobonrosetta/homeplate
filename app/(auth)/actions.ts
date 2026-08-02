@@ -56,11 +56,17 @@ export async function signup(formData: FormData) {
     intent === "sell" ? "/sell?start=1" : "/browse"
   );
   const supabase = createClient();
+  // Marketing opt-in rides in user metadata; the handle_new_user() trigger
+  // copies it to profiles.marketing_opt_in (see supabase/marketing-opt-in.sql).
+  const marketingOptIn = formData.get("marketing_opt_in") === "on";
   const { data, error } = await supabase.auth.signUp({
     email: String(formData.get("email")),
     password: String(formData.get("password")),
     options: {
-      data: { full_name: String(formData.get("full_name") ?? "") },
+      data: {
+        full_name: String(formData.get("full_name") ?? ""),
+        marketing_opt_in: marketingOptIn ? "true" : "false",
+      },
     },
   });
 
