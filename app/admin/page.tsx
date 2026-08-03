@@ -55,7 +55,7 @@ export default async function AdminPage({
   const { data: ops } = opIds.length
     ? await db
         .from("approved_operators")
-        .select("id, name, permit_number, city, expires_at")
+        .select("id, name, permit_number, city, expires_at, operation_type")
         .in("id", opIds)
     : { data: [] as any[] };
   const opById = new Map((ops ?? []).map((o: any) => [o.id, o]));
