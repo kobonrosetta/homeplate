@@ -56,6 +56,29 @@ export async function payLinkCheckout(formData: FormData) {
   if (!cookStripe?.stripe_account_id)
     err("This kitchen isn't taking payments right now.");
 
+  // One-shot link guard. A pay link is 1:1 with a negotiated item, but the
+  // request only flips open→paid inside confirmPaidOrder AFTER Stripe confirms
+  // — so nothing here stops a buyer from opening two checkout sessions off the
+  // same still-'open' link and completing both, paying twice. The already-paid
+  // case is covered (line 36: a non-'open' link is rejected); the gap is two
+  // orders created while it's still open. The pending order IS the reservation:
+  // block a fresh checkout while a recent one is live. The window matches the
+  // Stripe Checkout session's own 35-min expiry (lib/stripe.ts) — past that the
+  // old session can never be paid, so an abandoned attempt self-heals and the
+  // buyer can retry instead of being stranded (no reservation column needed).
+  const SESSION_TTL_MS = 35 * 60 * 1000;
+  const { data: liveOrders } = await admin
+    .from("orders")
+    .select("id")
+    .eq("custom_request_id", request.id)
+    .eq("status", "pending")
+    .gte("created_at", new Date(Date.now() - SESSION_TTL_MS).toISOString());
+  if (liveOrders && liveOrders.length > 0) {
+    err(
+      "You already have a checkout open for this link. Finish that one, or wait a few minutes and try again."
+    );
+  }
+
   // Guest session (same pattern as startCheckout).
   const supabase = createClient();
   const {
