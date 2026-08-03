@@ -3,6 +3,7 @@ import { cache } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatUsd } from "@/lib/constants";
+import { allergenLabels } from "@/lib/allergens";
 import AddToCart from "@/components/add-to-cart";
 import FeeNote from "@/components/fee-note";
 import PhotoGallery from "@/components/photo-gallery";
@@ -170,11 +171,8 @@ export default async function ListingPage({
           {listing.description && (
             <p className="mt-4 leading-relaxed text-ink">{listing.description}</p>
           )}
-          {listing.allergens && (
-            <p className="mt-3 text-sm">
-              <span className="font-medium text-ink">Contains:</span>{" "}
-              <span className="text-muted">{listing.allergens}</span>
-            </p>
+          {listing.kind !== "extra" && (
+            <AllergenInfo listing={listing} />
           )}
           {listing.ingredients && (
             <p className="mt-3 text-sm">
@@ -239,5 +237,66 @@ export default async function ListingPage({
         </div>
       </div>
     </main>
+  );
+}
+
+// Dish-level allergen disclosure. Deliberately framed as the COOK'S report, not
+// a safety guarantee — a home kitchen is a high cross-contact environment, so a
+// declared list is never phrased as "allergen-free" and always carries the
+// cross-contact caution at the point of decision. A dish with allergens_declared
+// = false (legacy, pre-checklist) shows "not listed — ask the chef", NEVER an
+// implied all-clear.
+function AllergenInfo({ listing }: { listing: any }) {
+  const contains = allergenLabels(listing.contains);
+  const mayContain = allergenLabels(listing.may_contain);
+
+  if (!listing.allergens_declared) {
+    return (
+      <div className="mt-4 rounded-lg border border-line bg-card/40 p-3 text-sm">
+        {listing.allergens ? (
+          <p>
+            <span className="font-medium text-ink">Contains:</span>{" "}
+            <span className="text-muted">{listing.allergens}</span>
+          </p>
+        ) : (
+          <p className="text-muted">
+            Allergen info not listed — message the chef before ordering.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 rounded-lg border border-line bg-card/40 p-3 text-sm">
+      {contains.length > 0 ? (
+        <p>
+          <span className="font-medium text-ink">Contains:</span>{" "}
+          <span className="text-muted">{contains.join(", ")}</span>
+        </p>
+      ) : (
+        <p className="text-muted">
+          The cook reports this dish contains none of the major allergens.
+        </p>
+      )}
+      {mayContain.length > 0 && (
+        <p className="mt-1">
+          <span className="font-medium text-ink">May contain:</span>{" "}
+          <span className="text-muted">
+            {mayContain.join(", ")} — the kitchen also handles these
+          </span>
+        </p>
+      )}
+      {listing.allergens && (
+        <p className="mt-1">
+          <span className="font-medium text-ink">Notes:</span>{" "}
+          <span className="text-muted">{listing.allergens}</span>
+        </p>
+      )}
+      <p className="mt-2 text-xs text-faint">
+        Made in a home kitchen — cross-contact with other allergens is possible.
+        If you have a serious allergy, message the chef before ordering.
+      </p>
+    </div>
   );
 }

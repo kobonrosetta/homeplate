@@ -1,5 +1,6 @@
 import { checkPhotoImage } from "@/lib/ai";
 import { MIN_PHOTO_SCORE } from "@/lib/constants";
+import { readAllergensFromForm } from "@/lib/allergens";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // All storage writes go through the service role (this module is imported by
@@ -94,6 +95,7 @@ export async function insertListingFromForm(
   const leadTime = String(formData.get("lead_time_note") ?? "").trim();
   const allergens = String(formData.get("allergens") ?? "").trim();
   const ingredients = String(formData.get("ingredients") ?? "").trim();
+  const { contains, mayContain, declared } = readAllergensFromForm(formData);
   // Extras (packaging, lettering, upgrades) aren't food — they skip the AI
   // food-photo gate below and render in their own strip on the kitchen page.
   const kind = formData.get("kind") === "extra" ? "extra" : "dish";
@@ -117,6 +119,11 @@ export async function insertListingFromForm(
   }
   if (priceDollars > 10000) {
     return "That price looks too high — the maximum is $10,000.";
+  }
+  // Force an affirmative allergen answer on food, so a blank can never pass as
+  // "allergen-free". Extras aren't food and have no allergen step.
+  if (kind === "dish" && !declared) {
+    return "Please confirm this dish's allergens before saving (check the box under Allergens, or confirm it has none).";
   }
 
   const storage = adminStorage();
@@ -185,6 +192,9 @@ export async function insertListingFromForm(
     price_cents: Math.round(priceDollars * 100),
     description: description || null,
     allergens: allergens || null,
+    contains: kind === "dish" ? contains : [],
+    may_contain: kind === "dish" ? mayContain : [],
+    allergens_declared: kind === "dish" ? declared : false,
     ingredients: ingredients || null,
     quantity_available: quantity,
     limited_quantity: limited,

@@ -4,6 +4,7 @@ import { useState, type ChangeEvent } from "react";
 import { useFormStatus } from "react-dom";
 import { formatUsd } from "@/lib/constants";
 import { formatRate, netOfTaxCents } from "@/lib/tax";
+import { ALLERGENS } from "@/lib/allergens";
 import { FormError } from "@/components/form";
 
 const inputClass =
@@ -43,6 +44,9 @@ type Defaults = {
   quantity?: string;
   limited?: boolean;
   allergens?: string;
+  contains?: string[];
+  mayContain?: string[];
+  declared?: boolean;
   ingredients?: string;
   description?: string;
   leadTime?: string;
@@ -87,6 +91,10 @@ export default function NewListingForm({
   // The CA taxability flag, phrased as menu info. Extras aren't food, so the
   // control disappears (and the flag goes false) when "extra" is checked.
   const showServedHot = servedHotUI && !isExtra;
+  // Allergens apply to ALL food (cottage bakes have wheat/eggs/nuts too), so
+  // unlike served_hot this shows for every dish regardless of program — just
+  // not for extras, which aren't food.
+  const showAllergens = !isExtra;
 
   async function runDescribe(image: string | null) {
     const title =
@@ -447,21 +455,84 @@ export default function NewListingForm({
         {aiNote && <p className="mt-1 text-xs text-muted">{aiNote}</p>}
       </div>
 
-      <label className="block">
-        <span className="text-sm font-medium text-ink">
-          Allergens / contains (optional)
-        </span>
-        <input
-          name="allergens"
-          defaultValue={defaults?.allergens}
-          placeholder="e.g. wheat, eggs, dairy, tree nuts"
-          className={inputClass}
-        />
-        <p className="mt-1 text-xs text-faint">
-          List anything a buyer with allergies must know. The AI can&apos;t know
-          this, only you can.
-        </p>
-      </label>
+      {showAllergens && (
+        <div className="space-y-4 rounded-lg border border-line p-4">
+          <div>
+            <span className="text-sm font-medium text-ink">Allergens</span>
+            <p className="mt-1 text-xs text-faint">
+              Check every major allergen this dish contains. Buyers with
+              allergies rely on this — the AI can&apos;t know it, only you can.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {ALLERGENS.map((a) => (
+              <label
+                key={a.key}
+                className="flex items-center gap-2 text-sm text-ink"
+              >
+                <input
+                  type="checkbox"
+                  name="contains"
+                  value={a.key}
+                  defaultChecked={defaults?.contains?.includes(a.key)}
+                />
+                {a.label}
+              </label>
+            ))}
+          </div>
+
+          <details>
+            <summary className="cursor-pointer text-sm text-muted">
+              Made in a kitchen that also handles… (cross-contact)
+            </summary>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {ALLERGENS.map((a) => (
+                <label
+                  key={a.key}
+                  className="flex items-center gap-2 text-sm text-ink"
+                >
+                  <input
+                    type="checkbox"
+                    name="may_contain"
+                    value={a.key}
+                    defaultChecked={defaults?.mayContain?.includes(a.key)}
+                  />
+                  {a.label}
+                </label>
+              ))}
+            </div>
+          </details>
+
+          <label className="block">
+            <span className="text-sm font-medium text-ink">
+              Other allergen notes (optional)
+            </span>
+            <input
+              name="allergens"
+              defaultValue={defaults?.allergens}
+              placeholder="e.g. contains coconut, made with pork gelatin"
+              className={inputClass}
+            />
+          </label>
+
+          <label className="flex items-start gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              name="allergens_declared"
+              value="true"
+              required
+              defaultChecked={defaults?.declared}
+              className="mt-1"
+            />
+            <span>
+              I&apos;ve listed every major allergen in this dish, or confirmed it
+              contains none of the above. I understand cross-contact is possible
+              in a home kitchen.
+            </span>
+          </label>
+        </div>
+      )}
 
       <label className="block">
         <span className="text-sm font-medium text-ink">

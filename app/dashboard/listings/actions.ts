@@ -8,6 +8,7 @@ import {
   readQuantity,
   uploadDishPhoto,
 } from "@/lib/listings";
+import { readAllergensFromForm } from "@/lib/allergens";
 import { MAX_GROUPS_PER_LISTING, MAX_OPTIONS_PER_GROUP } from "@/lib/options";
 import { captureServer } from "@/lib/analytics-server";
 
@@ -54,6 +55,8 @@ export async function updateListing(formData: FormData) {
   const leadTime = String(formData.get("lead_time_note") ?? "").trim();
   const allergens = String(formData.get("allergens") ?? "").trim();
   const ingredients = String(formData.get("ingredients") ?? "").trim();
+  const kind = formData.get("kind") === "extra" ? "extra" : "dish";
+  const { contains, mayContain, declared } = readAllergensFromForm(formData);
 
   if (!title || Number.isNaN(priceDollars) || priceDollars <= 0) {
     redirect(
@@ -67,6 +70,16 @@ export async function updateListing(formData: FormData) {
         encodeURIComponent("That price looks too high. The maximum is $10,000.")
     );
   }
+  // Same affirmative-allergen gate as the create path — editing a legacy dish
+  // migrates it forward: the cook must confirm allergens before it re-saves.
+  if (kind === "dish" && !declared) {
+    redirect(
+      `/dashboard/listings/${id}/edit?error=` +
+        encodeURIComponent(
+          "Please confirm this dish's allergens before saving (check the box under Allergens, or confirm it has none)."
+        )
+    );
+  }
 
   const update: Record<string, unknown> = {
     title,
@@ -77,6 +90,9 @@ export async function updateListing(formData: FormData) {
     limited_quantity: limited,
     lead_time_note: leadTime || null,
     allergens: allergens || null,
+    contains: kind === "dish" ? contains : [],
+    may_contain: kind === "dish" ? mayContain : [],
+    allergens_declared: kind === "dish" ? declared : false,
     ingredients: ingredients || null,
     // CA taxability flag — same server-side guard as inserts: only MEHKO
     // kitchens can flag hot food, and the form sends false for extras.
