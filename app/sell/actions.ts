@@ -277,19 +277,32 @@ export async function wizardFinalize(formData: FormData) {
     })
     .eq("id", cookId);
 
-  // Home address (and the private permit photo path + CDTFA seller's-permit
-  // number) live in the locked-down owner-only table. The CDTFA field is
-  // optional — an empty resubmit must not clobber a previously saved number.
+  // Home address (and the CDTFA seller's-permit number) live in the
+  // locked-down owner-only table. The CDTFA field is optional — an empty
+  // resubmit must not clobber a previously saved number. This creates/updates
+  // the row with the columns a cook may edit.
   await supabase.from("cook_private").upsert(
     {
       cook_id: cookId,
       street_address: streetAddress,
-      ...(permitPhotoPath ? { permit_photo_path: permitPhotoPath } : {}),
       ...(cdtfaPermit ? { cdtfa_permit: cdtfaPermit } : {}),
       updated_at: new Date().toISOString(),
     },
     { onConflict: "cook_id" }
   );
+
+  // permit_photo_path is server-managed: a cook session must not be able to
+  // repoint it at another cook's private file (the cook_private guard trigger
+  // now rejects an end-user write to it — see harden-cook-private.sql). The
+  // path was derived server-side by uploadPermitPhoto from the caller's OWN
+  // cook id, so this write goes through the service role, after the upsert
+  // above has ensured the row exists.
+  if (permitPhotoPath) {
+    await createAdminClient()
+      .from("cook_private")
+      .update({ permit_photo_path: permitPhotoPath })
+      .eq("cook_id", cookId);
+  }
 
   // Best-effort: clear the superseded photo (never the one just saved).
   const oldPath = oldPriv?.permit_photo_path;
