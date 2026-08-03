@@ -180,10 +180,16 @@ export async function wizardFinalize(formData: FormData) {
   // directly-POST-able action endpoint.)
   const { data: cookState } = await supabase
     .from("cooks")
-    .select("status")
+    .select("status, county")
     .eq("id", cookId)
     .maybeSingle();
   if (cookState?.status !== "pending") redirect("/dashboard");
+
+  // The permit lookup below is scoped to the kitchen's county. Permit numbers
+  // are only unique WITHIN a county — once a second county's list is loaded,
+  // matching on the number alone could auto-verify a cook against the wrong
+  // county's operator (or trip .maybeSingle() on a cross-county collision).
+  const cookCounty = cookState.county ?? "Santa Clara";
 
   const permitNumber = String(formData.get("permit_number") ?? "").trim();
   const streetAddress = String(formData.get("street_address") ?? "").trim();
@@ -226,6 +232,7 @@ export async function wizardFinalize(formData: FormData) {
       .from("approved_operators")
       .select("id, name, expires_at")
       .eq("permit_number", normalizedPermit)
+      .eq("county", cookCounty)
       .maybeSingle();
     match = data;
   }
