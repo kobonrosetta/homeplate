@@ -1,6 +1,6 @@
 import { checkPhotoImage } from "@/lib/ai";
 import { MIN_PHOTO_SCORE } from "@/lib/constants";
-import { readAllergensFromForm } from "@/lib/allergens";
+import { readAllergensFromForm, allergenColumns } from "@/lib/allergens";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // All storage writes go through the service role (this module is imported by
@@ -192,9 +192,7 @@ export async function insertListingFromForm(
     price_cents: Math.round(priceDollars * 100),
     description: description || null,
     allergens: allergens || null,
-    contains: kind === "dish" ? contains : [],
-    may_contain: kind === "dish" ? mayContain : [],
-    allergens_declared: kind === "dish" ? declared : false,
+    ...allergenColumns(kind, { contains, mayContain, declared }),
     ingredients: ingredients || null,
     quantity_available: quantity,
     limited_quantity: limited,
