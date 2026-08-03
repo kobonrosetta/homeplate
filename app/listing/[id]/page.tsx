@@ -274,9 +274,19 @@ function AllergenInfo({ listing }: { listing: any }) {
           <span className="font-medium text-ink">Contains:</span>{" "}
           <span className="text-muted">{contains.join(", ")}</span>
         </p>
+      ) : listing.allergens || listing.ingredients ? (
+        // The cook checked none of the listed allergens, but wrote free-text
+        // notes/ingredients that may name one not on the checklist (coconut,
+        // mustard…). Don't render an absolute "contains none" all-clear here —
+        // point at the details instead.
+        <p className="text-muted">
+          The cook checked none of the listed major allergens — see the notes
+          and ingredients below.
+        </p>
       ) : (
         <p className="text-muted">
-          The cook reports this dish contains none of the major allergens.
+          The cook reports this dish contains none of the listed major
+          allergens.
         </p>
       )}
       {mayContain.length > 0 && (

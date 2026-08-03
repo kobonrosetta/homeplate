@@ -8,7 +8,7 @@ import {
   readQuantity,
   uploadDishPhoto,
 } from "@/lib/listings";
-import { readAllergensFromForm } from "@/lib/allergens";
+import { readAllergensFromForm, allergenColumns } from "@/lib/allergens";
 import { MAX_GROUPS_PER_LISTING, MAX_OPTIONS_PER_GROUP } from "@/lib/options";
 import { captureServer } from "@/lib/analytics-server";
 
@@ -90,13 +90,12 @@ export async function updateListing(formData: FormData) {
     limited_quantity: limited,
     lead_time_note: leadTime || null,
     allergens: allergens || null,
-    contains: kind === "dish" ? contains : [],
-    may_contain: kind === "dish" ? mayContain : [],
-    allergens_declared: kind === "dish" ? declared : false,
+    ...allergenColumns(kind, { contains, mayContain, declared }),
     ingredients: ingredients || null,
-    // CA taxability flag — same server-side guard as inserts: only MEHKO
-    // kitchens can flag hot food, and the form sends false for extras.
+    // CA taxability flag — same server-side guard as inserts: only a MEHKO
+    // kitchen's actual food (never an extra) can be flagged hot.
     served_hot:
+      kind === "dish" &&
       cook.operation_type === "mehko" &&
       String(formData.get("served_hot") ?? "") === "true",
   };

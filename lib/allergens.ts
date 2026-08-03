@@ -46,3 +46,20 @@ export function readAllergensFromForm(formData: FormData): {
   const declared = String(formData.get("allergens_declared") ?? "") === "true";
   return { contains, mayContain, declared };
 }
+
+// Build the listing's allergen DB columns from parsed form values, applying the
+// one rule both write paths share: allergens are food-only, so an extra always
+// stores empty/undeclared. Kept here (not inline in each action) so the create
+// and edit paths can't drift — the served_hot inconsistency this review caught
+// was exactly that kind of copy-paste divergence.
+export function allergenColumns(
+  kind: "dish" | "extra",
+  parsed: { contains: string[]; mayContain: string[]; declared: boolean }
+): { contains: string[]; may_contain: string[]; allergens_declared: boolean } {
+  const isDish = kind === "dish";
+  return {
+    contains: isDish ? parsed.contains : [],
+    may_contain: isDish ? parsed.mayContain : [],
+    allergens_declared: isDish ? parsed.declared : false,
+  };
+}
