@@ -61,13 +61,12 @@ export default async function Home() {
             ✓ Every kitchen verified against the county&rsquo;s approved list
           </Link>
           <h1 className="mt-4 text-5xl font-semibold leading-[1.05] tracking-tight text-ink sm:text-6xl">
-            The best food near you isn&rsquo;t from a restaurant.
+            Incredible chefs, hiding a few blocks away.
           </h1>
           <p className="mt-5 text-lg leading-relaxed text-muted">
-            It&rsquo;s from your neighbors: the tamales, the sourdough, the
-            pastries people cross town for, made in home kitchens Santa Clara
-            County has permitted and inspected. Order ahead, then pick up or
-            get it delivered.
+            From neighbors whose home kitchens are county-permitted or
+            state-registered under California&rsquo;s cottage food law. Order the
+            dishes people line up for &mdash; pick up or get it delivered.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
