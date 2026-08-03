@@ -212,11 +212,29 @@ export function MatchNote({
   const typeMismatch =
     op.operation_type && op.operation_type !== cook.operation_type;
   const label = (t: string) => (t === "mehko" ? "MEHKO" : "cottage food");
+  // Not expired here (the branch above returns), so this is days-until-expiry.
+  // Verification is a one-time snapshot — permit_verified is never re-checked
+  // after onboarding — so an expiring permit needs a human to notice. Flag the
+  // near-expiry window; otherwise just state the date.
+  const daysToExpiry = op.expires_at
+    ? Math.round((Date.parse(op.expires_at) - Date.parse(today)) / 86400000)
+    : null;
+  const expiringSoon = daysToExpiry !== null && daysToExpiry <= 60;
   return (
     <div className="mt-0.5">
       <p className="text-emerald-700">
         ✓ permit {op.permit_number} — {op.name}
       </p>
+      {daysToExpiry === null ? (
+        <p className="mt-0.5 text-muted">no expiry date on the county record</p>
+      ) : expiringSoon ? (
+        <p className="mt-0.5 text-amber-700">
+          ⚠ permit expires {op.expires_at} — in {daysToExpiry} day
+          {daysToExpiry === 1 ? "" : "s"}; the badge won’t drop on its own
+        </p>
+      ) : (
+        <p className="mt-0.5 text-muted">valid through {op.expires_at}</p>
+      )}
       {typeMismatch && (
         <p className="mt-0.5 text-red-600">
           ⚠ program mismatch — cook selected {label(cook.operation_type)} but
