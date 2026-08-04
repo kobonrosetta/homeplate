@@ -71,7 +71,6 @@ export default async function EditListingPage({
           limited: listing.limited_quantity,
           allergens: listing.allergens ?? "",
           contains: listing.contains ?? [],
-          mayContain: listing.may_contain ?? [],
           declared: !!listing.allergens_declared,
           ingredients: listing.ingredients ?? "",
           description: listing.description ?? "",

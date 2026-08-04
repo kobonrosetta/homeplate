@@ -262,7 +262,6 @@ export default async function ListingPage({
 // implied all-clear.
 function AllergenInfo({ listing }: { listing: any }) {
   const contains = allergenLabels(listing.contains);
-  const mayContain = allergenLabels(listing.may_contain);
 
   if (!listing.allergens_declared) {
     return (
@@ -301,14 +300,6 @@ function AllergenInfo({ listing }: { listing: any }) {
         <p className="text-muted">
           The cook reports this dish contains none of the listed major
           allergens.
-        </p>
-      )}
-      {mayContain.length > 0 && (
-        <p className="mt-1">
-          <span className="font-medium text-ink">May contain:</span>{" "}
-          <span className="text-muted">
-            {mayContain.join(", ")} — the kitchen also handles these
-          </span>
         </p>
       )}
       {listing.allergens && (
