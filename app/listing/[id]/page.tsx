@@ -293,12 +293,12 @@ function AllergenInfo({ listing }: { listing: any }) {
         // mustard…). Don't render an absolute "contains none" all-clear here —
         // point at the details instead.
         <p className="text-muted">
-          The cook checked none of the listed major allergens — see the notes
+          The chef checked none of the listed major allergens — see the notes
           and ingredients below.
         </p>
       ) : (
         <p className="text-muted">
-          The cook reports this dish contains none of the listed major
+          The chef reports this dish contains none of the listed major
           allergens.
         </p>
       )}

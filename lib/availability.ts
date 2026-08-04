@@ -258,6 +258,6 @@ export function availabilityBadge(
   const orderBy = isIsoDate(a.orderBy) ? (a.orderBy as string) : readyDate;
   return {
     tone: "date",
-    text: `For ${formatDateShort(readyDate)} · order by ${formatDateShort(orderBy)}`,
+    text: `Ready ${formatDateShort(readyDate)} · order by ${formatDateShort(orderBy)}`,
   };
 }

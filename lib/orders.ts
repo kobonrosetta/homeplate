@@ -275,7 +275,8 @@ async function notifyOrderConfirmed(
              <p>${emailLink(
                `${SITE_URL}/dashboard/orders`,
                "Open your orders →"
-             )} Tap "I'm on it" so your buyer knows it's in hand.</p>`
+             )}</p>
+             <p>Tap "I'm on it" so your buyer knows it's in hand.</p>`
           ),
         });
       }
@@ -291,7 +292,7 @@ async function notifyOrderConfirmed(
           buyerIsGuest = Boolean(bu?.data?.user?.is_anonymous);
         }
         const receiptLine = buyerIsGuest
-          ? `<p>This email is your receipt. Keep it for the pickup details above.</p>`
+          ? `<p>This email is your receipt. Keep it for your order details above.</p>`
           : `<p>${emailLink(
               `${SITE_URL}/orders`,
               "See your orders"
@@ -306,6 +307,7 @@ async function notifyOrderConfirmed(
              }! ${kitchen} has your order.</p>
              <p><strong>${items}</strong></p>
              <p>You paid <strong>${formatUsd(order.total_cents ?? 0)}</strong></p>
+             <p style="color:#6b7280;font-size:13px;margin-top:-8px">Prices include any California sales tax.</p>
              ${readyByLine}
              ${buyerHandoff}
              ${contactLineBuyer}

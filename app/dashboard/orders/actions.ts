@@ -72,8 +72,8 @@ export async function advanceOrder(formData: FormData) {
                  kitchen's contact.</p>`
               : `<h2>Your order is ready for pickup</h2>
                  <p>${escapeHtml(kitchen)} has your order ready. Your
-                 confirmation email (and Purchases) has the pickup address,
-                 time, and the kitchen's contact.</p>`
+                 confirmation email has the pickup address, time, and the
+                 kitchen's contact.</p>`
           ),
         });
       }
@@ -93,9 +93,9 @@ export async function advanceOrder(formData: FormData) {
                  order.contact_name
                    ? `, ${escapeHtml(order.contact_name)}`
                    : ""
-               }. Your full ${formatUsd(
+               }. We're refunding your full ${formatUsd(
                  order.total_cents ?? 0
-               )} refund is on the way. If it hasn't appeared in a few days, email ${escapeHtml(
+               )} to your original payment method — it can take a few business days to land. If it hasn't appeared by then, email ${escapeHtml(
                  SUPPORT_EMAIL
                )} and we'll chase it down.</p>`
             ),

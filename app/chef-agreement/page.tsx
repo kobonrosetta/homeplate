@@ -63,14 +63,17 @@ export default function CookAgreementPage() {
           You set your prices and{" "}
           <strong>you receive 100% of your listed price on every order</strong>
           . ForkFork charges you no commission, listing fee, or subscription;
-          our revenue is a service fee buyers pay at checkout.
+          our revenue is a service fee buyers pay at checkout. Payment-processing
+          fees come out of that service fee, not your payout, so you never pay a
+          card-processing charge.
         </p>
         <p>
           <strong>Your prices include tax.</strong> The price you set for each
-          item includes any California sales tax due on it. Reporting and
-          remitting that tax on your own CDTFA seller&rsquo;s permit is your
-          responsibility — your dashboard totals it for you each quarter as a
-          convenience, not as tax advice. Income taxes on your earnings are
+          item includes any California sales tax due on it — hot prepared meals
+          (MEHKO) are generally taxable, while most cottage-food baked goods are
+          exempt. Where tax is due, reporting and remitting it on your own CDTFA
+          seller&rsquo;s permit is your responsibility — your dashboard totals it
+          for you each quarter as a convenience, not as tax advice. Income taxes on your earnings are
           also yours to report regardless of whether you receive a tax form;
           where IRS thresholds and Stripe&rsquo;s requirements apply, tax forms
           (such as a 1099-K) are issued for payouts Stripe processes, and your

@@ -150,7 +150,7 @@ export default async function OrdersPage({
           Active
         </h3>
         {active.length === 0 ? (
-          <div className="mt-2"><EmptyState title="Nothing to prepare right now." /></div>
+          <div className="mt-2"><EmptyState title="Nothing to prepare right now" /></div>
         ) : (
           <div className="mt-3 space-y-4">
             {active.map((o: any) => (

@@ -39,16 +39,16 @@ export default function RefundsPage() {
 
       <S title="If you need to cancel">
         <p>
-          Contact the kitchen as soon as possible (their contact details, when
-          the kitchen has provided them, are in your confirmation email and
-          under Purchases), and email{" "}
+          If the kitchen shared contact details (they&rsquo;re in your
+          confirmation email), reach out as soon as you can. Can&rsquo;t reach
+          them? Email{" "}
           <a
             href="mailto:hello@forkfork.app"
             className="text-brand hover:underline"
           >
             hello@forkfork.app
-          </a>
-          . Because food is prepared to order,{" "}
+          </a>{" "}
+          and we&rsquo;ll help. Because food is prepared to order,{" "}
           <strong>
             cancellations are at the kitchen&rsquo;s reasonable discretion once
             preparation has started

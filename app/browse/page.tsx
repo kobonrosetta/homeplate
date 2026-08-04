@@ -14,7 +14,7 @@ import ForkMark from "@/components/fork-mark";
 export const metadata = {
   title: "Browse home chefs in Santa Clara County · ForkFork",
   description:
-    "County-verified home kitchens near you — hot home-cooked meals and fresh-baked goods from permitted Santa Clara County chefs. Order ahead for pickup or delivery.",
+    "County-verified home kitchens near you — hot home-cooked meals and fresh-baked goods from Santa Clara County home cooks and bakers. Order ahead for pickup or delivery.",
   alternates: { canonical: "/browse" },
 };
 
@@ -101,8 +101,8 @@ export default async function BrowsePage({
             ✓
           </span>
           <span>
-            Every kitchen is matched against Santa Clara County’s
-            approved-operator list before it can sell.{" "}
+            Every kitchen is matched against Santa Clara County’s list of
+            approved home cooks and bakers before it can sell.{" "}
             <Link
               href="/verified"
               className="font-medium text-brand underline-offset-2 hover:underline"

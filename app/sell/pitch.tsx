@@ -21,7 +21,8 @@ export default function CookPitch({ signedIn = false }: { signedIn?: boolean }) 
           <p className="mt-5 text-lg leading-relaxed text-muted">
             ForkFork turns your county approval into a real storefront: a
             menu, online payment, and neighbors who can finally find you. You
-            keep 100% of every price you set.
+            keep 100% of every price you set &mdash; we even cover the
+            credit-card processing fees.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <Link
@@ -51,7 +52,7 @@ export default function CookPitch({ signedIn = false }: { signedIn?: boolean }) 
         <div className="mx-auto grid max-w-6xl gap-8 px-6 py-14 sm:grid-cols-2">
           <Perk
             title="Keep 100% of your price"
-            body="You price it, you keep it. Buyers pay a small service fee at checkout. No commission, no listing fee, no monthly charge."
+            body="You price it, you keep every dollar. Buyers pay a small service fee at checkout — and ForkFork even absorbs the credit-card processing fees most platforms pass on to their sellers. No commission, no listing fee, no card fees."
           />
           <Perk
             title="A badge buyers actually trust"
@@ -63,7 +64,7 @@ export default function CookPitch({ signedIn = false }: { signedIn?: boolean }) 
           />
           <Perk
             title="The boring parts run themselves"
-            body="Orders, payments, buyer contact details, email alerts: all handled. Sell hot meals? Your dashboard does the sales-tax math too, with quarterly totals and one-click export."
+            body="Orders, payments, buyer contact details, email alerts: all handled — and your earnings are paid out to your bank automatically. Sell hot meals? Your dashboard does the sales-tax math too, with quarterly totals and one-click export."
           />
         </div>
       </section>
