@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { calcServiceFeeCents } from "@/lib/constants";
 import { createCheckoutSession } from "@/lib/stripe";
 import {
+  availabilityFromListing,
   computeReadyBy,
   isOrderable,
   pacificTodayIso,
@@ -242,12 +243,7 @@ export async function startCheckout(formData: FormData) {
   const today = pacificTodayIso();
   let orderReadyBy: string | null = null;
   for (const l of rows) {
-    const a = {
-      mode: (l as any).fulfillment_mode ?? "ready_now",
-      leadDays: (l as any).lead_days,
-      readyDate: (l as any).ready_date,
-      orderBy: (l as any).order_by,
-    };
+    const a = availabilityFromListing(l as any);
     const rb = isOrderable(a, today) ? computeReadyBy(a, today) : null;
     if (!rb) {
       err(

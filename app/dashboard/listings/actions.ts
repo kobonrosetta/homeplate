@@ -57,7 +57,6 @@ export async function updateListing(formData: FormData) {
   const priceDollars = parseFloat(String(formData.get("price") ?? ""));
   const description = String(formData.get("description") ?? "").trim();
   const { limited, quantity } = readQuantity(formData);
-  const leadTime = String(formData.get("lead_time_note") ?? "").trim();
   const allergens = String(formData.get("allergens") ?? "").trim();
   const ingredients = String(formData.get("ingredients") ?? "").trim();
   const kind = formData.get("kind") === "extra" ? "extra" : "dish";
@@ -108,7 +107,6 @@ export async function updateListing(formData: FormData) {
     description: description || null,
     quantity_available: quantity,
     limited_quantity: limited,
-    lead_time_note: leadTime || null,
     allergens: allergens || null,
     ...allergenColumns(kind, { contains, mayContain, declared }),
     ...availability,

@@ -1,7 +1,7 @@
 import {
   availabilityBadge,
+  availabilityFromListing,
   pacificTodayIso,
-  type Availability,
 } from "@/lib/availability";
 
 // Tone → warm-editorial pill colors, matching the verified badge / "Only N left"
@@ -30,13 +30,10 @@ export default function AvailabilityPill({
   today?: string;
   className?: string;
 }) {
-  const a: Availability = {
-    mode: (listing.fulfillment_mode as Availability["mode"]) ?? "ready_now",
-    leadDays: listing.lead_days,
-    readyDate: listing.ready_date,
-    orderBy: listing.order_by,
-  };
-  const badge = availabilityBadge(a, today ?? pacificTodayIso());
+  const badge = availabilityBadge(
+    availabilityFromListing(listing),
+    today ?? pacificTodayIso()
+  );
   return (
     <span
       className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${TONE[badge.tone]} ${className}`}

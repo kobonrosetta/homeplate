@@ -272,6 +272,11 @@ check("preorder past cutoff → null (no date)", () =>
     computeReadyBy({ mode: "preorder", readyDate: "2026-08-20", orderBy: "2026-08-05" }, TODAY),
     null
   ));
+// computeReadyBy and isOrderable must agree for a malformed lead_time
+check("lead_time over cap → null (agrees with isOrderable)", () =>
+  assert.equal(computeReadyBy({ mode: "lead_time", leadDays: 15 }, TODAY), null));
+check("lead_time null leadDays → null (agrees with isOrderable)", () =>
+  assert.equal(computeReadyBy({ mode: "lead_time", leadDays: null }, TODAY), null));
 
 // isOrderable — the checkout guard
 check("orderable: ready_now always", () => assert.ok(isOrderable({ mode: "ready_now" }, TODAY)));

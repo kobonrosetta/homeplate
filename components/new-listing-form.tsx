@@ -50,7 +50,6 @@ type Defaults = {
   declared?: boolean;
   ingredients?: string;
   description?: string;
-  leadTime?: string;
   servedHot?: boolean;
   isExtra?: boolean;
   fulfillmentMode?: FulfillmentMode;

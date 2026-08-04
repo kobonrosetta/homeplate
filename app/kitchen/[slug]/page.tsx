@@ -5,7 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { formatUsd } from "@/lib/constants";
 import AddToCart from "@/components/add-to-cart";
 import AvailabilityPill from "@/components/availability-pill";
-import { isOrderable, pacificTodayIso } from "@/lib/availability";
+import {
+  availabilityFromListing,
+  isOrderable,
+  pacificTodayIso,
+} from "@/lib/availability";
 import FeeNote from "@/components/fee-note";
 import FollowToggle from "@/components/follow-toggle";
 import ReviewsSection from "@/components/reviews-section";
@@ -265,15 +269,7 @@ export default async function KitchenPage({
           {items.map((l: any, i: number) => {
             const soldOut = l.limited_quantity && l.quantity_available <= 0;
             // A preorder past its cutoff can't be ordered — treat like sold out.
-            const orderable = isOrderable(
-              {
-                mode: l.fulfillment_mode ?? "ready_now",
-                leadDays: l.lead_days,
-                readyDate: l.ready_date,
-                orderBy: l.order_by,
-              },
-              today
-            );
+            const orderable = isOrderable(availabilityFromListing(l), today);
             const blocked = soldOut || !orderable;
             const lowStock =
               l.limited_quantity &&

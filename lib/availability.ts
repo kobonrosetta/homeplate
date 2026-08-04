@@ -35,6 +35,22 @@ export interface Availability {
   orderBy?: string | null; // preorder cutoff, "YYYY-MM-DD" (defaults to readyDate)
 }
 
+// Map a listing row's snake_case availability columns to an Availability. One
+// place so the checkout guard, listing/kitchen pages, and the pill can't drift.
+export function availabilityFromListing(l: {
+  fulfillment_mode?: string | null;
+  lead_days?: number | null;
+  ready_date?: string | null;
+  order_by?: string | null;
+}): Availability {
+  return {
+    mode: (l.fulfillment_mode as FulfillmentMode) ?? "ready_now",
+    leadDays: l.lead_days,
+    readyDate: l.ready_date,
+    orderBy: l.order_by,
+  };
+}
+
 // Today's calendar date in California, as "YYYY-MM-DD". en-CA formats exactly
 // that shape. Callers in server code pass no arg; tests pass a fixed instant.
 export function pacificTodayIso(now: Date = new Date()): string {
@@ -85,7 +101,11 @@ export function computeReadyBy(
     case "ready_now":
       return todayIso;
     case "lead_time":
-      return addDaysIso(todayIso, clampLead(a.leadDays));
+      // Mirror isOrderable: a malformed lead (null / out of range) yields no
+      // date, so the two never disagree.
+      return isOrderable(a, todayIso)
+        ? addDaysIso(todayIso, clampLead(a.leadDays))
+        : null;
     case "preorder":
       return isOrderable(a, todayIso) ? a.readyDate ?? null : null;
     default:
@@ -226,7 +246,9 @@ export function availabilityBadge(
 ): AvailabilityBadge {
   if (a.mode === "ready_now") return { tone: "now", text: "Ready today" };
   if (a.mode === "lead_time") {
-    return { tone: "soon", text: `Ready by ${formatDateShort(computeReadyBy(a, todayIso)!)}` };
+    const rb = computeReadyBy(a, todayIso);
+    if (!rb) return { tone: "closed", text: "Ordering closed" };
+    return { tone: "soon", text: `Ready by ${formatDateShort(rb)}` };
   }
   // preorder
   if (!isOrderable(a, todayIso)) return { tone: "closed", text: "Ordering closed" };

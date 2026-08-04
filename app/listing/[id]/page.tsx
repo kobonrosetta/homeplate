@@ -4,7 +4,11 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatUsd } from "@/lib/constants";
 import { allergenLabels } from "@/lib/allergens";
-import { isOrderable, pacificTodayIso } from "@/lib/availability";
+import {
+  availabilityFromListing,
+  isOrderable,
+  pacificTodayIso,
+} from "@/lib/availability";
 import AddToCart from "@/components/add-to-cart";
 import AvailabilityPill from "@/components/availability-pill";
 import FeeNote from "@/components/fee-note";
@@ -107,15 +111,7 @@ export default async function ListingPage({
 
   const soldOut = listing.limited_quantity && listing.quantity_available <= 0;
   const today = pacificTodayIso();
-  const orderable = isOrderable(
-    {
-      mode: listing.fulfillment_mode ?? "ready_now",
-      leadDays: listing.lead_days,
-      readyDate: listing.ready_date,
-      orderBy: listing.order_by,
-    },
-    today
-  );
+  const orderable = isOrderable(availabilityFromListing(listing), today);
   const galleryUrls = [listing.photo_url, ...(listing.photo_urls ?? [])].filter(
     Boolean
   );
