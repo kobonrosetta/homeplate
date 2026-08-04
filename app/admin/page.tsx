@@ -79,6 +79,10 @@ export default async function AdminPage({
   const { data: stripeRows } = await db
     .from("cook_stripe")
     .select("cook_id, stripe_account_id, details_submitted, disabled_reason");
+  // Buyer waitlist — the demand signal + per-area recruiting number.
+  const { count: waitlistCount } = await db
+    .from("waitlist")
+    .select("id", { count: "exact", head: true });
   const stripeByCook = new Map(
     (stripeRows ?? []).map((r: any) => [r.cook_id, r])
   );
@@ -336,6 +340,21 @@ export default async function AdminPage({
           value={formatUsd(cookEarnings)}
           accent
         />
+      </div>
+
+      <div className="mt-3 flex items-center justify-between gap-4 rounded-lg border border-line px-4 py-2.5 text-sm">
+        <span className="text-muted">
+          <span className="font-semibold text-ink">{waitlistCount ?? 0}</span> on
+          the buyer waitlist
+        </span>
+        {(waitlistCount ?? 0) > 0 && (
+          <a
+            href="/admin/waitlist/export"
+            className="font-medium text-brand hover:underline"
+          >
+            Export CSV →
+          </a>
+        )}
       </div>
 
       {recent.length > 0 && (

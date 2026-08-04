@@ -8,8 +8,8 @@ import {
 } from "@/lib/availability";
 import { publicArea } from "@/lib/handoff";
 import VerifiedBadge from "@/components/verified-badge";
-import EmptyState from "@/components/empty-state";
 import ForkMark from "@/components/fork-mark";
+import WaitlistForm from "@/components/waitlist-form";
 
 export const metadata = {
   title: "Browse home chefs in Santa Clara County · ForkFork",
@@ -26,6 +26,11 @@ export default async function BrowsePage({
   searchParams: { welcome?: string };
 }) {
   const supabase = createClient();
+  // Prefill the waitlist email for a signed-in (non-guest) visitor.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const userEmail = user && !user.is_anonymous ? user.email ?? "" : "";
   const { data: cooksData } = await supabase
     .from("cooks")
     .select(
@@ -114,7 +119,31 @@ export default async function BrowsePage({
       )}
 
       {kitchens.length === 0 ? (
-        <div className="mt-10"><EmptyState title="No kitchens open yet." subtitle="We're onboarding Santa Clara County's first home kitchens now." /></div>
+        <section className="mt-10 rounded-2xl border border-line bg-card px-6 py-12 text-center shadow-soft sm:px-10 sm:py-16">
+          <ForkMark size={30} className="mx-auto mb-4 text-faint" />
+          <h2 className="font-display text-2xl font-semibold text-ink sm:text-3xl">
+            Kitchens are coming to your neighborhood.
+          </h2>
+          <p className="mx-auto mt-3 max-w-lg text-muted">
+            We&rsquo;re onboarding Santa Clara County&rsquo;s first
+            county-verified home kitchens now. Leave your email and we&rsquo;ll
+            tell you the moment one opens near you.
+          </p>
+          <div className="mt-7">
+            <WaitlistForm source="browse" defaultEmail={userEmail} />
+          </div>
+          <div className="mx-auto mt-10 max-w-lg border-t border-line pt-6">
+            <p className="text-sm text-muted">
+              Run a county-permitted home kitchen?
+            </p>
+            <Link
+              href="/sell"
+              className="mt-1 inline-block font-medium text-brand underline-offset-2 hover:underline"
+            >
+              Sell on ForkFork — keep 100% of your price →
+            </Link>
+          </div>
+        </section>
       ) : (
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {kitchens.map((k, i) => (
