@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { updateKitchen } from "../edit/actions";
 import { toggleKitchenPause } from "./actions";
 import PickupWindowsField from "@/components/pickup-windows-field";
+import CuisineTagsField from "@/components/cuisine-tags-field";
 import PickupLocationField from "@/components/pickup-location-field";
 import {
   TextField,
@@ -33,7 +34,6 @@ export default async function SettingsPage({
         .eq("id", user.id)
         .maybeSingle()
     : { data: null as { phone: string | null } | null };
-  const tags = (cook.cuisine_tags ?? []).join(", ");
 
   return (
     <div className="max-w-xl">
@@ -223,10 +223,10 @@ export default async function SettingsPage({
             </p>
           </div>
 
-          <TextField
-            label="Cuisine tags (comma separated)"
-            name="cuisine_tags"
-            defaultValue={tags}
+          <CuisineTagsField
+            label="Cuisine tags"
+            defaultValue={cook.cuisine_tags ?? []}
+            hint="A few words buyers browse by. Tap a suggestion or type your own."
           />
         </section>
 

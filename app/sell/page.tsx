@@ -6,6 +6,7 @@ import { taxRateForCity } from "@/lib/tax";
 import { wizardSaveKitchen, wizardAddDish, wizardFinalize } from "./actions";
 import CookPitch from "./pitch";
 import NewListingForm from "@/components/new-listing-form";
+import CuisineTagsField from "@/components/cuisine-tags-field";
 import PickupWindowsField from "@/components/pickup-windows-field";
 import OperationTypeField from "@/components/operation-type-field";
 import {
@@ -197,7 +198,6 @@ function Step1({
   phone: string;
   ownerDefault?: string;
 }) {
-  const tags = (cook?.cuisine_tags ?? []).join(", ");
   return (
     <div>
       <h1 className="text-2xl font-semibold text-ink">
@@ -278,18 +278,11 @@ function Step1({
             appetizing shot of your food or table sets the tone.
           </p>
         </div>
-        <div>
-          <TextField
-            label="Cuisine tags (comma separated)"
-            name="cuisine_tags"
-            defaultValue={tags}
-            placeholder="sourdough, pastries, vegan"
-          />
-          <p className="mt-1 text-xs text-faint">
-            A few words buyers browse by: sourdough, vegan, Filipino. Shown
-            on your storefront.
-          </p>
-        </div>
+        <CuisineTagsField
+          label="Cuisine tags"
+          defaultValue={cook?.cuisine_tags ?? []}
+          hint="A few words buyers browse by. Tap a suggestion or type your own. Shown on your storefront."
+        />
         <div>
           <TextField
             label="Contact phone"
