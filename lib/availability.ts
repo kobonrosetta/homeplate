@@ -201,6 +201,8 @@ export function validateAvailability(
       return `Ready date can be at most ${MAX_PREORDER_HORIZON_DAYS} days out. For further-out orders, send the buyer a payment link instead.`;
     }
     const orderBy = isIsoDate(a.orderBy) ? (a.orderBy as string) : readyDate;
+    if (orderBy < todayIso)
+      return "The order-by cutoff can't be in the past — the dish would never take an order.";
     if (orderBy > readyDate) return "The order-by cutoff can't be after the ready date.";
     return null;
   }

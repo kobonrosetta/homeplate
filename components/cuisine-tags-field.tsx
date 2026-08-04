@@ -51,12 +51,22 @@ export default function CuisineTagsField({
     tags.some((x) => x.toLowerCase() === t.toLowerCase());
 
   const add = (raw: string) => {
-    const t = raw.trim().replace(/,+$/, "").trim();
-    if (!t || t.length > 30 || has(t)) {
-      setInput("");
-      return;
-    }
-    setTags((prev) => [...prev, t]);
+    // Split on commas so a pasted "Hakka, Chinese" becomes two chips, not one
+    // tag with an interior comma (which the hidden comma-joined field — and the
+    // server's split(",") — would silently break apart anyway).
+    const parts = raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    setTags((prev) => {
+      const next = [...prev];
+      for (const p of parts) {
+        if (p.length > 30) continue;
+        if (next.some((x) => x.toLowerCase() === p.toLowerCase())) continue;
+        next.push(p);
+      }
+      return next;
+    });
     setInput("");
   };
 

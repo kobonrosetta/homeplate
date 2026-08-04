@@ -38,6 +38,7 @@ export async function GET(req: Request) {
     )
     .eq("cook_id", cook.id)
     .in("status", PAID_STATUSES)
+    .is("refunded_at", null) // a refunded sale isn't taxable — exclude it
     .gte("created_at", qtr.start.toISOString())
     .lt("created_at", qtr.end.toISOString())
     .order("created_at", { ascending: true });

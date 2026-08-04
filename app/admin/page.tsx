@@ -64,11 +64,14 @@ export default async function AdminPage({
   const { data: orders } = await db
     .from("orders")
     .select(
-      "id, cook_id, status, subtotal_cents, service_fee_cents, total_cents, created_at"
+      "id, cook_id, status, subtotal_cents, service_fee_cents, total_cents, refunded_at, created_at"
     )
     .order("created_at", { ascending: false });
   const allOrders = orders ?? [];
-  const paidOrders = allOrders.filter((o: any) => PAID.has(o.status));
+  // A refunded order isn't revenue — drop it from GMV / fee / cook-earnings.
+  const paidOrders = allOrders.filter(
+    (o: any) => PAID.has(o.status) && !o.refunded_at
+  );
 
   const { data: payouts } = await db
     .from("payouts")
