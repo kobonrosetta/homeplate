@@ -162,7 +162,7 @@ function Perk({ title, body }: { title: string; body: string }) {
 }
 
 function Step({ n, title, body }: { n: string; title: string; body: string }) {
-  // Big Fraunces numeral instead of a numbered circle — the house move.
+  // Big serif numeral instead of a numbered circle — the house move.
   return (
     <div>
       <span aria-hidden className="font-display text-5xl font-semibold leading-none text-brand/30">
