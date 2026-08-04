@@ -30,13 +30,22 @@ export default function SignupForm({
 
       <OrDivider />
 
-      <TextField
-        label="Full name"
-        name="full_name"
-        type="text"
-        required
-        autoComplete="name"
-      />
+      <div className="grid grid-cols-2 gap-4">
+        <TextField
+          label="First name"
+          name="first_name"
+          type="text"
+          required
+          autoComplete="given-name"
+        />
+        <TextField
+          label="Last name"
+          name="last_name"
+          type="text"
+          required
+          autoComplete="family-name"
+        />
+      </div>
       <TextField
         label="Email"
         name="email"
@@ -47,6 +56,14 @@ export default function SignupForm({
       <TextField
         label="Password"
         name="password"
+        type="password"
+        required
+        autoComplete="new-password"
+        minLength={8}
+      />
+      <TextField
+        label="Confirm password"
+        name="password_confirm"
         type="password"
         required
         autoComplete="new-password"

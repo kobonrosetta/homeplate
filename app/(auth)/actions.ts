@@ -55,16 +55,42 @@ export async function signup(formData: FormData) {
     formData.get("next") as string | null,
     intent === "sell" ? "/sell?start=1" : "/browse"
   );
+
+  // Preserve the intent/next context on any error bounce back to the form.
+  const errSuffix =
+    (intent === "sell" ? "&intent=sell" : "") +
+    (next !== "/browse" && next !== "/sell?start=1"
+      ? `&next=${encodeURIComponent(next)}`
+      : "");
+
+  // Confirm-password guard: a mistyped password on signup silently locks the
+  // user out later (they can't log in and don't know why). Catch it here.
+  const password = String(formData.get("password") ?? "");
+  if (password !== String(formData.get("password_confirm") ?? "")) {
+    redirect(
+      "/signup?error=" +
+        encodeURIComponent("Those passwords don’t match — please retype them.") +
+        errSuffix
+    );
+  }
+
   const supabase = createClient();
   // Marketing opt-in rides in user metadata; the handle_new_user() trigger
   // copies it to profiles.marketing_opt_in (see supabase/marketing-opt-in.sql).
   const marketingOptIn = formData.get("marketing_opt_in") === "on";
   const { data, error } = await supabase.auth.signUp({
     email: String(formData.get("email")),
-    password: String(formData.get("password")),
+    password,
     options: {
       data: {
-        full_name: String(formData.get("full_name") ?? ""),
+        // Collected as separate first/last boxes, stored as one full_name so
+        // nothing downstream (trigger, profiles.full_name, emails) has to change.
+        full_name: [
+          String(formData.get("first_name") ?? "").trim(),
+          String(formData.get("last_name") ?? "").trim(),
+        ]
+          .filter(Boolean)
+          .join(" "),
         marketing_opt_in: marketingOptIn ? "true" : "false",
       },
     },
@@ -74,10 +100,7 @@ export async function signup(formData: FormData) {
     redirect(
       "/signup?error=" +
         encodeURIComponent(friendlyAuthError(error.message)) +
-        (intent === "sell" ? "&intent=sell" : "") +
-        (next !== "/browse" && next !== "/sell?start=1"
-          ? `&next=${encodeURIComponent(next)}`
-          : "")
+        errSuffix
     );
   }
 
@@ -85,7 +108,11 @@ export async function signup(formData: FormData) {
   captureServer(data.user?.id, "signup", { intent });
 
   revalidatePath("/", "layout");
-  redirect(next);
+  // Flag the just-created account so the destination (the sell wizard or
+  // /browse) can show a "you're in" confirmation — otherwise signup drops the
+  // user mid-task with no acknowledgment they made an account.
+  const sep = next.includes("?") ? "&" : "?";
+  redirect(`${next}${sep}welcome=1`);
 }
 
 export async function signout() {

@@ -188,6 +188,19 @@ export default async function DashboardOverview() {
         </p>
       )}
 
+      {/* Skipped the permit during onboarding? A pending kitchen can still add
+          it (re-opens the permit step, which stays pending-only + service-role).
+          Once approved, permit changes go through support by design. */}
+      {cook.status === "pending" && !cook.permit_number && (
+        <p className="rounded-lg border border-line bg-card px-4 py-3 text-sm text-muted">
+          Have a county permit or registration number? Adding it speeds up
+          verification.{" "}
+          <a href="/sell?step=3" className="font-medium text-brand hover:underline">
+            Add your permit →
+          </a>
+        </p>
+      )}
+
       <div className="rounded-xl bg-card p-5 shadow-soft">
         <p className="text-sm text-muted">Earned on completed orders</p>
         <p className="mt-1 text-3xl font-semibold text-ink">{formatUsd(earned)}</p>
