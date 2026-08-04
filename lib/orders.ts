@@ -158,7 +158,7 @@ async function notifyOrderConfirmed(
     const { data: order } = await admin
       .from("orders")
       .select(
-        "buyer_id, cook_id, fulfillment, pickup_time, ready_by_date, delivery_address, contact_name, contact_phone, contact_email, notes, subtotal_cents, total_cents, order_items(title, quantity)"
+        "buyer_id, cook_id, fulfillment, pickup_time, ready_by_date, delivery_address, contact_name, contact_phone, contact_email, notes, subtotal_cents, total_cents, stripe_payment_intent_id, order_items(title, quantity)"
       )
       .eq("id", orderId)
       .maybeSingle();
@@ -214,6 +214,13 @@ async function notifyOrderConfirmed(
       // The concrete "you'll get it by" date, frozen on the order at checkout.
       const readyByLine = order.ready_by_date
         ? `<p><strong>Ready by:</strong> ${formatDateLong(order.ready_by_date)}</p>`
+        : "";
+      // Stripe payment reference — the buyer can quote this to us for any
+      // question about the charge, and it's directly searchable in Stripe.
+      const paymentRefLine = order.stripe_payment_intent_id
+        ? `<p style="color:#6b7280;font-size:13px;margin-top:16px"><strong>Payment ID:</strong> ${escapeHtml(
+            order.stripe_payment_intent_id
+          )}<br/>Quote this if you contact us about your order.</p>`
         : "";
 
       // The buyer-facing handoff block: real address/time for pickup, the
@@ -302,7 +309,8 @@ async function notifyOrderConfirmed(
              ${readyByLine}
              ${buyerHandoff}
              ${contactLineBuyer}
-             ${receiptLine}`
+             ${receiptLine}
+             ${paymentRefLine}`
           ),
         });
       }
