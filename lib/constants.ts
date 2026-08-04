@@ -10,6 +10,15 @@ export const SERVICE_FEE_FLAT_CENTS = 30; // $0.30
 export const MIN_PHOTO_SCORE = 40;
 
 /**
+ * Availability guardrails (see lib/availability.ts). A dish's "a few days'
+ * notice" can't exceed MAX_LEAD_DAYS; a specific-date preorder can't be booked
+ * further out than MAX_PREORDER_HORIZON_DAYS. Bespoke longer-lead orders go
+ * through the DM pay-link, not the main menu.
+ */
+export const MAX_LEAD_DAYS = 14;
+export const MAX_PREORDER_HORIZON_DAYS = 30;
+
+/**
  * The site's public origin, for absolute URLs in emails, share links, and
  * social-card metadata. At go-live: set NEXT_PUBLIC_SITE_URL on Render (and
  * update the fallback) — this constant is the ONLY place the host lives.

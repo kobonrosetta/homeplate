@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatUsd } from "@/lib/constants";
 import AddToCart from "@/components/add-to-cart";
+import AvailabilityPill from "@/components/availability-pill";
+import { isOrderable, pacificTodayIso } from "@/lib/availability";
 import FeeNote from "@/components/fee-note";
 import FollowToggle from "@/components/follow-toggle";
 import ReviewsSection from "@/components/reviews-section";
@@ -129,6 +131,7 @@ export default async function KitchenPage({
 
   const all = menu.all;
   const items = all.filter((l: any) => (l.kind ?? "dish") === "dish");
+  const today = pacificTodayIso();
   const extras = all.filter((l: any) => l.kind === "extra");
   const hasOptions = new Set(menu.groupRows.map((g: any) => g.listing_id));
 
@@ -261,6 +264,17 @@ export default async function KitchenPage({
         <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((l: any, i: number) => {
             const soldOut = l.limited_quantity && l.quantity_available <= 0;
+            // A preorder past its cutoff can't be ordered — treat like sold out.
+            const orderable = isOrderable(
+              {
+                mode: l.fulfillment_mode ?? "ready_now",
+                leadDays: l.lead_days,
+                readyDate: l.ready_date,
+                orderBy: l.order_by,
+              },
+              today
+            );
+            const blocked = soldOut || !orderable;
             const lowStock =
               l.limited_quantity &&
               l.quantity_available > 0 &&
@@ -269,7 +283,7 @@ export default async function KitchenPage({
               <div
                 key={l.id}
                 className={`rise group flex flex-col overflow-hidden rounded-2xl bg-card shadow-soft transition hover:shadow-lift ${
-                  soldOut ? "opacity-60" : ""
+                  blocked ? "opacity-60" : ""
                 }`}
                 style={{ animationDelay: `${Math.min(i * 60, 480)}ms` }}
               >
@@ -302,9 +316,7 @@ export default async function KitchenPage({
                       {l.description}
                     </p>
                   )}
-                  {l.lead_time_note && (
-                    <p className="mt-1 text-xs text-faint">{l.lead_time_note}</p>
-                  )}
+                  <AvailabilityPill listing={l} today={today} className="mt-2 self-start" />
                   {lowStock && (
                     <p className="mt-1 text-xs font-medium text-amber-600">
                       Only {l.quantity_available} left
@@ -318,6 +330,10 @@ export default async function KitchenPage({
                     </span>
                     {soldOut ? (
                       <SoldOutTag />
+                    ) : !orderable ? (
+                      <span className="rounded-full bg-line/60 px-3 py-1 text-xs font-medium text-muted">
+                        Ordering closed
+                      </span>
                     ) : hasOptions.has(l.id) ? (
                       <Link
                         href={`/listing/${l.id}`}

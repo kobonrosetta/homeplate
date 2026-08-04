@@ -6,6 +6,7 @@ import { retrieveSession } from "@/lib/stripe";
 import { confirmPaidOrder } from "@/lib/orders";
 import { pickupLocation } from "@/lib/handoff";
 import { formatUsd, SUPPORT_EMAIL } from "@/lib/constants";
+import { formatDateLong } from "@/lib/availability";
 import ClearCart from "@/components/clear-cart";
 import ClaimAccount from "@/components/claim-account";
 import TrackEvent from "@/components/track-event";
@@ -70,7 +71,7 @@ export default async function CheckoutSuccessPage({
     ? await admin
         .from("orders")
         .select(
-          "id, buyer_id, fulfillment, total_cents, pickup_time, delivery_address, cook_id, contact_email, order_items(title, quantity, line_total_cents)"
+          "id, buyer_id, fulfillment, total_cents, pickup_time, ready_by_date, delivery_address, cook_id, contact_email, order_items(title, quantity, line_total_cents)"
         )
         .eq("id", orderId)
         .maybeSingle()
@@ -187,6 +188,14 @@ export default async function CheckoutSuccessPage({
               </div>
             ))}
             <div className="mt-2 space-y-1 border-t border-line pt-2">
+              {order.ready_by_date && (
+                <p className="text-ink">
+                  <span className="text-faint">Ready by: </span>
+                  <span className="font-medium">
+                    {formatDateLong(order.ready_by_date)}
+                  </span>
+                </p>
+              )}
               {order.fulfillment === "delivery" ? (
                 <p className="text-ink">
                   <span className="text-faint">Delivering to: </span>

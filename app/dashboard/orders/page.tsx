@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getCurrentCook } from "@/lib/cook";
 import { createClient } from "@/lib/supabase/server";
 import { formatUsd, SITE_URL } from "@/lib/constants";
+import { formatDateLong } from "@/lib/availability";
 import { advanceOrder } from "./actions";
 import { cancelPaymentRequest } from "./request-actions";
 import ShareLink from "@/components/share-link";
@@ -45,7 +46,7 @@ export default async function OrdersPage({
   const { data: orders } = await supabase
     .from("orders")
     .select(
-      "id, status, fulfillment, subtotal_cents, service_fee_cents, total_cents, pickup_time, notes, contact_name, contact_phone, delivery_address, created_at, order_items(title, quantity, unit_price_cents, line_total_cents)"
+      "id, status, fulfillment, subtotal_cents, service_fee_cents, total_cents, pickup_time, ready_by_date, notes, contact_name, contact_phone, delivery_address, created_at, order_items(title, quantity, unit_price_cents, line_total_cents)"
     )
     .eq("cook_id", cook!.id)
     .neq("status", "pending")
@@ -212,6 +213,16 @@ function OrderCard({ o, active }: { o: any; active?: boolean }) {
       </ul>
 
       <div className="mt-4 grid gap-3 rounded-lg bg-card p-3 text-sm sm:grid-cols-2">
+        {o.ready_by_date && (
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-faint">
+              Ready by
+            </p>
+            <p className="mt-0.5 font-medium text-ink">
+              {formatDateLong(o.ready_by_date)}
+            </p>
+          </div>
+        )}
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-faint">
             {o.fulfillment === "delivery" ? "Deliver to" : "Pickup"}

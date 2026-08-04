@@ -25,6 +25,11 @@ export default async function NewListingPage({
         servedHotUI={cook.operation_type === "mehko"}
         taxRate={taxRateForCity(cook.city)}
         taxPlace={cook.city?.trim() || "Santa Clara County"}
+        defaults={{
+          // New dishes inherit the kitchen's default availability (overridable).
+          fulfillmentMode: cook.default_fulfillment_mode ?? "ready_now",
+          leadDays: cook.default_lead_days,
+        }}
       />
     </div>
   );

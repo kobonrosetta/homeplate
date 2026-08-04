@@ -316,6 +316,28 @@ export default async function SettingsPage({
             </div>
           </div>
 
+          <div className="space-y-3 rounded-xl bg-card p-4 shadow-soft">
+            <SelectField
+              label="Default timing for new dishes"
+              name="default_fulfillment_mode"
+              defaultValue={cook.default_fulfillment_mode ?? "ready_now"}
+              options={[
+                { value: "ready_now", label: "Ready now (same-day)" },
+                { value: "lead_time", label: "A few days' notice" },
+              ]}
+            />
+            <TextField
+              label="Days of notice (for “a few days”)"
+              name="default_lead_days"
+              type="number"
+              defaultValue={String(cook.default_lead_days ?? 2)}
+            />
+            <p className="text-xs text-faint">
+              New dishes start with this timing so you don&apos;t set it every
+              time. You can still change any individual dish.
+            </p>
+          </div>
+
           <div>
             <TextField
               label="Contact phone"

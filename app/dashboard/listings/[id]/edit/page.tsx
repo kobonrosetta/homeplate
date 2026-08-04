@@ -78,6 +78,10 @@ export default async function EditListingPage({
           leadTime: listing.lead_time_note ?? "",
           servedHot: !!listing.served_hot,
           isExtra: listing.kind === "extra",
+          fulfillmentMode: listing.fulfillment_mode ?? "ready_now",
+          leadDays: listing.lead_days,
+          readyDate: listing.ready_date,
+          orderBy: listing.order_by,
         }}
       />
 

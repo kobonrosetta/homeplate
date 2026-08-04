@@ -7,6 +7,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { calcServiceFeeCents } from "@/lib/constants";
 import { createCheckoutSession } from "@/lib/stripe";
 import {
+  computeReadyBy,
+  isOrderable,
+  pacificTodayIso,
+} from "@/lib/availability";
+import {
   deriveUnitPrice,
   type OptionGroupRow,
   type OptionRow,
@@ -82,7 +87,7 @@ export async function startCheckout(formData: FormData) {
   const { data: listings } = await supabase
     .from("listings")
     .select(
-      "id, title, price_cents, cook_id, is_available, limited_quantity, quantity_available, served_hot"
+      "id, title, price_cents, cook_id, is_available, limited_quantity, quantity_available, served_hot, fulfillment_mode, lead_days, ready_date, order_by"
     )
     .in("id", ids);
 
@@ -228,6 +233,31 @@ export async function startCheckout(formData: FormData) {
     );
   }
 
+  // Availability guard — the core "you can't buy food that isn't planned"
+  // enforcement. Every line must resolve to a concrete, currently-orderable
+  // ready-by date; a preorder past its cutoff (or any un-orderable line)
+  // bounces to the cart. The ORDER's ready-by is the LATEST of its lines (it's
+  // ready when the slowest item is), snapshotted onto the order so a later
+  // listing edit can't rewrite the promise (mirrors served_hot).
+  const today = pacificTodayIso();
+  let orderReadyBy: string | null = null;
+  for (const l of rows) {
+    const a = {
+      mode: (l as any).fulfillment_mode ?? "ready_now",
+      leadDays: (l as any).lead_days,
+      readyDate: (l as any).ready_date,
+      orderBy: (l as any).order_by,
+    };
+    const rb = isOrderable(a, today) ? computeReadyBy(a, today) : null;
+    if (!rb) {
+      err(
+        "/cart",
+        `"${l.title}" isn't available to order right now. We've updated your cart.`
+      );
+    }
+    if (!orderReadyBy || rb! > orderReadyBy) orderReadyBy = rb!;
+  }
+
   const subtotal = items.reduce((n, i) => n + i.line_total_cents, 0);
   const fee = calcServiceFeeCents(subtotal);
   const total = subtotal + fee;
@@ -250,6 +280,7 @@ export async function startCheckout(formData: FormData) {
       service_fee_cents: fee,
       total_cents: total,
       pickup_time: fulfillment === "pickup" ? pickupTime || null : null,
+      ready_by_date: orderReadyBy,
       delivery_address: fulfillment === "delivery" ? deliveryAddress : null,
       contact_name: contactName || null,
       contact_phone: contactPhone || null,

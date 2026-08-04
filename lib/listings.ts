@@ -1,6 +1,11 @@
 import { checkPhotoImage } from "@/lib/ai";
 import { MIN_PHOTO_SCORE } from "@/lib/constants";
 import { readAllergensFromForm, allergenColumns } from "@/lib/allergens";
+import {
+  readAvailabilityFromForm,
+  validateAvailability,
+  pacificTodayIso,
+} from "@/lib/availability";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // All storage writes go through the service role (this module is imported by
@@ -126,6 +131,20 @@ export async function insertListingFromForm(
     return "Please confirm this dish's allergens before saving (check the box under Allergens, or confirm it has none).";
   }
 
+  // Availability: parse the timing fields and validate them server-side (the
+  // authoritative gate — the form also constrains inputs). Extras store ready_now.
+  const availability = readAvailabilityFromForm(formData, kind);
+  const availErr = validateAvailability(
+    {
+      mode: availability.fulfillment_mode,
+      leadDays: availability.lead_days,
+      readyDate: availability.ready_date,
+      orderBy: availability.order_by,
+    },
+    pacificTodayIso()
+  );
+  if (availErr) return availErr;
+
   const storage = adminStorage();
 
   let photoUrl: string | null = null;
@@ -193,6 +212,7 @@ export async function insertListingFromForm(
     description: description || null,
     allergens: allergens || null,
     ...allergenColumns(kind, { contains, mayContain, declared }),
+    ...availability,
     ingredients: ingredients || null,
     quantity_available: quantity,
     limited_quantity: limited,

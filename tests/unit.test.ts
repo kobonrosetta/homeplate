@@ -22,6 +22,15 @@ import {
   quarterOf,
   previousQuarter,
 } from "../lib/tax";
+import {
+  addDaysIso,
+  isIsoDate,
+  computeReadyBy,
+  isOrderable,
+  validateAvailability,
+  availabilityBadge,
+  pacificTodayIso,
+} from "../lib/availability";
 
 let pass = 0;
 let fail = 0;
@@ -227,6 +236,92 @@ check("connect: disabled_reason is surfaced", () => {
   });
   assert.equal(s.disabledReason, "requirements.past_due");
 });
+
+// --- availability / timing model (the new guardrail) ---
+const TODAY = "2026-08-07"; // fixed "today" for deterministic tests
+
+// date arithmetic
+check("addDaysIso: simple add", () => assert.equal(addDaysIso("2026-08-07", 2), "2026-08-09"));
+check("addDaysIso: month rollover", () => assert.equal(addDaysIso("2026-08-31", 1), "2026-09-01"));
+check("addDaysIso: year rollover", () => assert.equal(addDaysIso("2026-12-31", 1), "2027-01-01"));
+check("addDaysIso: leap day", () => assert.equal(addDaysIso("2028-02-28", 1), "2028-02-29"));
+check("addDaysIso: zero is identity", () => assert.equal(addDaysIso("2026-08-07", 0), "2026-08-07"));
+check("isIsoDate: valid", () => assert.ok(isIsoDate("2026-08-07")));
+check("isIsoDate: rejects garbage", () => assert.ok(!isIsoDate("2026-13-40")));
+check("isIsoDate: rejects non-string", () => assert.ok(!isIsoDate(null as any)));
+check("pacificTodayIso: shape is YYYY-MM-DD", () =>
+  assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(pacificTodayIso(new Date("2026-08-07T12:00:00Z")))));
+check("pacificTodayIso: late-night UTC still Pacific-dated", () =>
+  // 2026-08-08 05:00 UTC = 2026-08-07 22:00 Pacific → still the 7th
+  assert.equal(pacificTodayIso(new Date("2026-08-08T05:00:00Z")), "2026-08-07"));
+
+// computeReadyBy per mode
+check("ready_now → today", () =>
+  assert.equal(computeReadyBy({ mode: "ready_now" }, TODAY), TODAY));
+check("lead_time → today + N", () =>
+  assert.equal(computeReadyBy({ mode: "lead_time", leadDays: 3 }, TODAY), "2026-08-10"));
+check("lead_time: promising the past is impossible (added to today)", () =>
+  assert.ok(computeReadyBy({ mode: "lead_time", leadDays: 2 }, TODAY)! > TODAY));
+check("preorder (open) → the ready date", () =>
+  assert.equal(
+    computeReadyBy({ mode: "preorder", readyDate: "2026-08-20", orderBy: "2026-08-18" }, TODAY),
+    "2026-08-20"
+  ));
+check("preorder past cutoff → null (no date)", () =>
+  assert.equal(
+    computeReadyBy({ mode: "preorder", readyDate: "2026-08-20", orderBy: "2026-08-05" }, TODAY),
+    null
+  ));
+
+// isOrderable — the checkout guard
+check("orderable: ready_now always", () => assert.ok(isOrderable({ mode: "ready_now" }, TODAY)));
+check("orderable: lead_time within cap", () =>
+  assert.ok(isOrderable({ mode: "lead_time", leadDays: 14 }, TODAY)));
+check("NOT orderable: lead_time over cap", () =>
+  assert.ok(!isOrderable({ mode: "lead_time", leadDays: 15 }, TODAY)));
+check("orderable: preorder before cutoff", () =>
+  assert.ok(isOrderable({ mode: "preorder", readyDate: "2026-08-20", orderBy: "2026-08-18" }, TODAY)));
+check("NOT orderable: preorder after cutoff", () =>
+  assert.ok(!isOrderable({ mode: "preorder", readyDate: "2026-08-20", orderBy: "2026-08-05" }, TODAY)));
+check("NOT orderable: preorder ready date in the past", () =>
+  assert.ok(!isOrderable({ mode: "preorder", readyDate: "2026-08-01", orderBy: "2026-08-01" }, TODAY)));
+check("NOT orderable: preorder beyond 30-day horizon", () =>
+  assert.ok(!isOrderable({ mode: "preorder", readyDate: "2026-10-01", orderBy: "2026-09-30" }, TODAY)));
+check("orderable: preorder cutoff defaults to ready date when omitted", () =>
+  assert.ok(isOrderable({ mode: "preorder", readyDate: "2026-08-20" }, TODAY)));
+
+// validateAvailability — server-side save gate
+check("validate: ready_now ok", () => assert.equal(validateAvailability({ mode: "ready_now" }, TODAY), null));
+check("validate: lead_time ok", () =>
+  assert.equal(validateAvailability({ mode: "lead_time", leadDays: 2 }, TODAY), null));
+check("validate: lead_time over cap → error", () =>
+  assert.ok(validateAvailability({ mode: "lead_time", leadDays: 20 }, TODAY)));
+check("validate: preorder needs a date", () =>
+  assert.ok(validateAvailability({ mode: "preorder", readyDate: null }, TODAY)));
+check("validate: preorder date in past → error", () =>
+  assert.ok(validateAvailability({ mode: "preorder", readyDate: "2026-08-01" }, TODAY)));
+check("validate: preorder beyond horizon → error", () =>
+  assert.ok(validateAvailability({ mode: "preorder", readyDate: "2026-10-01" }, TODAY)));
+check("validate: order-by after ready date → error", () =>
+  assert.ok(validateAvailability({ mode: "preorder", readyDate: "2026-08-20", orderBy: "2026-08-25" }, TODAY)));
+check("validate: valid preorder ok", () =>
+  assert.equal(validateAvailability({ mode: "preorder", readyDate: "2026-08-20", orderBy: "2026-08-18" }, TODAY), null));
+
+// badges
+check("badge: ready_now → Ready today / now", () => {
+  const b = availabilityBadge({ mode: "ready_now" }, TODAY);
+  assert.equal(b.tone, "now");
+  assert.equal(b.text, "Ready today");
+});
+check("badge: lead_time → soon + a date", () => {
+  const b = availabilityBadge({ mode: "lead_time", leadDays: 2 }, TODAY);
+  assert.equal(b.tone, "soon");
+  assert.ok(b.text.startsWith("Ready by "));
+});
+check("badge: preorder open → date tone", () =>
+  assert.equal(availabilityBadge({ mode: "preorder", readyDate: "2026-08-20", orderBy: "2026-08-18" }, TODAY).tone, "date"));
+check("badge: preorder closed → closed tone", () =>
+  assert.equal(availabilityBadge({ mode: "preorder", readyDate: "2026-08-20", orderBy: "2026-08-05" }, TODAY).tone, "closed"));
 
 console.log("\n" + pass + " passed, " + fail + " failed");
 if (fail > 0) process.exit(1);
