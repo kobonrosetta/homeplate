@@ -15,6 +15,7 @@ import {
   deleteReview,
   deleteListing,
   setListingAvailability,
+  refundOrder,
 } from "../../actions";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,7 @@ export default async function AdminKitchenPage({
   searchParams,
 }: {
   params: { id: string };
-  searchParams: { saved?: string };
+  searchParams: { saved?: string; error?: string };
 }) {
   const admin = await getAdminUser();
   if (!admin) notFound();
@@ -63,7 +64,7 @@ export default async function AdminKitchenPage({
     db
       .from("orders")
       .select(
-        "id, status, subtotal_cents, service_fee_cents, total_cents, fulfillment, created_at, contact_name, order_items(title, quantity, line_total_cents)"
+        "id, status, subtotal_cents, service_fee_cents, total_cents, fulfillment, created_at, contact_name, refunded_at, stripe_payment_intent_id, order_items(title, quantity, line_total_cents)"
       )
       .eq("cook_id", id)
       .order("created_at", { ascending: false }),
@@ -130,7 +131,14 @@ export default async function AdminKitchenPage({
 
       {searchParams.saved && (
         <p className="mt-4 rounded-lg bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
-          Saved.
+          {searchParams.saved === "refunded"
+            ? "Refund issued — the buyer has been notified."
+            : "Saved."}
+        </p>
+      )}
+      {searchParams.error && (
+        <p className="mt-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">
+          {searchParams.error}
         </p>
       )}
 
@@ -270,17 +278,39 @@ export default async function AdminKitchenPage({
                     {formatUsd(o.total_cents)} · {o.status}
                   </span>
                 </div>
-                <p className="text-xs text-faint">
-                  cook keeps {formatUsd(o.subtotal_cents)} ·{" "}
-                  {new Date(o.created_at).toLocaleDateString()} · {o.fulfillment}
-                </p>
+                <div className="mt-1 flex items-center justify-between gap-3">
+                  <p className="text-xs text-faint">
+                    cook keeps {formatUsd(o.subtotal_cents)} ·{" "}
+                    {new Date(o.created_at).toLocaleDateString()} ·{" "}
+                    {o.fulfillment}
+                  </p>
+                  {o.refunded_at ? (
+                    <span className="whitespace-nowrap text-xs font-medium text-muted">
+                      ✓ Refunded
+                    </span>
+                  ) : o.stripe_payment_intent_id ? (
+                    <form action={refundOrder}>
+                      <input type="hidden" name="order_id" value={o.id} />
+                      <input type="hidden" name="cook_id" value={cook.id} />
+                      <ConfirmSubmit
+                        className="whitespace-nowrap rounded-full border border-red-200 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
+                        message={`Fully refund ${formatUsd(
+                          o.total_cents
+                        )} to the buyer? This reverses the cook's transfer and returns your service fee. Can't be undone.`}
+                      >
+                        Refund
+                      </ConfirmSubmit>
+                    </form>
+                  ) : null}
+                </div>
               </div>
             ))}
           </div>
         )}
         <p className="mt-2 text-xs text-faint">
-          Refunds/cancellations are handled in the Stripe dashboard (reverse the
-          transfer + refund the application fee).
+          Refund reverses the cook&apos;s transfer + returns the service fee
+          automatically (Stripe keeps only its processing cut). The buyer is
+          emailed. Un-fulfilled orders are also cancelled and restocked.
         </p>
       </Section>
 

@@ -5,6 +5,10 @@ import { redirect } from "next/navigation";
 import { getAdminUser } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyCookStatusChange } from "@/lib/cook-notify";
+import { createRefund } from "@/lib/stripe";
+import { restockOrderItems } from "@/lib/orders";
+import { escapeHtml, sendEmail, wrapEmail } from "@/lib/email";
+import { formatUsd, SUPPORT_EMAIL } from "@/lib/constants";
 
 const COOK_STATUSES = new Set(["pending", "active", "paused", "suspended"]);
 
@@ -220,4 +224,82 @@ export async function deleteListing(formData: FormData) {
   const db = createAdminClient();
   await db.from("listings").delete().eq("id", id); // cascades option groups/options
   bumpAdmin(cookId || undefined);
+}
+
+// One-click full refund of a paid order. Buyers reach out (quoting the payment
+// ID from their receipt); the admin refunds here so the destination-charge
+// refund is always correct (createRefund forces reverse_transfer +
+// refund_application_fee — you can't forget a checkbox and eat the cook's cut).
+export async function refundOrder(formData: FormData) {
+  const admin = await getAdminUser();
+  if (!admin) return;
+  const orderId = String(formData.get("order_id") ?? "");
+  const cookId = String(formData.get("cook_id") ?? "");
+  if (!orderId || !cookId) redirect("/admin");
+  const db = createAdminClient();
+  const fail = (msg: string) =>
+    redirect(`/admin/kitchen/${cookId}?error=${encodeURIComponent(msg)}`);
+
+  const { data: order } = await db
+    .from("orders")
+    .select(
+      "id, status, refunded_at, total_cents, stripe_payment_intent_id, contact_email, contact_name, cook_id"
+    )
+    .eq("id", orderId)
+    .maybeSingle();
+  if (!order) fail("Order not found.");
+  if (order!.refunded_at) fail("This order was already refunded.");
+  if (!order!.stripe_payment_intent_id)
+    fail("No payment to refund (this order was never paid).");
+
+  const result = await createRefund(order!.stripe_payment_intent_id as string);
+  if ("error" in result) fail("Refund failed: " + result.error);
+
+  // Mark refunded (idempotency + record). Cancel + restock ONLY if the order
+  // wasn't already fulfilled or cancelled: a refund on a 'completed' order is a
+  // goodwill refund (keep its history, don't put food back), and an
+  // already-'cancelled' order was restocked when it was cancelled (no double).
+  const shouldCancel =
+    order!.status !== "completed" && order!.status !== "cancelled";
+  const patch: Record<string, unknown> = {
+    refunded_at: new Date().toISOString(),
+  };
+  if (shouldCancel) patch.status = "cancelled";
+  await db.from("orders").update(patch).eq("id", orderId);
+  if (shouldCancel) await restockOrderItems(orderId);
+
+  // Tell the buyer their money's coming back.
+  if (order!.contact_email) {
+    try {
+      const { data: cook } = await db
+        .from("cooks")
+        .select("business_name")
+        .eq("id", cookId)
+        .maybeSingle();
+      const kitchen = cook?.business_name ?? "the kitchen";
+      await sendEmail({
+        to: order!.contact_email,
+        subject: "Refunded: your ForkFork order",
+        html: wrapEmail(
+          `<h2>You've been refunded</h2>
+           <p>Hi${
+             order!.contact_name ? ` ${escapeHtml(order!.contact_name)}` : ""
+           }, your ${formatUsd(
+            order!.total_cents ?? 0
+          )} order at ${escapeHtml(
+            kitchen
+          )} has been fully refunded.</p>
+           <p>It should land back on your original payment method within a few
+           business days. Questions? Just reply, or email ${escapeHtml(
+             SUPPORT_EMAIL
+           )}.</p>`
+        ),
+      });
+    } catch {
+      /* email must never block the refund record */
+    }
+  }
+
+  bumpAdmin(cookId);
+  redirect(`/admin/kitchen/${cookId}?saved=refunded`);
 }
