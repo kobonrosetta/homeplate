@@ -171,7 +171,7 @@ export default async function SettingsPage({
               placeholder="How you got started, what you love to make, what makes your food yours…"
             />
             <p className="mt-1 text-xs text-faint">
-              This is what buyers read under “Meet the cook.” A few honest
+              This is what buyers read under “Meet the chef.” A few honest
               sentences do more to win a first order than anything else on the
               page.
             </p>

@@ -120,7 +120,7 @@ export default function CheckoutForm({
       </Field>
 
       <div className="space-y-2">
-        <p className="text-sm font-medium text-ink">How do you want it?</p>
+        <p className="text-sm font-medium text-ink">Pickup or delivery?</p>
         <div className="flex gap-3">
           <Choice
             active={fulfillment === "pickup"}
@@ -201,6 +201,10 @@ export default function CheckoutForm({
       </div>
 
       <SubmitButton total={total} />
+      <p className="text-center text-xs text-faint">
+        Every ForkFork kitchen is checked against Santa Clara County&rsquo;s
+        list of approved home cooks and bakers before it can sell.
+      </p>
       <p className="text-center text-xs text-faint">
         No account needed. Pay as a guest, with secure payment by Stripe.
       </p>

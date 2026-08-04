@@ -236,7 +236,7 @@ function Step1({
             placeholder="How you got started, what you love to make, what makes your food yours…"
           />
           <p className="mt-1 text-xs text-faint">
-            This is what buyers read under “Meet the cook.” A few honest
+            This is what buyers read under “Meet the chef.” A few honest
             sentences do more to win a first order than anything else on the
             page.
           </p>
@@ -376,8 +376,8 @@ function Step3({
       <h1 className="text-2xl font-semibold text-ink">Last step: submit for review</h1>
       <div className="mt-3 rounded-xl bg-card p-3 text-sm text-muted shadow-soft">
         {cottage
-          ? "Last step. We match your registration number to Santa Clara County's cottage-food operator list, and your address stays private. You'll hear back by email within about a day."
-          : "Last step. We match your permit to Santa Clara County's published MEHKO list, and your address stays private. You'll hear back by email within about a day."}
+          ? "We match your registration number to Santa Clara County's cottage-food operator list, and your address stays private. You'll hear back by email within about a day."
+          : "We match your permit to Santa Clara County's published MEHKO list, and your address stays private. You'll hear back by email within about a day."}
       </div>
       {email && (
         <p className="mt-2 text-xs text-faint">
@@ -395,7 +395,7 @@ function Step3({
           }
           name="permit_number"
           defaultValue={defaults?.permitNumber}
-          placeholder={cottage ? "Your county registration #" : "e.g. PT0503912"}
+          placeholder="e.g. PT0503912"
         />
         <p className="-mt-3 text-xs text-faint">
           Adding it now speeds up verification, but you can submit without it

@@ -81,7 +81,7 @@ export default async function PayoutsPage({
               ? stripe?.disabled_reason
                 ? "Stripe still needs a detail or two from you. Continue below to finish."
                 : "Stripe is verifying your details, usually just a few minutes. Add anything they still need below."
-              : "Connect a bank account through Stripe so you can take orders and your earnings land automatically. You keep 100% of your listed price; ForkFork only ever takes its service fee from the buyer."}
+              : "Connect a bank account through Stripe so you can take orders and your earnings land automatically. You keep 100% of your listed price; ForkFork only ever takes its service fee from the buyer — and card-processing fees come out of that fee, never your payout."}
           </p>
           <form action={startStripeOnboarding} className="mt-4">
             <button

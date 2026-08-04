@@ -87,7 +87,7 @@ export default async function Home() {
       <section className="border-t border-line bg-card/60">
         <div className="mx-auto grid max-w-6xl gap-8 px-6 py-14 sm:grid-cols-3">
           <Feature
-            title="Held to restaurant rules, at home"
+            title="Held to real food-safety standards, at home"
             body="Hot-meal kitchens are permitted and inspected by the county health department, the same office that inspects restaurants. Bakers are registered under California's cottage food law, with state-required food-safety training."
           />
           <Feature

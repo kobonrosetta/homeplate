@@ -149,8 +149,8 @@ export default function TermsPage() {
           You grant ForkFork a non-exclusive, royalty-free license to host,
           display, and reproduce content you submit, for the purpose of
           operating and promoting the Services. Content belongs to whoever
-          created it; ForkFork is a platform for it, and to the extent permitted
-          by law we are not the publisher or speaker of user content.
+          created it; ForkFork hosts and displays it, and to the extent
+          permitted by law we are not the publisher or speaker of user content.
         </p>
       </S>
 

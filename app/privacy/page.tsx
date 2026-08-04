@@ -13,7 +13,7 @@ export default function PrivacyPage() {
       <p className="text-[15px] leading-relaxed text-muted">
         This policy describes what information ForkFork (&ldquo;we&rdquo;)
         collects through forkfork.app, how we use and share it, and the choices
-        you have. It applies to buyers, cooks, and visitors. By using ForkFork
+        you have. It applies to buyers, chefs, and visitors. By using ForkFork
         you agree to this policy and our{" "}
         <Link href="/terms" className="text-brand hover:underline">
           Terms of Service
@@ -36,7 +36,7 @@ export default function PrivacyPage() {
           payments are processed by Stripe.
         </p>
         <p>
-          <strong>Kitchen information (cooks).</strong> Your business name and
+          <strong>Kitchen information (chefs).</strong> Your business name and
           public storefront details (menu, photos, bio, city/neighborhood), and
           — kept private — your home address, pickup location, permit number,
           CDTFA seller&rsquo;s permit number, and an optional photo of your
@@ -59,8 +59,8 @@ export default function PrivacyPage() {
       <S n="2" title="How we use it">
         <p>
           To operate the marketplace: create and secure your account, process
-          and coordinate orders, route payments and cook payouts through
-          Stripe, verify cook permits against Santa Clara County&rsquo;s
+          and coordinate orders, route payments and chef payouts through
+          Stripe, verify chef permits against Santa Clara County&rsquo;s
           published operator lists, show reviews tied to real orders, provide
           support, send transactional email (order confirmations, updates,
           password resets, and — if you follow a kitchen — new-dish
@@ -84,22 +84,22 @@ export default function PrivacyPage() {
           contact information (name, phone, email, delivery address or note) so
           they can prepare and hand off your food. After you order, you receive
           the kitchen&rsquo;s pickup details and, where the chef has provided
-          them, their contact info. Cooks&rsquo;
+          them, their contact info. Chefs&rsquo;
           public storefronts (business name, menu, photos, city) are visible to
           everyone; a chef&rsquo;s home address is never shown publicly.
         </p>
         <p>
           <strong>Service providers.</strong> We use a small set of processors
           to run ForkFork: Supabase (database, authentication, file storage),
-          Stripe (payments and cook payouts), Resend (email delivery), Groq
-          (AI processing of cook-submitted listing text/photos), Render
+          Stripe (payments and chef payouts), Resend (email delivery), Groq
+          (AI processing of chef-submitted listing text/photos), Render
           (hosting), and Google (optional sign-in). Each receives only what it
           needs to provide its service.
         </p>
         <p>
           <strong>Legal and safety.</strong> We may disclose information when
           required by law, to enforce our Terms, or to protect the rights,
-          safety, or property of users, cooks, or ForkFork — including sharing
+          safety, or property of users, chefs, or ForkFork — including sharing
           permit-related information with Santa Clara County authorities where
           appropriate.
         </p>
@@ -135,7 +135,7 @@ export default function PrivacyPage() {
 
       <S n="6" title="Your choices">
         <p>
-          Cooks can view and update their kitchen and profile details in the
+          Chefs can view and update their kitchen and profile details in the
           dashboard. Anyone can unfollow a kitchen to stop its notifications
           and reset their password anytime. To view, update, or correct
           anything else, or to request a copy of your data or deletion of your
@@ -154,9 +154,9 @@ export default function PrivacyPage() {
       <S n="7" title="Children">
         <p>
           ForkFork is not directed to children and is intended for users 18 and
-          older. We do not knowingly collect personal information from children
-          under 13; if you believe a child has provided us information, contact
-          us and we will delete it.
+          older. We do not knowingly collect personal information from anyone
+          under 18, and never from children under 13; if you believe someone
+          under 18 has provided us information, contact us and we will delete it.
         </p>
       </S>
 

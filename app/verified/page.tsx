@@ -14,7 +14,7 @@ export default function VerifiedPage() {
         ✓ County-verified
       </span>
       <h1 className="mt-4 text-3xl font-semibold leading-tight text-ink">
-        Every kitchen is a real, permitted home food business
+        Every kitchen is a real, county-cleared home food business
       </h1>
       <p className="mt-3 text-lg leading-relaxed text-muted">
         Not an anonymous seller. A home chef Santa Clara County has cleared to
@@ -29,8 +29,8 @@ export default function VerifiedPage() {
           registration for baked and shelf-stable goods. No valid permit means
           no selling on ForkFork.
         </Point>
-        <Point n="2" title="Inspected and trained under state law">
-          A MEHKO cook&rsquo;s actual home kitchen passes a county health
+        <Point n="2" title="Food-safety trained — and inspected, for hot meals">
+          A MEHKO chef&rsquo;s actual home kitchen passes a county health
           inspection before the permit issues (by the same department that
           inspects restaurants), and the chef holds food-safety certification,
           just like a restaurant kitchen manager. Cottage-food bakers complete
@@ -54,7 +54,7 @@ export default function VerifiedPage() {
       <div className="mt-8 rounded-xl bg-card p-5 shadow-soft">
         <p className="text-sm leading-relaxed text-ink">
           <span className="font-medium">What that means for you:</span> you&rsquo;re
-          ordering from a county-permitted kitchen with a real name and
+          ordering from a county-cleared kitchen with a real name and
           address on file and reviews from real orders, cleared by the county
           and backed by us. And portions are small-batch by design: state law caps
           how much a home kitchen can sell, so this stays real home cooking.
