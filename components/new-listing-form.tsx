@@ -46,7 +46,6 @@ type Defaults = {
   limited?: boolean;
   allergens?: string;
   contains?: string[];
-  mayContain?: string[];
   declared?: boolean;
   ingredients?: string;
   description?: string;
@@ -593,28 +592,6 @@ export default function NewListingForm({
               </label>
             ))}
           </div>
-
-          <details>
-            <summary className="cursor-pointer text-sm text-muted">
-              Made in a kitchen that also handles… (cross-contact)
-            </summary>
-            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {ALLERGENS.map((a) => (
-                <label
-                  key={a.key}
-                  className="flex items-center gap-2 text-sm text-ink"
-                >
-                  <input
-                    type="checkbox"
-                    name="may_contain"
-                    value={a.key}
-                    defaultChecked={defaults?.mayContain?.includes(a.key)}
-                  />
-                  {a.label}
-                </label>
-              ))}
-            </div>
-          </details>
 
           <label className="block">
             <span className="text-sm font-medium text-ink">
