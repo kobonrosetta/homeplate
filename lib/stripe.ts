@@ -121,6 +121,49 @@ export async function retrieveSession(sessionId: string): Promise<{
 }
 
 /**
+ * Refund a destination-charge payment IN FULL, correctly.
+ *
+ * With destination charges the cook already received their cut via an automatic
+ * transfer, so a naive refund would refund the buyer out of the PLATFORM's
+ * balance while the cook keeps their money — the platform silently eats the
+ * cook's share. So this ALWAYS sets:
+ *   - reverse_transfer=true      → claw the cook's transfer back
+ *   - refund_application_fee=true → return the platform's service fee too
+ * (Stripe keeps only its processing cut — the unavoidable cost of any refund.)
+ *
+ * Returns { id } on success, or { error } — never throws, so the admin action
+ * can show a message. Idempotency is enforced by the caller (orders.refunded_at).
+ */
+export async function createRefund(
+  paymentIntentId: string
+): Promise<{ id: string } | { error: string }> {
+  const key = secretKey();
+  if (!key) return { error: "Payments aren't set up (missing Stripe key)." };
+  const body = new URLSearchParams();
+  body.set("payment_intent", paymentIntentId);
+  body.set("reverse_transfer", "true");
+  body.set("refund_application_fee", "true");
+  let res: Response;
+  try {
+    res = await fetch(`${STRIPE_API}/refunds`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body,
+    });
+  } catch {
+    return { error: "Couldn't reach Stripe. Try again." };
+  }
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.id) {
+    return { error: data?.error?.message ?? "Stripe refund failed." };
+  }
+  return { id: data.id as string };
+}
+
+/**
  * Verify a Stripe webhook signature so we only act on genuine Stripe events.
  * Same scheme as stripe.webhooks.constructEvent, without pulling in the SDK.
  */
