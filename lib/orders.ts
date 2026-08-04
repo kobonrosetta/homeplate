@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { escapeHtml, sendEmail, wrapEmail } from "@/lib/email";
 import { formatUsd, SITE_URL } from "@/lib/constants";
+import { formatDateLong } from "@/lib/availability";
 import { pickupLocation } from "@/lib/handoff";
 
 // Inline email link/button — matches the brand accent in wrapEmail.
@@ -157,7 +158,7 @@ async function notifyOrderConfirmed(
     const { data: order } = await admin
       .from("orders")
       .select(
-        "buyer_id, cook_id, fulfillment, pickup_time, delivery_address, contact_name, contact_phone, contact_email, notes, subtotal_cents, total_cents, order_items(title, quantity)"
+        "buyer_id, cook_id, fulfillment, pickup_time, ready_by_date, delivery_address, contact_name, contact_phone, contact_email, notes, subtotal_cents, total_cents, order_items(title, quantity)"
       )
       .eq("id", orderId)
       .maybeSingle();
@@ -210,6 +211,10 @@ async function notifyOrderConfirmed(
           : `Pickup${
               order.pickup_time ? ` · ${escapeHtml(order.pickup_time)}` : ""
             }`;
+      // The concrete "you'll get it by" date, frozen on the order at checkout.
+      const readyByLine = order.ready_by_date
+        ? `<p><strong>Ready by:</strong> ${formatDateLong(order.ready_by_date)}</p>`
+        : "";
 
       // The buyer-facing handoff block: real address/time for pickup, the
       // delivery address for delivery, plus the kitchen's contact if set.
@@ -251,6 +256,7 @@ async function notifyOrderConfirmed(
           html: wrapEmail(
             `<h2>You've got a new order</h2>
              <p><strong>${items}</strong></p>
+             ${readyByLine}
              <p>${where}</p>
              <p>You receive <strong>${formatUsd(order.subtotal_cents ?? 0)}</strong></p>
              <p><strong>Buyer:</strong> ${contactLine}</p>
@@ -293,6 +299,7 @@ async function notifyOrderConfirmed(
              }! ${kitchen} has your order.</p>
              <p><strong>${items}</strong></p>
              <p>You paid <strong>${formatUsd(order.total_cents ?? 0)}</strong></p>
+             ${readyByLine}
              ${buyerHandoff}
              ${contactLineBuyer}
              ${receiptLine}`

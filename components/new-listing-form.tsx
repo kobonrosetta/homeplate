@@ -2,7 +2,8 @@
 
 import { useState, type ChangeEvent } from "react";
 import { useFormStatus } from "react-dom";
-import { formatUsd } from "@/lib/constants";
+import { formatUsd, MAX_PREORDER_HORIZON_DAYS } from "@/lib/constants";
+import { type FulfillmentMode } from "@/lib/availability";
 import { formatRate, netOfTaxCents } from "@/lib/tax";
 import { ALLERGENS } from "@/lib/allergens";
 import { FormError } from "@/components/form";
@@ -49,9 +50,12 @@ type Defaults = {
   declared?: boolean;
   ingredients?: string;
   description?: string;
-  leadTime?: string;
   servedHot?: boolean;
   isExtra?: boolean;
+  fulfillmentMode?: FulfillmentMode;
+  leadDays?: number | null;
+  readyDate?: string | null;
+  orderBy?: string | null;
 };
 
 export default function NewListingForm({
@@ -87,6 +91,11 @@ export default function NewListingForm({
   const [limited, setLimited] = useState(defaults?.limited ?? false);
   const [servedHot, setServedHot] = useState(defaults?.servedHot ?? true);
   const [priceStr, setPriceStr] = useState(defaults?.price ?? "");
+  // Availability mode — new dishes inherit the kitchen default (passed in
+  // defaults); each dish can override. Extras aren't food (see below).
+  const [mode, setMode] = useState<FulfillmentMode>(
+    defaults?.fulfillmentMode ?? "ready_now"
+  );
 
   // The CA taxability flag, phrased as menu info. Extras aren't food, so the
   // control disappears (and the flag goes false) when "extra" is checked.
@@ -95,6 +104,16 @@ export default function NewListingForm({
   // unlike served_hot this shows for every dish regardless of program — just
   // not for extras, which aren't food.
   const showAllergens = !isExtra;
+  // Availability shows for food only (extras aren't food — they store ready_now).
+  const showAvailability = !isExtra;
+  // Date-input bounds. Browser-local is fine here — the server re-validates in
+  // Pacific authoritatively (lib/availability.ts); this only shapes the picker.
+  const todayIso = new Date().toLocaleDateString("en-CA");
+  const maxPreorderIso = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + MAX_PREORDER_HORIZON_DAYS);
+    return d.toLocaleDateString("en-CA");
+  })();
 
   async function runDescribe(image: string | null) {
     const title =
@@ -302,6 +321,99 @@ export default function NewListingForm({
         />
       </label>
 
+      {showAvailability && (
+        <div>
+          <span className="text-sm font-medium text-ink">
+            When can people get this?
+          </span>
+          <p className="mt-1 text-xs text-faint">
+            Buyers see exactly when they&apos;ll get it — and can&apos;t order
+            for a time you can&apos;t make.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {(
+              [
+                ["ready_now", "Ready now"],
+                ["lead_time", "A few days' notice"],
+                ["preorder", "Specific date"],
+              ] as [FulfillmentMode, string][]
+            ).map(([val, label]) => (
+              <button
+                key={val}
+                type="button"
+                onClick={() => setMode(val)}
+                className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                  mode === val
+                    ? "border-brand bg-brand text-white"
+                    : "border-line text-ink hover:border-muted"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <input type="hidden" name="fulfillment_mode" value={mode} />
+
+          {mode === "ready_now" && (
+            <p className="mt-2 text-xs text-faint">
+              Shows a green “Ready today” — for food you have on hand or can make
+              same-day.
+            </p>
+          )}
+
+          {mode === "lead_time" && (
+            <div className="mt-3">
+              <div className="flex items-center gap-2 text-sm text-ink">
+                Ready in
+                <input
+                  name="lead_days"
+                  type="number"
+                  min={0}
+                  max={14}
+                  defaultValue={defaults?.leadDays ?? 2}
+                  className="w-20 rounded-lg border border-line px-3 py-2 text-ink outline-none focus:border-muted focus:ring-2 focus:ring-line"
+                />
+                days
+              </div>
+              <p className="mt-1 text-xs text-faint">
+                Buyers see “Ready by [date]”, counted from the day they order.
+              </p>
+            </div>
+          )}
+
+          {mode === "preorder" && (
+            <div className="mt-3 space-y-3">
+              <label className="block">
+                <span className="text-sm text-ink">Ready on</span>
+                <input
+                  name="ready_date"
+                  type="date"
+                  min={todayIso}
+                  max={maxPreorderIso}
+                  defaultValue={defaults?.readyDate ?? ""}
+                  className={inputClass}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm text-ink">Stop taking orders on</span>
+                <input
+                  name="order_by"
+                  type="date"
+                  min={todayIso}
+                  max={maxPreorderIso}
+                  defaultValue={defaults?.orderBy ?? ""}
+                  className={inputClass}
+                />
+                <span className="mt-1 block text-xs text-faint">
+                  Optional — defaults to the ready date. After this, the dish
+                  closes itself.
+                </span>
+              </label>
+            </div>
+          )}
+        </div>
+      )}
+
       <div>
         <span className="text-sm font-medium text-ink">
           How many can you make?
@@ -348,8 +460,8 @@ export default function NewListingForm({
           </div>
         ) : (
           <p className="mt-2 text-xs text-faint">
-            No cap, so buyers can always order. Use the lead-time note below to set
-            expectations (e.g. “Order by Friday for Sunday pickup”).
+            No cap on quantity — the “When can people get this?” choice above still
+            sets when buyers can order it.
           </p>
         )}
       </div>
@@ -549,16 +661,6 @@ export default function NewListingForm({
           Shown on the item page when filled in. Baked goods: this is what your
           cottage label lists anyway, and buyers trust seeing it.
         </p>
-      </label>
-
-      <label className="block">
-        <span className="text-sm font-medium text-ink">Lead time note (optional)</span>
-        <input
-          name="lead_time_note"
-          defaultValue={defaults?.leadTime}
-          placeholder="Order by Friday for Sunday pickup"
-          className={inputClass}
-        />
       </label>
 
       <ListingSubmit

@@ -4,7 +4,13 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatUsd } from "@/lib/constants";
 import { allergenLabels } from "@/lib/allergens";
+import {
+  availabilityFromListing,
+  isOrderable,
+  pacificTodayIso,
+} from "@/lib/availability";
 import AddToCart from "@/components/add-to-cart";
+import AvailabilityPill from "@/components/availability-pill";
 import FeeNote from "@/components/fee-note";
 import PhotoGallery from "@/components/photo-gallery";
 import OptionsPicker from "@/components/options-picker";
@@ -104,6 +110,8 @@ export default async function ListingPage({
   const hasOptions = optionGroups.length > 0;
 
   const soldOut = listing.limited_quantity && listing.quantity_available <= 0;
+  const today = pacificTodayIso();
+  const orderable = isOrderable(availabilityFromListing(listing), today);
   const galleryUrls = [listing.photo_url, ...(listing.photo_urls ?? [])].filter(
     Boolean
   );
@@ -180,8 +188,10 @@ export default async function ListingPage({
               <span className="text-muted">{listing.ingredients}</span>
             </p>
           )}
-          {listing.lead_time_note && (
-            <p className="mt-3 text-sm text-faint">{listing.lead_time_note}</p>
+          {listing.kind !== "extra" && (
+            <div className="mt-4">
+              <AvailabilityPill listing={listing} today={today} />
+            </div>
           )}
 
           <div className="mt-3 flex flex-wrap gap-2 text-sm text-muted">
@@ -199,6 +209,10 @@ export default async function ListingPage({
           <div className="mt-6">
             {soldOut ? (
               <SoldOutTag />
+            ) : !orderable ? (
+              <span className="inline-block rounded-full bg-line/60 px-4 py-2 text-sm font-medium text-muted">
+                Ordering closed for now
+              </span>
             ) : hasOptions ? (
               <OptionsPicker
                 cook={{

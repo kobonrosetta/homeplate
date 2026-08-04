@@ -38,6 +38,14 @@ export async function updateKitchen(formData: FormData) {
   // location while the cook believes they've picked a meetup point.
   const pickupMode = String(formData.get("pickup_mode") ?? "home");
   const pickupLocation = String(formData.get("pickup_location") ?? "").trim();
+  // Kitchen-level default timing that new dishes inherit. Only ready_now /
+  // lead_time make sense as a default (a preorder date is inherently per-dish).
+  const defaultModeRaw = String(formData.get("default_fulfillment_mode") ?? "ready_now");
+  const defaultMode = defaultModeRaw === "lead_time" ? "lead_time" : "ready_now";
+  const defaultLeadRaw = parseInt(String(formData.get("default_lead_days") ?? ""), 10);
+  const defaultLeadDays = Number.isFinite(defaultLeadRaw)
+    ? Math.max(0, Math.min(14, defaultLeadRaw))
+    : null;
 
   if (!businessName || !city || !streetAddress) {
     redirect(
@@ -71,6 +79,8 @@ export async function updateKitchen(formData: FormData) {
       delivery_notes: deliveryNotes || null,
       pickup_windows: pickupWindows,
       neighborhood: neighborhood || null,
+      default_fulfillment_mode: defaultMode,
+      default_lead_days: defaultLeadDays,
     })
     .eq("profile_id", user.id);
 

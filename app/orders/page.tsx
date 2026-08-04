@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatUsd } from "@/lib/constants";
+import { formatDateLong } from "@/lib/availability";
 import { pickupLocation } from "@/lib/handoff";
 import ReviewForm from "@/components/review-form";
 import StatusPill from "@/components/status-pill";
@@ -39,7 +40,7 @@ export default async function BuyerOrdersPage() {
   const { data: orders } = await supabase
     .from("orders")
     .select(
-      "id, status, fulfillment, pickup_time, delivery_address, total_cents, created_at, cook_id, cooks(business_name, slug, city, profile_id), order_items(title, quantity, line_total_cents), reviews(rating, comment)"
+      "id, status, fulfillment, pickup_time, ready_by_date, delivery_address, total_cents, created_at, cook_id, cooks(business_name, slug, city, profile_id), order_items(title, quantity, line_total_cents), reviews(rating, comment)"
     )
     .eq("buyer_id", user.id)
     .neq("status", "pending")
@@ -159,6 +160,14 @@ export default async function BuyerOrdersPage() {
 
                 {showHandoff && (
                   <div className="mt-3 space-y-0.5 border-t border-line pt-3 text-sm">
+                    {o.ready_by_date && (
+                      <p className="text-ink">
+                        <span className="text-faint">Ready by: </span>
+                        <span className="font-medium">
+                          {formatDateLong(o.ready_by_date)}
+                        </span>
+                      </p>
+                    )}
                     {o.fulfillment === "delivery" ? (
                       <p className="text-ink">
                         <span className="text-faint">Delivering to: </span>

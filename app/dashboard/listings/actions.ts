@@ -9,6 +9,11 @@ import {
   uploadDishPhoto,
 } from "@/lib/listings";
 import { readAllergensFromForm, allergenColumns } from "@/lib/allergens";
+import {
+  readAvailabilityFromForm,
+  validateAvailability,
+  pacificTodayIso,
+} from "@/lib/availability";
 import { MAX_GROUPS_PER_LISTING, MAX_OPTIONS_PER_GROUP } from "@/lib/options";
 import { captureServer } from "@/lib/analytics-server";
 
@@ -52,11 +57,11 @@ export async function updateListing(formData: FormData) {
   const priceDollars = parseFloat(String(formData.get("price") ?? ""));
   const description = String(formData.get("description") ?? "").trim();
   const { limited, quantity } = readQuantity(formData);
-  const leadTime = String(formData.get("lead_time_note") ?? "").trim();
   const allergens = String(formData.get("allergens") ?? "").trim();
   const ingredients = String(formData.get("ingredients") ?? "").trim();
   const kind = formData.get("kind") === "extra" ? "extra" : "dish";
   const { contains, mayContain, declared } = readAllergensFromForm(formData);
+  const availability = readAvailabilityFromForm(formData, kind);
 
   if (!title || Number.isNaN(priceDollars) || priceDollars <= 0) {
     redirect(
@@ -80,6 +85,20 @@ export async function updateListing(formData: FormData) {
         )
     );
   }
+  const availErr = validateAvailability(
+    {
+      mode: availability.fulfillment_mode,
+      leadDays: availability.lead_days,
+      readyDate: availability.ready_date,
+      orderBy: availability.order_by,
+    },
+    pacificTodayIso()
+  );
+  if (availErr) {
+    redirect(
+      `/dashboard/listings/${id}/edit?error=` + encodeURIComponent(availErr)
+    );
+  }
 
   const update: Record<string, unknown> = {
     title,
@@ -88,9 +107,9 @@ export async function updateListing(formData: FormData) {
     description: description || null,
     quantity_available: quantity,
     limited_quantity: limited,
-    lead_time_note: leadTime || null,
     allergens: allergens || null,
     ...allergenColumns(kind, { contains, mayContain, declared }),
+    ...availability,
     ingredients: ingredients || null,
     // CA taxability flag — same server-side guard as inserts: only a MEHKO
     // kitchen's actual food (never an extra) can be flagged hot.
