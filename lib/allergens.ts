@@ -4,7 +4,10 @@
 // text — so the data is consistent, renders as chips, and can drive a
 // buyer-side "hide anything with X" filter later (Phase 2). Extend by adding a
 // row here; the form and display both read this list, so they stay in sync.
-export const ALLERGENS: { key: string; label: string }[] = [
+// `example` (optional) shows as a faint hint next to the checkbox on the COOK
+// form only — for allergens people commonly don't recognize (few know potatoes
+// and tomatoes are nightshades). It's not shown on buyer-facing chips.
+export const ALLERGENS: { key: string; label: string; example?: string }[] = [
   { key: "milk", label: "Milk / dairy" },
   { key: "eggs", label: "Eggs" },
   { key: "fish", label: "Fish" },
@@ -15,7 +18,11 @@ export const ALLERGENS: { key: string; label: string }[] = [
   { key: "soy", label: "Soy" },
   { key: "sesame", label: "Sesame" },
   { key: "gluten", label: "Gluten" },
-  { key: "nightshades", label: "Nightshades" },
+  {
+    key: "nightshades",
+    label: "Nightshades",
+    example: "tomatoes, potatoes, peppers",
+  },
 ];
 
 const BY_KEY = new Map(ALLERGENS.map((a) => [a.key, a.label]));

@@ -588,7 +588,12 @@ export default function NewListingForm({
                   value={a.key}
                   defaultChecked={defaults?.contains?.includes(a.key)}
                 />
-                {a.label}
+                <span>
+                  {a.label}
+                  {a.example && (
+                    <span className="text-xs text-faint"> — e.g. {a.example}</span>
+                  )}
+                </span>
               </label>
             ))}
           </div>
