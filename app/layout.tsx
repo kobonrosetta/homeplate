@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Fraunces, Inter } from "next/font/google";
+import { Newsreader, Inter } from "next/font/google";
 import "./globals.css";
 import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";
@@ -37,11 +37,13 @@ export const metadata: Metadata = {
     : undefined,
 };
 
-// Warm editorial type: Fraunces for display headings, Inter for everything else.
-const fraunces = Fraunces({
+// Warm editorial type: Newsreader (a warm editorial serif with conventional
+// letterforms) for display headings, Inter for everything else. Replaced
+// Fraunces, whose signature descending lowercase "f" read as a different font.
+const serif = Newsreader({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
-  variable: "--font-fraunces",
+  variable: "--font-serif",
   display: "swap",
 });
 const inter = Inter({
@@ -56,7 +58,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
+    <html lang="en" className={`${serif.variable} ${inter.variable}`}>
       <body>
         <JsonLd data={organizationSchema()} />
         <AnalyticsProvider />
