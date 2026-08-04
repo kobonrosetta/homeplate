@@ -28,7 +28,7 @@ export const dynamic = "force-dynamic";
 export default async function SellPage({
   searchParams,
 }: {
-  searchParams: { step?: string; error?: string; start?: string };
+  searchParams: { step?: string; error?: string; start?: string; welcome?: string };
 }) {
   // Not signed in (or just a guest-checkout session)? This is a prospective
   // cook clicking "Apply to sell" — show the pitch, not a login wall.
@@ -40,7 +40,15 @@ export default async function SellPage({
   // optional, so "finished" keys off city (only ever set at Step 3 finalize
   // during onboarding), with permit_number as a fallback for kitchens created
   // before the permit became optional.
-  if (cook?.city || cook?.permit_number) redirect("/dashboard");
+  //
+  // EXCEPTION: a still-PENDING kitchen may re-open a specific step via ?step=
+  // (e.g. the dashboard "add your permit" nudge → /sell?step=3, so a cook who
+  // skipped the permit isn't stuck emailing support). This is safe because
+  // wizardFinalize is itself pending-only + service-role — it only re-opens
+  // editing before an admin reviews, never self-verification after approval.
+  const finished = cook?.city || cook?.permit_number;
+  const pendingReedit = cook?.status === "pending" && !!searchParams.step;
+  if (finished && !pendingReedit) redirect("/dashboard");
 
   // Signed in but not yet a cook → show the pitch first, so opening a kitchen is
   // a deliberate opt-in and a buyer who taps "Apply to sell" doesn't stumble into
@@ -61,20 +69,44 @@ export default async function SellPage({
   const supabase = createClient();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("phone")
+    .select("phone, full_name")
     .eq("id", user.id)
     .maybeSingle();
   const phone = profile?.phone ?? "";
+  // Pre-fill the storefront "Your name" from the account's first name so a new
+  // cook confirms it instead of retyping what they just entered at signup.
+  const firstName = (profile?.full_name ?? "").trim().split(/\s+/)[0] ?? "";
+
+  // Private fields (owner-readable) — so a pending cook re-opening Step 3 to add
+  // a skipped permit doesn't have to retype their address.
+  const { data: priv } = cook
+    ? await supabase
+        .from("cook_private")
+        .select("street_address, cdtfa_permit")
+        .eq("cook_id", cook.id)
+        .maybeSingle()
+    : { data: null };
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
+      {searchParams.welcome === "1" && (
+        <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
+          <p className="font-medium text-emerald-900">
+            🎉 You&rsquo;re in — welcome to ForkFork!
+          </p>
+          <p className="mt-1 text-sm text-emerald-800">
+            Your account is all set. Let&rsquo;s get your kitchen going — just a
+            few minutes, and each step saves as you go.
+          </p>
+        </div>
+      )}
       <Tracker step={step} />
 
       <div className="mt-6">
         <FormError message={searchParams.error} />
       </div>
 
-      {step === 1 && <Step1 cook={cook} phone={phone} />}
+      {step === 1 && <Step1 cook={cook} phone={phone} ownerDefault={firstName} />}
       {step === 2 && (
         <Step2
           mehko={cook?.operation_type === "mehko"}
@@ -86,6 +118,13 @@ export default async function SellPage({
         <Step3
           cottage={cook?.operation_type === "cottage"}
           email={user.email ?? ""}
+          defaults={{
+            permitNumber: cook?.permit_number ?? "",
+            streetAddress: priv?.street_address ?? "",
+            city: cook?.city ?? "",
+            zip: cook?.zip ?? "",
+            cdtfaPermit: priv?.cdtfa_permit ?? "",
+          }}
         />
       )}
 
@@ -149,7 +188,15 @@ function Tracker({ step }: { step: number }) {
   );
 }
 
-function Step1({ cook, phone }: { cook: any; phone: string }) {
+function Step1({
+  cook,
+  phone,
+  ownerDefault = "",
+}: {
+  cook: any;
+  phone: string;
+  ownerDefault?: string;
+}) {
   const tags = (cook?.cuisine_tags ?? []).join(", ");
   return (
     <div>
@@ -170,7 +217,7 @@ function Step1({ cook, phone }: { cook: any; phone: string }) {
           <TextField
             label="Your name"
             name="owner_name"
-            defaultValue={cook?.owner_name ?? ""}
+            defaultValue={cook?.owner_name ?? ownerDefault}
             placeholder="e.g. Maria"
           />
           <p className="mt-1 text-xs text-faint">
@@ -316,7 +363,21 @@ function Step2({
   );
 }
 
-function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
+function Step3({
+  cottage,
+  email,
+  defaults,
+}: {
+  cottage?: boolean;
+  email?: string;
+  defaults?: {
+    permitNumber?: string;
+    streetAddress?: string;
+    city?: string;
+    zip?: string;
+    cdtfaPermit?: string;
+  };
+}) {
   return (
     <div>
       <h1 className="text-2xl font-semibold text-ink">Last step: submit for review</h1>
@@ -340,6 +401,7 @@ function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
               : "Permit number (optional)"
           }
           name="permit_number"
+          defaultValue={defaults?.permitNumber}
           placeholder={cottage ? "Your county registration #" : "e.g. PT0503912"}
         />
         <p className="-mt-3 text-xs text-faint">
@@ -365,14 +427,26 @@ function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
           label="Street address"
           name="street_address"
           required
+          defaultValue={defaults?.streetAddress}
           placeholder="123 Main St"
         />
         <p className="-mt-3 text-xs text-faint">
           Kept private: buyers only see your city until they place an order.
         </p>
         <div className="grid grid-cols-2 gap-4">
-          <TextField label="City" name="city" required placeholder="Sunnyvale" />
-          <TextField label="ZIP" name="zip" placeholder="94086" />
+          <TextField
+            label="City"
+            name="city"
+            required
+            defaultValue={defaults?.city}
+            placeholder="Sunnyvale"
+          />
+          <TextField
+            label="ZIP"
+            name="zip"
+            defaultValue={defaults?.zip}
+            placeholder="94086"
+          />
         </div>
         {/* Sales tax only applies to hot prepared food (MEHKO). Cottage bakers
             sell shelf-stable goods and see no tax UI anywhere — matching the
@@ -390,6 +464,7 @@ function Step3({ cottage, email }: { cottage?: boolean; email?: string }) {
             <TextField
               label="CDTFA seller's permit number (add it later if you like)"
               name="cdtfa_permit"
+              defaultValue={defaults?.cdtfaPermit}
               placeholder="e.g. 123-456789"
             />
             <p className="text-xs text-faint">

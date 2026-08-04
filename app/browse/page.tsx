@@ -15,7 +15,11 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function BrowsePage() {
+export default async function BrowsePage({
+  searchParams,
+}: {
+  searchParams: { welcome?: string };
+}) {
   const supabase = createClient();
   const { data: cooksData } = await supabase
     .from("cooks")
@@ -63,6 +67,17 @@ export default async function BrowsePage() {
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
+      {searchParams.welcome === "1" && (
+        <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
+          <p className="font-medium text-emerald-900">
+            🎉 You&rsquo;re in — welcome to ForkFork!
+          </p>
+          <p className="mt-1 text-sm text-emerald-800">
+            Your account is all set. Browse the local kitchens below and order
+            when you&rsquo;re ready.
+          </p>
+        </div>
+      )}
       <h1 className="text-3xl font-semibold text-ink">Local kitchens</h1>
       <p className="mt-1 text-muted">
         {kitchens.length > 0
