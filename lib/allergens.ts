@@ -8,16 +8,16 @@
 // form only — for allergens people commonly don't recognize (few know potatoes
 // and tomatoes are nightshades). It's not shown on buyer-facing chips.
 export const ALLERGENS: { key: string; label: string; example?: string }[] = [
-  { key: "milk", label: "Milk / dairy" },
-  { key: "eggs", label: "Eggs" },
-  { key: "fish", label: "Fish" },
-  { key: "shellfish", label: "Shellfish" },
-  { key: "tree_nuts", label: "Tree nuts" },
-  { key: "peanuts", label: "Peanuts" },
-  { key: "wheat", label: "Wheat" },
-  { key: "soy", label: "Soy" },
-  { key: "sesame", label: "Sesame" },
-  { key: "gluten", label: "Gluten" },
+  { key: "milk", label: "Milk / dairy", example: "butter, cheese, whey" },
+  { key: "eggs", label: "Eggs", example: "mayo, custard, meringue" },
+  { key: "fish", label: "Fish", example: "fish sauce, Worcestershire" },
+  { key: "shellfish", label: "Shellfish", example: "shrimp, crab, oyster sauce" },
+  { key: "tree_nuts", label: "Tree nuts", example: "almonds, cashews, coconut" },
+  { key: "peanuts", label: "Peanuts", example: "peanut oil, satay" },
+  { key: "wheat", label: "Wheat", example: "flour, soy sauce, seitan" },
+  { key: "soy", label: "Soy", example: "soy sauce, tofu, miso" },
+  { key: "sesame", label: "Sesame", example: "tahini, hummus" },
+  { key: "gluten", label: "Gluten", example: "wheat, barley, rye" },
   {
     key: "nightshades",
     label: "Nightshades",
