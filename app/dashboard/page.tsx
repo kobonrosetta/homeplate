@@ -36,16 +36,24 @@ export default async function DashboardOverview() {
         .from("listings")
         .select("id, is_available, limited_quantity, quantity_available")
         .eq("cook_id", cook.id),
-      supabase.from("orders").select("status, subtotal_cents").eq("cook_id", cook.id),
-      // Paid orders across the previous + current quarters, with each line's
-      // served_hot snapshot — feeds the Taxes card below. (If migration 23
-      // hasn't run yet this select errors, taxOrders stays null, and the
-      // card simply doesn't render.)
+      // Refunded orders (refunded_at set) are excluded from earnings + tasks —
+      // a refunded sale isn't income.
+      supabase
+        .from("orders")
+        .select("status, subtotal_cents")
+        .eq("cook_id", cook.id)
+        .is("refunded_at", null),
+      // Paid, NON-refunded orders across the previous + current quarters, with
+      // each line's served_hot snapshot — feeds the Taxes card. A refunded sale
+      // is not taxable, so it must not inflate the cook's CDTFA numbers. (If a
+      // needed migration hasn't run this select errors, taxOrders stays null,
+      // and the card simply doesn't render.)
       supabase
         .from("orders")
         .select("created_at, status, order_items(line_total_cents, served_hot)")
         .eq("cook_id", cook.id)
         .in("status", PAID_STATUSES)
+        .is("refunded_at", null)
         .gte("created_at", prevQtr.start.toISOString())
         .lt("created_at", qtr.end.toISOString()),
     ]);

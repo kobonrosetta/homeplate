@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatUsd } from "@/lib/constants";
+import {
+  availabilityFromListing,
+  isOrderable,
+  pacificTodayIso,
+} from "@/lib/availability";
 import { publicArea } from "@/lib/handoff";
 import VerifiedBadge from "@/components/verified-badge";
 import EmptyState from "@/components/empty-state";
@@ -24,22 +29,25 @@ export default async function BrowsePage({
   const { data: cooksData } = await supabase
     .from("cooks")
     .select(
-      "id, business_name, slug, city, neighborhood, permit_verified, cuisine_tags, listings(id, photo_url, is_available, price_cents, limited_quantity, quantity_available, kind), reviews(rating)"
+      "id, business_name, slug, city, neighborhood, permit_verified, cuisine_tags, listings(id, photo_url, is_available, price_cents, limited_quantity, quantity_available, kind, fulfillment_mode, lead_days, ready_date, order_by), reviews(rating)"
     )
     .eq("status", "active")
     .eq("stripe_ready", true) // only kitchens that can actually take an order + get paid
     .order("business_name", { ascending: true })
     .limit(100);
 
-  // One card per kitchen — only kitchens that actually have items for sale.
+  // One card per kitchen — only kitchens that actually have ORDERABLE items.
+  const today = pacificTodayIso();
   const kitchens = (cooksData ?? [])
     .map((c: any) => {
-      // Extras (bags, lettering) don't make a kitchen "open" or its thumbnail.
+      // Extras don't make a kitchen "open"; and a dish whose preorder window has
+      // closed isn't orderable, so it mustn't make the kitchen show as open.
       const avail = (c.listings ?? []).filter(
         (l: any) =>
           l.is_available &&
           (l.kind ?? "dish") === "dish" &&
-          (!l.limited_quantity || l.quantity_available > 0)
+          (!l.limited_quantity || l.quantity_available > 0) &&
+          isOrderable(availabilityFromListing(l), today)
       );
       const prices = avail
         .map((l: any) => l.price_cents)

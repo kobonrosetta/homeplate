@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ChangeEvent } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { useFormStatus } from "react-dom";
 import { formatUsd, MAX_PREORDER_HORIZON_DAYS } from "@/lib/constants";
 import { type FulfillmentMode } from "@/lib/availability";
@@ -95,6 +95,14 @@ export default function NewListingForm({
   const [mode, setMode] = useState<FulfillmentMode>(
     defaults?.fulfillmentMode ?? "ready_now"
   );
+  // Controlled (not defaultValue) so a value survives a mode toggle: the mode
+  // buttons unmount/remount these inputs, and an uncontrolled input would revert
+  // to its default, silently discarding the cook's edit.
+  const [leadDays, setLeadDays] = useState(
+    defaults?.leadDays != null ? String(defaults.leadDays) : "2"
+  );
+  const [readyDate, setReadyDate] = useState(defaults?.readyDate ?? "");
+  const [orderBy, setOrderBy] = useState(defaults?.orderBy ?? "");
 
   // The CA taxability flag, phrased as menu info. Extras aren't food, so the
   // control disappears (and the flag goes false) when "extra" is checked.
@@ -105,14 +113,18 @@ export default function NewListingForm({
   const showAllergens = !isExtra;
   // Availability shows for food only (extras aren't food — they store ready_now).
   const showAvailability = !isExtra;
-  // Date-input bounds. Browser-local is fine here — the server re-validates in
-  // Pacific authoritatively (lib/availability.ts); this only shapes the picker.
-  const todayIso = new Date().toLocaleDateString("en-CA");
-  const maxPreorderIso = (() => {
+  // Date-input bounds, set AFTER mount (empty on the server + first client
+  // render) so SSR and hydration agree — `new Date()` in render would differ
+  // between the UTC server and the browser. Picker hints only; the server
+  // re-validates authoritatively in Pacific (lib/availability.ts).
+  const [today, setToday] = useState("");
+  const [maxPreorderIso, setMaxPreorderIso] = useState("");
+  useEffect(() => {
+    setToday(new Date().toLocaleDateString("en-CA"));
     const d = new Date();
     d.setDate(d.getDate() + MAX_PREORDER_HORIZON_DAYS);
-    return d.toLocaleDateString("en-CA");
-  })();
+    setMaxPreorderIso(d.toLocaleDateString("en-CA"));
+  }, []);
 
   async function runDescribe(image: string | null) {
     const title =
@@ -369,7 +381,8 @@ export default function NewListingForm({
                   type="number"
                   min={0}
                   max={14}
-                  defaultValue={defaults?.leadDays ?? 2}
+                  value={leadDays}
+                  onChange={(e) => setLeadDays(e.target.value)}
                   className="w-20 rounded-lg border border-line px-3 py-2 text-ink outline-none focus:border-muted focus:ring-2 focus:ring-line"
                 />
                 days
@@ -387,9 +400,10 @@ export default function NewListingForm({
                 <input
                   name="ready_date"
                   type="date"
-                  min={todayIso}
-                  max={maxPreorderIso}
-                  defaultValue={defaults?.readyDate ?? ""}
+                  min={today || undefined}
+                  max={maxPreorderIso || undefined}
+                  value={readyDate}
+                  onChange={(e) => setReadyDate(e.target.value)}
                   className={inputClass}
                 />
               </label>
@@ -398,9 +412,10 @@ export default function NewListingForm({
                 <input
                   name="order_by"
                   type="date"
-                  min={todayIso}
-                  max={maxPreorderIso}
-                  defaultValue={defaults?.orderBy ?? ""}
+                  min={today || undefined}
+                  max={maxPreorderIso || undefined}
+                  value={orderBy}
+                  onChange={(e) => setOrderBy(e.target.value)}
                   className={inputClass}
                 />
                 <span className="mt-1 block text-xs text-faint">

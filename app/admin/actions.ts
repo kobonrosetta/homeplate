@@ -252,21 +252,34 @@ export async function refundOrder(formData: FormData) {
   if (!order!.stripe_payment_intent_id)
     fail("No payment to refund (this order was never paid).");
 
-  const result = await createRefund(order!.stripe_payment_intent_id as string);
+  // Idempotency-Key = order id: a lost response on a succeeded refund replays
+  // Stripe's success on retry instead of erroring forever (see createRefund).
+  const result = await createRefund(
+    order!.stripe_payment_intent_id as string,
+    orderId
+  );
   if ("error" in result) fail("Refund failed: " + result.error);
 
-  // Mark refunded (idempotency + record). Cancel + restock ONLY if the order
-  // wasn't already fulfilled or cancelled: a refund on a 'completed' order is a
-  // goodwill refund (keep its history, don't put food back), and an
-  // already-'cancelled' order was restocked when it was cancelled (no double).
-  const shouldCancel =
-    order!.status !== "completed" && order!.status !== "cancelled";
-  const patch: Record<string, unknown> = {
-    refunded_at: new Date().toISOString(),
-  };
-  if (shouldCancel) patch.status = "cancelled";
-  await db.from("orders").update(patch).eq("id", orderId);
-  if (shouldCancel) await restockOrderItems(orderId);
+  // Record the refund FIRST and unconditionally — this is the critical marker
+  // (blocks a double-refund; the money already left Stripe). Keep it separate
+  // from the cancel so a status hiccup can't lose the refund record.
+  await db
+    .from("orders")
+    .update({ refunded_at: new Date().toISOString() })
+    .eq("id", orderId);
+
+  // Cancel + restock ONLY if the order is still un-fulfilled. Guard the write
+  // with a status precondition and check it actually matched: a concurrent cook
+  // 'completed' transition (mid-refund) must NOT be flipped to cancelled, and
+  // its already-delivered stock must NOT be put back. Restock only when the
+  // cancel truly persisted (restockOrderItems' documented contract).
+  const { data: cancelled } = await db
+    .from("orders")
+    .update({ status: "cancelled" })
+    .eq("id", orderId)
+    .in("status", ["confirmed", "in_progress", "ready"])
+    .select("id");
+  if (cancelled && cancelled.length > 0) await restockOrderItems(orderId);
 
   // Tell the buyer their money's coming back.
   if (order!.contact_email) {

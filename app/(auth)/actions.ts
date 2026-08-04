@@ -108,9 +108,22 @@ export async function signup(formData: FormData) {
   captureServer(data.user?.id, "signup", { intent });
 
   revalidatePath("/", "layout");
-  // Flag the just-created account so the destination (the sell wizard or
-  // /browse) can show a "you're in" confirmation — otherwise signup drops the
-  // user mid-task with no acknowledgment they made an account.
+  // If email confirmation is required, signUp returns a user but NO session —
+  // they're not authenticated yet. Don't drop them into the app with a "you're
+  // all set" banner (they'd see signed-out content and any order would mint an
+  // orphaned anonymous account). Send them to sign in once they've confirmed.
+  if (!data.session) {
+    redirect(
+      "/login?notice=" +
+        encodeURIComponent(
+          "Account created! Check your email to confirm it, then sign in."
+        ) +
+        (next !== "/browse" && next !== "/sell?start=1"
+          ? `&next=${encodeURIComponent(next)}`
+          : "")
+    );
+  }
+  // Session in hand → into the app with the "you're in" welcome flag.
   const sep = next.includes("?") ? "&" : "?";
   redirect(`${next}${sep}welcome=1`);
 }

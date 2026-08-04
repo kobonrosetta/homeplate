@@ -7,7 +7,7 @@ import { safeNext } from "@/lib/safe-next";
 export default function LoginPage({
   searchParams,
 }: {
-  searchParams: { error?: string; next?: string };
+  searchParams: { error?: string; next?: string; notice?: string };
 }) {
   // ?next= — where to land after signing in (e.g. a kitchen a guest wanted to
   // follow). Validated; defaults into the app (Browse), not the marketing home.
@@ -21,6 +21,11 @@ export default function LoginPage({
       <h1 className="text-2xl font-semibold text-ink">Welcome back</h1>
       <p className="mt-1 text-muted">Sign in to your account.</p>
 
+      {searchParams.notice && (
+        <p className="mt-4 rounded-lg bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+          {searchParams.notice}
+        </p>
+      )}
       {searchParams.error && (
         <FormError message={searchParams.error} className="mt-4" />
       )}

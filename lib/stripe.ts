@@ -132,10 +132,17 @@ export async function retrieveSession(sessionId: string): Promise<{
  * (Stripe keeps only its processing cut — the unavoidable cost of any refund.)
  *
  * Returns { id } on success, or { error } — never throws, so the admin action
- * can show a message. Idempotency is enforced by the caller (orders.refunded_at).
+ * can show a message.
+ *
+ * `idempotencyKey` (the order id) is CRITICAL: if the refund succeeds at Stripe
+ * but the HTTP response is lost (timeout/network), a retry with the same key
+ * REPLAYS Stripe's original success instead of erroring — otherwise the money
+ * is gone but the order is never marked refunded, and every retry fails on
+ * "charge already refunded". Stripe caches the response for 24h.
  */
 export async function createRefund(
-  paymentIntentId: string
+  paymentIntentId: string,
+  idempotencyKey: string
 ): Promise<{ id: string } | { error: string }> {
   const key = secretKey();
   if (!key) return { error: "Payments aren't set up (missing Stripe key)." };
@@ -150,6 +157,7 @@ export async function createRefund(
       headers: {
         Authorization: `Bearer ${key}`,
         "Content-Type": "application/x-www-form-urlencoded",
+        "Idempotency-Key": `refund-${idempotencyKey}`,
       },
       body,
     });

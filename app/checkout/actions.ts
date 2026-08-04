@@ -240,6 +240,13 @@ export async function startCheckout(formData: FormData) {
   // bounces to the cart. The ORDER's ready-by is the LATEST of its lines (it's
   // ready when the slowest item is), snapshotted onto the order so a later
   // listing edit can't rewrite the promise (mirrors served_hot).
+  //
+  // ACCEPTED cosmetic edge (decided Aug 2026, see PROJECT_REVIEW.md): ready_by
+  // is stamped here at order CREATION from `today`. A lead_time order created
+  // just before Pacific midnight and paid just after can promise a date one day
+  // early. Deliberately NOT fixed — the window is ~2 min/day, "ready by" is an
+  // estimate not a deadline, and recomputing at payment would push logic into
+  // the money-critical, idempotent confirmPaidOrder for negligible payoff.
   const today = pacificTodayIso();
   let orderReadyBy: string | null = null;
   for (const l of rows) {

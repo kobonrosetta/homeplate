@@ -309,6 +309,8 @@ check("validate: preorder beyond horizon → error", () =>
   assert.ok(validateAvailability({ mode: "preorder", readyDate: "2026-10-01" }, TODAY)));
 check("validate: order-by after ready date → error", () =>
   assert.ok(validateAvailability({ mode: "preorder", readyDate: "2026-08-20", orderBy: "2026-08-25" }, TODAY)));
+check("validate: order-by in the past → error", () =>
+  assert.ok(validateAvailability({ mode: "preorder", readyDate: "2026-08-20", orderBy: "2026-08-05" }, TODAY)));
 check("validate: valid preorder ok", () =>
   assert.equal(validateAvailability({ mode: "preorder", readyDate: "2026-08-20", orderBy: "2026-08-18" }, TODAY), null));
 
