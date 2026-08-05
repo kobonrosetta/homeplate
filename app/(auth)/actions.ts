@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { safeNext } from "@/lib/safe-next";
 import { captureServer } from "@/lib/analytics-server";
+import { notifyAdmins, escapeHtml } from "@/lib/email";
 
 // Supabase auth errors are machine-voiced ("Invalid login credentials") and
 // land in the form-error box at the exact moment a user is already frustrated.
@@ -106,6 +107,23 @@ export async function signup(formData: FormData) {
 
   // Supply/demand funnel: was this a buyer or a cook-intent signup?
   captureServer(data.user?.id, "signup", { intent });
+
+  // Best-effort admin ping on a genuinely NEW email/password signup (Google
+  // signups are pinged from the OAuth callback instead). Fire-and-forget, like
+  // captureServer above, so a slow Resend never delays the redirect. A brand-new
+  // account carries identities; Supabase's anti-enumeration path returns a user
+  // with an EMPTY identities array for an already-registered email, so gate on
+  // that to avoid a false "new signup" alert for an account that already exists.
+  if (data.user && (data.user.identities?.length ?? 0) > 0) {
+    void notifyAdmins(
+      `New ForkFork signup${intent === "sell" ? " (cook intent)" : ""}`,
+      `<h2>New signup</h2>
+       <p><strong>${escapeHtml(String(formData.get("email") ?? ""))}</strong></p>
+       <p>Intent: ${
+         intent === "sell" ? "wants to sell (cook)" : "buyer / order"
+       }${data.session ? "" : " · hasn't confirmed their email yet"}.</p>`
+    );
+  }
 
   revalidatePath("/", "layout");
   // If email confirmation is required, signUp returns a user but NO session —

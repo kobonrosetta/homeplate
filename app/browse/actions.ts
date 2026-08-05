@@ -1,6 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyAdmins, escapeHtml } from "@/lib/email";
 
 // Where a waitlist signup can come from. Server-whitelisted so a crafted POST
 // can't stuff arbitrary text into the `source` column.
@@ -43,13 +44,49 @@ export async function joinWaitlist(
     const db = createAdminClient();
     // ON CONFLICT DO NOTHING via ignoreDuplicates — a re-submit of the same
     // email is an idempotent success (keeps the first zip), not an error.
-    const { error } = await db
+    // .select() returns the row ONLY on a genuine insert (empty on a duplicate),
+    // so the admin ping below fires on new signups, never on re-submits.
+    const { data: inserted, error } = await db
       .from("waitlist")
       .upsert({ email, zip, city: null, source }, {
         onConflict: "email",
         ignoreDuplicates: true,
-      });
+      })
+      .select("id");
     if (error) return { ok: false, error: "Something went wrong. Try again." };
+
+    if (inserted && inserted.length > 0) {
+      // Best-effort admin ping with running totals. Fire-and-forget (Render runs
+      // a persistent Node process, like the captureServer analytics) so the two
+      // count round-trips + the email send never delay the visitor's response.
+      void (async () => {
+        try {
+          const { count: total } = await db
+            .from("waitlist")
+            .select("id", { count: "exact", head: true });
+          let inZip: number | null = null;
+          if (zip) {
+            const { count } = await db
+              .from("waitlist")
+              .select("id", { count: "exact", head: true })
+              .eq("zip", zip);
+            inZip = count ?? null;
+          }
+          await notifyAdmins(
+            `New waitlist signup${zip ? ` — ZIP ${zip}` : ""} 🎉`,
+            `<h2>New waitlist signup</h2>
+             <p><strong>${escapeHtml(email)}</strong>${
+               zip ? ` · ZIP ${escapeHtml(zip)}` : " · no ZIP given"
+             }</p>
+             <p>${total ?? "?"} on the waitlist now${
+               zip && inZip ? ` · ${inZip} in ${escapeHtml(zip)}` : ""
+             }.</p>`
+          );
+        } catch {
+          /* best-effort */
+        }
+      })();
+    }
     return { ok: true };
   } catch {
     return { ok: false, error: "Something went wrong. Try again." };

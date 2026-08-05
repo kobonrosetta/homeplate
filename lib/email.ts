@@ -30,10 +30,35 @@ export async function sendEmail(opts: {
         subject: opts.subject,
         html: opts.html,
       }),
+      // Bound the call so a hung Resend socket can't tie up the request (and,
+      // for the fire-and-forget admin pings, the process) for undici's ~300s
+      // default. 10s is >10x Resend's normal latency, so it never drops a real
+      // send — it only cuts off a truly stuck connection.
+      signal: AbortSignal.timeout(10_000),
     });
     return res.ok;
   } catch {
     return false;
+  }
+}
+
+// Best-effort alert to every address in ADMIN_EMAILS (comma-separated). Never
+// throws and no-ops when unconfigured — an internal notification must never
+// break the user flow that triggered it. `bodyHtml` is wrapped in the branded
+// shell; callers escape any user-supplied text before passing it in.
+export async function notifyAdmins(
+  subject: string,
+  bodyHtml: string
+): Promise<void> {
+  const admins = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!admins.length) return;
+  try {
+    await sendEmail({ to: admins, subject, html: wrapEmail(bodyHtml) });
+  } catch {
+    /* best-effort */
   }
 }
 
