@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { safeNext } from "@/lib/safe-next";
+import { notifyAdmins, escapeHtml } from "@/lib/email";
 
 // Handles the email-confirmation / magic-link redirect from Supabase.
 export async function GET(request: Request) {
@@ -22,8 +23,31 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // Best-effort: ping admins when a NEW Google user signs up. Email/password
+      // signups are pinged from the signup action, so this only covers OAuth.
+      // Fire-and-forget so it never delays the sign-in redirect; guarded to fire
+      // once (fresh account) and never on returning logins, email-confirmation,
+      // magic-link exchanges, or guests.
+      try {
+        const user = data.user;
+        if (
+          user &&
+          !user.is_anonymous &&
+          user.app_metadata?.provider === "google" &&
+          Date.now() - new Date(user.created_at).getTime() < 120_000
+        ) {
+          void notifyAdmins(
+            "New ForkFork signup (Google)",
+            `<h2>New signup</h2>
+             <p><strong>${escapeHtml(user.email ?? "")}</strong></p>
+             <p>Signed up with Google.</p>`
+          );
+        }
+      } catch {
+        /* best-effort — a notification must never block sign-in */
+      }
       return NextResponse.redirect(`${base}${next}`);
     }
   }
