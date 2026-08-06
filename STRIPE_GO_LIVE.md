@@ -148,6 +148,16 @@ the dangerous state]
   when CDTFA reposts (Jan/Apr/Jul/Oct).
 - Watch Stripe's live Webhooks page for failed deliveries the first week.
 
+**2.5 Re-enable the background crons**
+- The two scheduled GitHub Actions (`Order reminders`, `Announce dishes`) were
+  **paused 2026-08-06** — pre-launch they had nothing to do (no cooks/orders/
+  followers) and a GitHub runner outage was spamming failure emails. Turn them
+  back on once your first kitchen is active so order-reminder + dish-digest
+  emails actually fire:
+  `gh workflow enable "Order reminders"` and `gh workflow enable "Announce dishes"`
+  (or GitHub → Actions → each workflow → ••• → Enable). They resume on the next
+  15-minute tick.
+
 ---
 
 ### Accepted risks (known, deliberate — revisit post-pilot)
