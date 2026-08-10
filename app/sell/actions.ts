@@ -15,6 +15,7 @@ import {
 } from "@/lib/listings";
 import { escapeHtml, sendEmail, wrapEmail } from "@/lib/email";
 import { normalizePermit, isExpired } from "@/lib/match";
+import { titleCase } from "@/lib/handoff";
 import { captureServer } from "@/lib/analytics-server";
 
 async function requireCookUser() {
@@ -193,7 +194,7 @@ export async function wizardFinalize(formData: FormData) {
 
   const permitNumber = String(formData.get("permit_number") ?? "").trim();
   const streetAddress = String(formData.get("street_address") ?? "").trim();
-  const city = String(formData.get("city") ?? "").trim();
+  const city = titleCase(String(formData.get("city") ?? "")); // "campbell" → "Campbell"
   const zip = String(formData.get("zip") ?? "").trim();
   const cdtfaPermit = String(formData.get("cdtfa_permit") ?? "").trim();
 

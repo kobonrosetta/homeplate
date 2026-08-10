@@ -9,6 +9,7 @@ import { createRefund } from "@/lib/stripe";
 import { restockOrderItems } from "@/lib/orders";
 import { escapeHtml, sendEmail, wrapEmail } from "@/lib/email";
 import { formatUsd, SUPPORT_EMAIL } from "@/lib/constants";
+import { titleCase } from "@/lib/handoff";
 
 const COOK_STATUSES = new Set(["pending", "active", "paused", "suspended"]);
 
@@ -141,7 +142,11 @@ export async function updateCookFields(formData: FormData) {
 
   for (const k of TEXT_FIELDS) {
     if (!formData.has(k)) continue;
-    patch[k] = String(formData.get(k) ?? "").trim() || null;
+    const v = String(formData.get(k) ?? "").trim();
+    // city/neighborhood are public location labels — store them title-cased so
+    // the storefront reads clean no matter how they were typed ("campbell" →
+    // "Campbell"). titleCase trims + collapses whitespace.
+    patch[k] = (k === "city" || k === "neighborhood" ? titleCase(v) : v) || null;
   }
 
   const op = String(formData.get("operation_type") ?? "");
