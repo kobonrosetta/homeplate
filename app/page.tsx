@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import HeroSlideshow, { type HeroKitchen } from "@/components/hero-slideshow";
+import { titleCase } from "@/lib/handoff";
 
 export const metadata = {
   alternates: { canonical: "/" },
@@ -38,7 +39,7 @@ export default async function Home() {
       return {
         slug: c.slug,
         name: c.business_name,
-        city: c.city,
+        city: titleCase(c.city) || null,
         photo: avail.find((l: any) => l.photo_url)?.photo_url ?? null,
         verified: c.permit_verified,
         minPriceCents: prices.length ? Math.min(...prices) : null,

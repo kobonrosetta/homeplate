@@ -89,9 +89,8 @@ export async function setVerified(formData: FormData) {
 // (which gate on status='active') stop showing it; archived_at controls the
 // admin-list visibility.
 export async function archiveCook(formData: FormData) {
-  const admin = await getAdminUser();
-  if (!admin) return;
   const id = String(formData.get("cook_id") ?? "");
+  await adminOrBounce(id);
   if (!id) return;
   const db = createAdminClient();
   const { data: cook } = await db
@@ -110,9 +109,8 @@ export async function archiveCook(formData: FormData) {
 }
 
 export async function unarchiveCook(formData: FormData) {
-  const admin = await getAdminUser();
-  if (!admin) return;
   const id = String(formData.get("cook_id") ?? "");
+  await adminOrBounce(id);
   if (!id) return;
   const db = createAdminClient();
   await db.from("cooks").update({ archived_at: null }).eq("id", id);
@@ -121,10 +119,9 @@ export async function unarchiveCook(formData: FormData) {
 
 // Rename a kitchen (list quick-action; the slug/URL stays the same).
 export async function renameCook(formData: FormData) {
-  const admin = await getAdminUser();
-  if (!admin) return;
   const id = String(formData.get("cook_id") ?? "");
   const name = String(formData.get("business_name") ?? "").trim();
+  await adminOrBounce(id);
   if (!id || !name) return;
   const db = createAdminClient();
   await db.from("cooks").update({ business_name: name }).eq("id", id);
@@ -202,16 +199,22 @@ export async function updateCookFields(formData: FormData) {
 // follows, custom_requests) — ONLY when it has no orders, so real order history
 // is never destroyed. Kitchens WITH orders are archived instead (archiveCook).
 export async function deleteCook(formData: FormData) {
-  const admin = await getAdminUser();
-  if (!admin) return;
   const id = String(formData.get("cook_id") ?? "");
+  await adminOrBounce(id);
   if (!id) return;
   const db = createAdminClient();
   const { count } = await db
     .from("orders")
     .select("id", { count: "exact", head: true })
     .eq("cook_id", id);
-  if ((count ?? 0) > 0) return; // has orders — protected; archive it instead
+  if ((count ?? 0) > 0) {
+    // Has orders — protected. Say so instead of silently doing nothing.
+    redirect(
+      `/admin/kitchen/${id}?error=${encodeURIComponent(
+        "This kitchen has orders, so it can't be deleted — archive it instead."
+      )}`
+    );
+  }
   await db.from("cooks").delete().eq("id", id);
   revalidatePath("/admin");
   revalidatePath("/browse");
@@ -221,10 +224,9 @@ export async function deleteCook(formData: FormData) {
 // ---- Moderation (detail page) ----
 
 export async function deleteReview(formData: FormData) {
-  const admin = await getAdminUser();
-  if (!admin) return;
   const id = String(formData.get("review_id") ?? "");
   const cookId = String(formData.get("cook_id") ?? "");
+  await adminOrBounce(cookId);
   if (!id) return;
   const db = createAdminClient();
   await db.from("reviews").delete().eq("id", id);
@@ -232,10 +234,9 @@ export async function deleteReview(formData: FormData) {
 }
 
 export async function setListingAvailability(formData: FormData) {
-  const admin = await getAdminUser();
-  if (!admin) return;
   const id = String(formData.get("listing_id") ?? "");
   const cookId = String(formData.get("cook_id") ?? "");
+  await adminOrBounce(cookId);
   if (!id) return;
   const isAvailable = String(formData.get("is_available") ?? "") === "1";
   const db = createAdminClient();
@@ -244,10 +245,9 @@ export async function setListingAvailability(formData: FormData) {
 }
 
 export async function deleteListing(formData: FormData) {
-  const admin = await getAdminUser();
-  if (!admin) return;
   const id = String(formData.get("listing_id") ?? "");
   const cookId = String(formData.get("cook_id") ?? "");
+  await adminOrBounce(cookId);
   if (!id) return;
   const db = createAdminClient();
   await db.from("listings").delete().eq("id", id); // cascades option groups/options
@@ -259,10 +259,9 @@ export async function deleteListing(formData: FormData) {
 // refund is always correct (createRefund forces reverse_transfer +
 // refund_application_fee — you can't forget a checkbox and eat the cook's cut).
 export async function refundOrder(formData: FormData) {
-  const admin = await getAdminUser();
-  if (!admin) return;
   const orderId = String(formData.get("order_id") ?? "");
   const cookId = String(formData.get("cook_id") ?? "");
+  await adminOrBounce(cookId);
   if (!orderId || !cookId) redirect("/admin");
   const db = createAdminClient();
   const fail = (msg: string) =>

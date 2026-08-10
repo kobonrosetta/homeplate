@@ -19,17 +19,34 @@ export function pickupLocation(
   return s || null;
 }
 
+// Capitalize one segment of a place name — but ONLY if the typist didn't
+// deliberately case it: a segment that's uniformly lowercase ("campbell") or
+// uniformly UPPERCASE ("CAMPBELL") normalizes to "Campbell", while mixed-case
+// ("McKinley", "SoFA" — real San Jose names) passes through untouched. This is
+// what keeps the normalizer from corrupting names it can't understand.
+function capSegment(w: string): string {
+  if (!w) return w;
+  if (w !== w.toLowerCase() && w !== w.toUpperCase()) return w;
+  return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+}
+
 // Normalize a free-typed place name to a clean, consistent display form:
-// "campbell" / "CAMPBELL" / "sAn JoSe" all become "Campbell" / "San Jose".
-// Cooks (and admins) type cities however they like; this makes the storefront
-// read the same regardless. Idempotent, so it's safe to apply on write AND on
-// display. Returns "" for empty/null input.
+// "campbell" / "CAMPBELL" become "Campbell"; hyphen/slash compounds normalize
+// per segment ("cambrian-pioneer" → "Cambrian-Pioneer", "burbank/del monte" →
+// "Burbank/Del Monte"); deliberately mixed-case words are left alone (see
+// capSegment). Idempotent, so it's safe to apply on write AND on display.
+// Returns "" for empty/null input.
 export function titleCase(s?: string | null): string {
   return (s ?? "")
     .trim()
     .split(/\s+/)
     .filter(Boolean)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .map((w) =>
+      w
+        .split(/([-/])/)
+        .map((seg) => (seg === "-" || seg === "/" ? seg : capSegment(seg)))
+        .join("")
+    )
     .join(" ");
 }
 

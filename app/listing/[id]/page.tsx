@@ -17,6 +17,7 @@ import OptionsPicker from "@/components/options-picker";
 import SoldOutTag from "@/components/sold-out-tag";
 import JsonLd from "@/components/json-ld";
 import { listingSchema, breadcrumbSchema } from "@/lib/schema";
+import { titleCase } from "@/lib/handoff";
 
 export const dynamic = "force-dynamic";
 
@@ -173,7 +174,7 @@ export default async function ListingPage({
           >
             {cook.business_name}
             {cook.permit_verified ? " · ✓ County-verified" : ""}
-            {cook.city ? ` · ${cook.city}` : ""}
+            {cook.city ? ` · ${titleCase(cook.city)}` : ""}
           </Link>
 
           {listing.description && (
