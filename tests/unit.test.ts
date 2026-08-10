@@ -1,5 +1,6 @@
 import assert from "node:assert";
 import { slugify } from "../lib/slug";
+import { titleCase, publicArea } from "../lib/handoff";
 import {
   calcServiceFeeCents,
   calcTotalCents,
@@ -49,6 +50,20 @@ function check(name: string, fn: () => void) {
 check("slugify: basic", () => assert.equal(slugify("Kate's Bread"), "kates-bread"));
 check("slugify: collapses spaces/punctuation", () =>
   assert.equal(slugify("  The   Daily  Loaf!! "), "the-daily-loaf"));
+check("titleCase: lowercase → Capitalized", () =>
+  assert.equal(titleCase("campbell"), "Campbell"));
+check("titleCase: ALL CAPS + multi-word", () =>
+  assert.equal(titleCase("SAN JOSE"), "San Jose"));
+check("titleCase: trims + collapses inner whitespace", () =>
+  assert.equal(titleCase("  mountain   view "), "Mountain View"));
+check("titleCase: empty / null → ''", () => {
+  assert.equal(titleCase(""), "");
+  assert.equal(titleCase(null), "");
+});
+check("publicArea: title-cases city, blank neighborhood dropped", () =>
+  assert.equal(publicArea(null, "campbell"), "Campbell"));
+check("publicArea: joins + normalizes both", () =>
+  assert.equal(publicArea("willow glen", "SAN JOSE"), "Willow Glen, San Jose"));
 check("slugify: empty falls back to 'kitchen'", () =>
   assert.equal(slugify("!!!"), "kitchen"));
 

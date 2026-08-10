@@ -8,6 +8,7 @@ import {
   uploadCookCover,
   readPickupWindows,
 } from "@/lib/listings";
+import { titleCase } from "@/lib/handoff";
 
 export async function updateKitchen(formData: FormData) {
   const supabase = createClient();
@@ -21,7 +22,7 @@ export async function updateKitchen(formData: FormData) {
   const operationType = String(formData.get("operation_type") ?? "cottage");
   const bio = String(formData.get("bio") ?? "").trim();
   const streetAddress = String(formData.get("street_address") ?? "").trim();
-  const city = String(formData.get("city") ?? "").trim();
+  const city = titleCase(String(formData.get("city") ?? "")); // "campbell" → "Campbell"
   const zip = String(formData.get("zip") ?? "").trim();
   const cuisineTags = String(formData.get("cuisine_tags") ?? "")
     .split(",")
@@ -33,7 +34,7 @@ export async function updateKitchen(formData: FormData) {
   const pickupWindows = readPickupWindows(formData);
   const cdtfaPermit = String(formData.get("cdtfa_permit") ?? "").trim();
   const contactPhone = String(formData.get("contact_phone") ?? "").trim();
-  const neighborhood = String(formData.get("neighborhood") ?? "").trim();
+  const neighborhood = titleCase(String(formData.get("neighborhood") ?? ""));
   // "elsewhere" requires a spot — otherwise there'd be silently no pickup
   // location while the cook believes they've picked a meetup point.
   const pickupMode = String(formData.get("pickup_mode") ?? "home");
