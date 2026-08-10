@@ -10,6 +10,7 @@ import { restockOrderItems } from "@/lib/orders";
 import { escapeHtml, sendEmail, wrapEmail } from "@/lib/email";
 import { formatUsd, SUPPORT_EMAIL } from "@/lib/constants";
 import { titleCase } from "@/lib/handoff";
+import { normalizePermit, isExpired } from "@/lib/match";
 
 const COOK_STATUSES = new Set(["pending", "active", "paused", "suspended"]);
 
@@ -176,6 +177,40 @@ export async function updateCookFields(formData: FormData) {
   if (formData.has("pickup_delivery_form")) {
     patch.pickup_available = formData.get("pickup_available") != null;
     patch.delivery_available = formData.get("delivery_available") != null;
+  }
+
+  // Editing the permit number re-runs the county-list match, exactly like the
+  // signup wizard — the console's "county list match" indicator reads the
+  // STORED approved_operator_id link, so without this a permit added after
+  // signup shows "✗ not on the county list" forever even when it's a real,
+  // live permit (found the hard way with the first real cook). A live match
+  // also grants the verified badge, mirroring signup; a non-match only clears
+  // the LINK — revoking a badge stays a deliberate admin act (the toggle).
+  if (formData.has("permit_number")) {
+    const normalized = patch.permit_number
+      ? normalizePermit(String(patch.permit_number))
+      : null;
+    patch.permit_number = normalized;
+    let match: { id: string; expires_at: string | null } | null = null;
+    if (normalized) {
+      const { data: cookRow } = await createAdminClient()
+        .from("cooks")
+        .select("county")
+        .eq("id", id)
+        .maybeSingle();
+      const { data } = await createAdminClient()
+        .from("approved_operators")
+        .select("id, expires_at")
+        .eq("permit_number", normalized)
+        .eq("county", cookRow?.county ?? "Santa Clara")
+        .maybeSingle();
+      match = data ?? null;
+    }
+    patch.approved_operator_id = match?.id ?? null;
+    const today = new Date().toISOString().slice(0, 10);
+    if (match && !isExpired(match.expires_at, today)) {
+      patch.permit_verified = true;
+    }
   }
 
   if (Object.keys(patch).length > 0) {
