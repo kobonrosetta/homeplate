@@ -19,15 +19,33 @@ function bumpAdmin(cookId?: string) {
   if (cookId) revalidatePath(`/admin/kitchen/${cookId}`);
 }
 
+// Admin-gate for the form actions below. A stale session token inside a Server
+// Action makes getAdminUser() return null; the old `if (!admin) return;` then
+// swallowed the whole action — no write, no redirect, no error — so a Save just
+// silently evaporated. Instead, bounce back to the page with a visible error so
+// the admin always knows something happened (and to reload). Never returns null
+// (redirect throws), so callers can treat it as "past this line = authorized".
+async function adminOrBounce(cookId: string) {
+  const admin = await getAdminUser();
+  if (!admin) {
+    const to = cookId ? `/admin/kitchen/${cookId}` : "/admin";
+    redirect(
+      `${to}?error=${encodeURIComponent(
+        "Your admin session expired — reload the page and try again."
+      )}`
+    );
+  }
+  return admin;
+}
+
 // Set a kitchen's lifecycle status. The admin service role bypasses the cook
 // status trigger, so any transition is allowed (approve pending→active, pause,
 // suspend, reactivate suspended→active, send back to review). Decoupled from the
 // verified badge — see setVerified.
 export async function setCookStatus(formData: FormData) {
-  const admin = await getAdminUser();
-  if (!admin) return;
   const id = String(formData.get("cook_id") ?? "");
   const status = String(formData.get("status") ?? "");
+  await adminOrBounce(id);
   if (!id || !COOK_STATUSES.has(status)) return;
   const db = createAdminClient();
   // Read the prior state so we can tell a real transition from a no-op re-click
@@ -56,9 +74,8 @@ export async function setCookStatus(formData: FormData) {
 // status. (Permit-matched cooks are already verified from signup; this is for
 // verifying an unmatched kitchen after a manual check, or pulling a bad badge.)
 export async function setVerified(formData: FormData) {
-  const admin = await getAdminUser();
-  if (!admin) return;
   const id = String(formData.get("cook_id") ?? "");
+  await adminOrBounce(id);
   if (!id) return;
   const verified = String(formData.get("verified") ?? "") === "1";
   const db = createAdminClient();
@@ -129,10 +146,9 @@ const TEXT_FIELDS = [
 ];
 
 export async function updateCookFields(formData: FormData) {
-  const admin = await getAdminUser();
-  if (!admin) return;
   const id = String(formData.get("cook_id") ?? "");
   if (!id) redirect("/admin");
+  await adminOrBounce(id);
 
   const patch: Record<string, unknown> = {};
 
@@ -167,7 +183,14 @@ export async function updateCookFields(formData: FormData) {
 
   if (Object.keys(patch).length > 0) {
     const db = createAdminClient();
-    await db.from("cooks").update(patch).eq("id", id);
+    const { error } = await db.from("cooks").update(patch).eq("id", id);
+    if (error) {
+      redirect(
+        `/admin/kitchen/${id}?error=${encodeURIComponent(
+          `Couldn't save: ${error.message}`
+        )}`
+      );
+    }
     revalidatePath(`/admin/kitchen/${id}`);
     revalidatePath("/admin");
     revalidatePath("/browse");
