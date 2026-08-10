@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { calcServiceFeeCents, formatUsd } from "@/lib/constants";
 import VerifiedBadge from "@/components/verified-badge";
 import { payLinkCheckout } from "./actions";
+import { titleCase } from "@/lib/handoff";
 
 export const dynamic = "force-dynamic";
 
@@ -96,7 +97,9 @@ export default async function PayPage({
             >
               {cook.business_name}
             </Link>
-            {cook.city && <p className="text-sm text-muted">{cook.city}</p>}
+            {cook.city && (
+              <p className="text-sm text-muted">{titleCase(cook.city)}</p>
+            )}
           </div>
           {cook.permit_verified && <VerifiedBadge className="shrink-0" />}
         </div>

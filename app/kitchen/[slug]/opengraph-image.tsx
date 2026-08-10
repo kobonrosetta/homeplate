@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { createClient } from "@supabase/supabase-js";
 import { loadOgFonts } from "@/lib/og-font";
+import { titleCase } from "@/lib/handoff";
 
 // The share card for a kitchen — what unfurls when the cook's link lands in a
 // WhatsApp group or an Instagram bio. Split layout: warm-editorial brand panel
@@ -51,8 +52,8 @@ export default async function Image({
   const name =
     rawName.length > 44 ? `${rawName.slice(0, 43).trimEnd()}…` : rawName;
   const badge = cook?.permit_verified
-    ? `County-verified${cook.city ? ` · ${cook.city}` : ""}`
-    : cook?.city || "Santa Clara County";
+    ? `County-verified${cook.city ? ` · ${titleCase(cook.city)}` : ""}`
+    : titleCase(cook?.city) || "Santa Clara County";
 
   // Load a non-Latin font subset if the name needs one (glyph fallback fills
   // the tofu gaps); ASCII names get [] and keep the built-in face. Scoped to

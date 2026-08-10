@@ -60,6 +60,19 @@ check("titleCase: empty / null → ''", () => {
   assert.equal(titleCase(""), "");
   assert.equal(titleCase(null), "");
 });
+check("titleCase: deliberate mixed case passes through untouched", () => {
+  assert.equal(titleCase("McKinley"), "McKinley"); // real SJ neighborhood
+  assert.equal(titleCase("SoFA"), "SoFA"); // South First Area, San Jose
+  assert.equal(titleCase("O'Brien Court"), "O'Brien Court");
+});
+check("titleCase: hyphen/slash compounds normalize per segment", () => {
+  assert.equal(titleCase("cambrian-pioneer"), "Cambrian-Pioneer");
+  assert.equal(titleCase("burbank/del monte"), "Burbank/Del Monte");
+});
+check("titleCase: idempotent (write-then-display applies it twice)", () => {
+  assert.equal(titleCase(titleCase("SAN JOSE")), "San Jose");
+  assert.equal(titleCase(titleCase("SoFA")), "SoFA");
+});
 check("publicArea: title-cases city, blank neighborhood dropped", () =>
   assert.equal(publicArea(null, "campbell"), "Campbell"));
 check("publicArea: joins + normalizes both", () =>

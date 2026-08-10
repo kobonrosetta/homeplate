@@ -19,6 +19,7 @@ import EmptyState from "@/components/empty-state";
 import ForkMark from "@/components/fork-mark";
 import JsonLd from "@/components/json-ld";
 import { kitchenSchema, breadcrumbSchema } from "@/lib/schema";
+import { publicArea, titleCase } from "@/lib/handoff";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,7 @@ export async function generateMetadata({
   const description = (
     cook.bio ||
     `${cook.permit_verified ? "County-verified home kitchen" : "Home kitchen"}${
-      cook.city ? ` in ${cook.city}` : ""
+      cook.city ? ` in ${titleCase(cook.city)}` : ""
     }. Browse the menu and order ahead on ForkFork.`
   ).slice(0, 200);
 
@@ -203,7 +204,7 @@ export default async function KitchenPage({
             {cook.permit_verified && <VerifiedBadge />}
           </div>
           <p className="mt-1.5 text-muted">
-            {[cook.neighborhood, cook.city].filter(Boolean).join(", ")}
+            {publicArea(cook.neighborhood, cook.city)}
             {cook.neighborhood || cook.city ? " · " : ""}
             {cook.operation_type === "mehko" ? "Home kitchen" : "Home bakery"}
           </p>
@@ -452,7 +453,7 @@ export default async function KitchenPage({
             </p>
             <p className="mt-0.5 text-sm text-muted">
               {cook.operation_type === "mehko" ? "Home chef" : "Home baker"}
-              {cook.city ? ` in ${cook.city}` : ""}
+              {cook.city ? ` in ${titleCase(cook.city)}` : ""}
               {joinedLabel ? ` · on ForkFork since ${joinedLabel}` : ""}
             </p>
             {cook.bio && (

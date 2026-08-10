@@ -26,7 +26,7 @@ const PAID = new Set(["confirmed", "in_progress", "ready", "completed"]);
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: { archived?: string };
+  searchParams: { archived?: string; error?: string };
 }) {
   // Invisible to anyone who isn't an admin.
   const admin = await getAdminUser();
@@ -329,6 +329,12 @@ export default async function AdminPage({
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <h1 className="text-2xl font-semibold text-ink">Admin</h1>
+
+      {searchParams.error && (
+        <p className="mt-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">
+          {searchParams.error}
+        </p>
+      )}
 
       {/* Marketplace pulse */}
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
