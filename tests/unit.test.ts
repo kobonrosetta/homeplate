@@ -1,6 +1,8 @@
 import assert from "node:assert";
 import { slugify } from "../lib/slug";
 import { titleCase, publicArea } from "../lib/handoff";
+import sharp from "sharp";
+import { optimizeImageBuffer } from "../lib/image";
 import {
   calcServiceFeeCents,
   calcTotalCents,
@@ -44,6 +46,23 @@ function check(name: string, fn: () => void) {
     console.log("  ✗ " + name + " — " + (e as Error).message);
     fail++;
   }
+}
+
+// Async variant for checks that genuinely need await (image processing). The
+// summary at the bottom waits for these before printing.
+const pending: Promise<void>[] = [];
+function checkAsync(name: string, fn: () => Promise<void>) {
+  pending.push(
+    fn()
+      .then(() => {
+        console.log("  ✓ " + name);
+        pass++;
+      })
+      .catch((e) => {
+        console.log("  ✗ " + name + " — " + (e as Error).message);
+        fail++;
+      })
+  );
 }
 
 // --- slug logic ---
@@ -358,5 +377,51 @@ check("badge: preorder open → date tone", () =>
 check("badge: preorder closed → closed tone", () =>
   assert.equal(availabilityBadge({ mode: "preorder", readyDate: "2026-08-20", orderBy: "2026-08-05" }, TODAY).tone, "closed"));
 
-console.log("\n" + pass + " passed, " + fail + " failed");
-if (fail > 0) process.exit(1);
+// ---- image optimization (lib/image.ts) ----
+
+checkAsync("optimize: big photo shrinks to ≤1600 edge, webp", async () => {
+  const big = await sharp({
+    create: { width: 3000, height: 2000, channels: 3, background: { r: 180, g: 90, b: 40 } },
+  })
+    .png()
+    .toBuffer();
+  const out = await optimizeImageBuffer(big);
+  const meta = await sharp(out).metadata();
+  assert.equal(meta.format, "webp");
+  assert.ok((meta.width ?? 0) <= 1600 && (meta.height ?? 0) <= 1600);
+  // aspect preserved (3:2)
+  assert.ok(Math.abs((meta.width ?? 0) / (meta.height ?? 1) - 1.5) < 0.01);
+});
+
+checkAsync("optimize: small photo is never upscaled", async () => {
+  const small = await sharp({
+    create: { width: 400, height: 300, channels: 3, background: { r: 20, g: 120, b: 80 } },
+  })
+    .jpeg()
+    .toBuffer();
+  const out = await optimizeImageBuffer(small);
+  const meta = await sharp(out).metadata();
+  assert.equal(meta.format, "webp");
+  assert.equal(meta.width, 400);
+  assert.equal(meta.height, 300);
+});
+
+checkAsync("optimize: garbage input rejects (upload falls back to original)", async () => {
+  await assert.rejects(() => optimizeImageBuffer(Buffer.from("not an image")));
+});
+
+checkAsync("optimize: decompression bomb (>40MP) rejects at header parse", async () => {
+  // 9000x9000 = 81MP — over the 40MP cap; must throw, never decode.
+  const bomb = await sharp({
+    create: { width: 9000, height: 9000, channels: 3, background: { r: 0, g: 0, b: 0 } },
+    limitInputPixels: false,
+  })
+    .png()
+    .toBuffer();
+  await assert.rejects(() => optimizeImageBuffer(bomb));
+});
+
+Promise.all(pending).then(() => {
+  console.log("\n" + pass + " passed, " + fail + " failed");
+  if (fail > 0) process.exit(1);
+});

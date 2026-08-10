@@ -159,6 +159,11 @@ export default async function BrowsePage({
                   <img
                     src={k.thumb}
                     alt={k.name}
+                    // First row is above the fold and the page's LCP element —
+                    // lazy-loading it would hide it from the preload scanner
+                    // and measurably delay largest paint. Lazy the rest.
+                    loading={i < 3 ? "eager" : "lazy"}
+                    decoding="async"
                     className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                   />
                 ) : (

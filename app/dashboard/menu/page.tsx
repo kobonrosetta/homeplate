@@ -57,6 +57,8 @@ export default async function MenuPage({
                   <img
                     src={l.photo_url}
                     alt=""
+                    loading="lazy"
+                    decoding="async"
                     className="h-12 w-12 shrink-0 rounded-lg object-cover"
                   />
                 ) : (
