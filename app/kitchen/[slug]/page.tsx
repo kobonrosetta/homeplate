@@ -293,6 +293,8 @@ export default async function KitchenPage({
                     <img
                       src={l.photo_url}
                       alt={l.title}
+                      loading="lazy"
+                      decoding="async"
                       className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                     />
                   ) : (
@@ -385,6 +387,8 @@ export default async function KitchenPage({
                     <img
                       src={l.photo_url}
                       alt={l.title}
+                      loading="lazy"
+                      decoding="async"
                       className="h-14 w-14 shrink-0 rounded-lg object-cover"
                     />
                   ) : (
@@ -437,6 +441,8 @@ export default async function KitchenPage({
             <img
               src={cook.avatar_url}
               alt={cook.owner_name || cook.business_name}
+              loading="lazy"
+              decoding="async"
               className="h-20 w-20 shrink-0 rounded-full object-cover"
             />
           ) : (

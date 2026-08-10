@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import sharp from "sharp";
 import { createClient } from "@supabase/supabase-js";
 import { loadOgFonts } from "@/lib/og-font";
 import { titleCase } from "@/lib/handoff";
@@ -48,6 +49,29 @@ export default async function Image({
     (cook?.listings as { photo_url: string }[] | undefined)?.[0]?.photo_url ??
     null;
 
+  // Satori (next/og) can only decode PNG/JPEG/GIF/SVG — NOT WebP, which is
+  // what the upload optimizer now stores. It swallows the decode error, so a
+  // raw webp URL would 200 a card with a blank half where the food should be.
+  // Transcode whatever the photo is to JPEG and embed it as a data URI; on any
+  // failure fall through to the branded no-photo card instead.
+  let photoSrc: string | null = null;
+  if (photo) {
+    try {
+      const res = await fetch(photo);
+      if (res.ok) {
+        const jpg = await sharp(Buffer.from(await res.arrayBuffer()), {
+          limitInputPixels: 40_000_000,
+        })
+          .resize(900, 900, { fit: "inside", withoutEnlargement: true })
+          .jpeg({ quality: 80 })
+          .toBuffer();
+        photoSrc = `data:image/jpeg;base64,${jpg.toString("base64")}`;
+      }
+    } catch {
+      /* branded fallback below */
+    }
+  }
+
   const rawName = cook?.business_name ?? "ForkFork";
   const name =
     rawName.length > 44 ? `${rawName.slice(0, 43).trimEnd()}…` : rawName;
@@ -94,8 +118,9 @@ export default async function Image({
     </div>
   );
 
-  if (!photo) {
-    // Branded fallback for kitchens with no food photo yet.
+  if (!photoSrc) {
+    // Branded fallback for kitchens with no food photo yet (or a photo that
+    // couldn't be fetched/transcoded — never ship a half-blank card).
     return new ImageResponse(
       (
         <div
@@ -189,7 +214,7 @@ export default async function Image({
         </div>
         {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
         <img
-          src={photo}
+          src={photoSrc}
           width={450}
           height={441}
           style={{ width: 450, height: 441, objectFit: "cover" }}

@@ -1,5 +1,6 @@
 import { checkPhotoImage } from "@/lib/ai";
 import { MIN_PHOTO_SCORE } from "@/lib/constants";
+import { optimizePhoto, AVATAR_MAX_EDGE } from "@/lib/image";
 import { readAllergensFromForm, allergenColumns } from "@/lib/allergens";
 import {
   readAvailabilityFromForm,
@@ -35,6 +36,11 @@ const PERMIT_FILE_TYPES = new Set([
 ]);
 const MAX_PHOTO_MB = 8;
 const MAX_PERMIT_MB = 10;
+
+// Every PUBLIC photo is shrunk at upload via lib/image.ts optimizePhoto
+// (longest edge capped, WebP q80, EXIF/GPS stripped) — see that module for
+// the full rationale. Permit photos are deliberately NOT processed: admin-only
+// evidence where legibility beats weight, and HEIC/PDF pass through untouched.
 
 // Returns an error string, or null if the file is an acceptable public photo.
 // An EMPTY type is allowed (some browsers omit the MIME type; the upload falls
@@ -152,12 +158,15 @@ export async function insertListingFromForm(
   if (photo instanceof File && photo.size > 0) {
     const bad = photoProblem(photo);
     if (bad) return bad;
-    const ext = (photo.name.split(".").pop() || "jpg").toLowerCase();
+    const opt = await optimizePhoto(photo);
+    const ext = opt
+      ? opt.ext
+      : (photo.name.split(".").pop() || "jpg").toLowerCase();
     const path = `${cookId}/${crypto.randomUUID()}.${ext}`;
     const { error: uploadError } = await storage
       .from("listing-photos")
-      .upload(path, photo, {
-        contentType: photo.type || "image/jpeg",
+      .upload(path, opt ? opt.body : photo, {
+        contentType: opt ? opt.contentType : photo.type || "image/jpeg",
         upsert: false,
       });
     if (!uploadError) {
@@ -183,11 +192,15 @@ export async function insertListingFromForm(
   const extraUrls: string[] = [];
   for (const p of formData.getAll("photos").slice(0, 4)) {
     if (!(p instanceof File) || p.size === 0 || photoProblem(p)) continue;
-    const ext = (p.name.split(".").pop() || "jpg").toLowerCase();
+    const opt = await optimizePhoto(p);
+    const ext = opt ? opt.ext : (p.name.split(".").pop() || "jpg").toLowerCase();
     const path = `${cookId}/${crypto.randomUUID()}.${ext}`;
     const { error: upErr } = await storage
       .from("listing-photos")
-      .upload(path, p, { contentType: p.type || "image/jpeg", upsert: false });
+      .upload(path, opt ? opt.body : p, {
+        contentType: opt ? opt.contentType : p.type || "image/jpeg",
+        upsert: false,
+      });
     if (upErr) continue;
     const eurl: string = storage.from("listing-photos").getPublicUrl(path).data
       .publicUrl;
@@ -241,12 +254,15 @@ export async function uploadDishPhoto(
   const bad = photoProblem(file);
   if (bad) return { error: bad };
   const storage = adminStorage();
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const opt = await optimizePhoto(file);
+  const ext = opt
+    ? opt.ext
+    : (file.name.split(".").pop() || "jpg").toLowerCase();
   const path = `${cookId}/${crypto.randomUUID()}.${ext}`;
   const { error: uploadError } = await storage
     .from("listing-photos")
-    .upload(path, file, {
-      contentType: file.type || "image/jpeg",
+    .upload(path, opt ? opt.body : file, {
+      contentType: opt ? opt.contentType : file.type || "image/jpeg",
       upsert: false,
     });
   if (uploadError) {
@@ -279,12 +295,17 @@ export async function uploadCookAvatar(
     return null;
   }
   const storage = adminStorage();
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const opt = await optimizePhoto(file, AVATAR_MAX_EDGE);
+  const ext = opt
+    ? opt.ext
+    : (file.name.split(".").pop() || "jpg").toLowerCase();
   const path = `${cookId}/avatar-${crypto.randomUUID()}.${ext}`;
-  const { error } = await storage.from("listing-photos").upload(path, file, {
-    contentType: file.type || "image/jpeg",
-    upsert: false,
-  });
+  const { error } = await storage
+    .from("listing-photos")
+    .upload(path, opt ? opt.body : file, {
+      contentType: opt ? opt.contentType : file.type || "image/jpeg",
+      upsert: false,
+    });
   if (error) return null;
   return storage.from("listing-photos").getPublicUrl(path).data.publicUrl;
 }
@@ -303,12 +324,17 @@ export async function uploadCookCover(
     return null;
   }
   const storage = adminStorage();
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const opt = await optimizePhoto(file);
+  const ext = opt
+    ? opt.ext
+    : (file.name.split(".").pop() || "jpg").toLowerCase();
   const path = `${cookId}/cover-${crypto.randomUUID()}.${ext}`;
-  const { error } = await storage.from("listing-photos").upload(path, file, {
-    contentType: file.type || "image/jpeg",
-    upsert: false,
-  });
+  const { error } = await storage
+    .from("listing-photos")
+    .upload(path, opt ? opt.body : file, {
+      contentType: opt ? opt.contentType : file.type || "image/jpeg",
+      upsert: false,
+    });
   if (error) return null;
   return storage.from("listing-photos").getPublicUrl(path).data.publicUrl;
 }
