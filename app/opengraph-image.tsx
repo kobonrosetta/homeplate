@@ -35,7 +35,7 @@ export default function Image() {
               maxWidth: 960,
             }}
           >
-            {"The best food near you isn't from a restaurant."}
+            {"Incredible chefs, hiding a few blocks away."}
           </div>
           <div style={{ display: "flex", fontSize: 28, color: "#fde8d5" }}>
             County-verified home kitchens in Santa Clara County
