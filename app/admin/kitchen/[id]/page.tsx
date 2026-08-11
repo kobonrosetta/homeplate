@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getAdminUser } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { formatUsd } from "@/lib/constants";
+import { formatUsd, formatPhone } from "@/lib/constants";
 import ConfirmSubmit from "@/components/confirm-submit";
 import {
   KitchenControls,
@@ -142,6 +142,31 @@ export default async function AdminKitchenPage({
         </p>
       )}
 
+      {cook.pickup_available &&
+        !priv?.street_address?.trim() &&
+        !priv?.pickup_location?.trim() && (
+          <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
+            ⚠️ <span className="font-medium">No pickup address on file.</span>{" "}
+            {cook.status === "active" ? (
+              // Reachable despite the activation gate: kitchens approved before
+              // the gate existed, pickup toggled on post-approval, or a cook
+              // resuming from pause (their own action, ungated). LIVE + no
+              // address = paid buyers with nowhere to go — say so, urgently.
+              <>
+                This kitchen is LIVE for pickup — paid buyers have nowhere to
+                go. Ask the chef to add it now (Dashboard → Settings), or
+                pause the kitchen / turn pickup off until they do.
+              </>
+            ) : (
+              <>
+                This kitchen offers pickup but buyers would have nowhere to go
+                — activation is blocked until the chef adds it (Dashboard →
+                Settings) or pickup is turned off.
+              </>
+            )}
+          </p>
+        )}
+
       <div className="mt-4">
         <KitchenControls cook={cook} orderCount={orderCount} />
       </div>
@@ -156,7 +181,7 @@ export default async function AdminKitchenPage({
         />
         <Field
           label="Phone"
-          value={profile?.phone ? <a className="text-brand hover:underline" href={`tel:${profile.phone}`}>{profile.phone}</a> : "—"}
+          value={profile?.phone ? <a className="text-brand hover:underline" href={`tel:${profile.phone}`}>{formatPhone(profile.phone)}</a> : "—"}
         />
       </Section>
 

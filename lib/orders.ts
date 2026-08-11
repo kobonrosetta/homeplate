@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { escapeHtml, sendEmail, wrapEmail } from "@/lib/email";
-import { formatUsd, SITE_URL } from "@/lib/constants";
+import { formatUsd, formatPhone, SITE_URL } from "@/lib/constants";
 import { formatDateLong } from "@/lib/availability";
 import { pickupLocation } from "@/lib/handoff";
 
@@ -242,7 +242,7 @@ async function notifyOrderConfirmed(
             }</p>`;
       const contactLineBuyer = kitchenPhone
         ? `<p><strong>Reach the kitchen:</strong> ${escapeHtml(
-            kitchenPhone
+            formatPhone(kitchenPhone)
           )}</p>`
         : "";
 
@@ -254,7 +254,7 @@ async function notifyOrderConfirmed(
       if (cookEmail) {
         const contactLine = [
           order.contact_name ?? "Buyer",
-          order.contact_phone,
+          formatPhone(order.contact_phone),
           order.contact_email,
         ]
           .filter(Boolean)

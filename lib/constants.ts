@@ -52,3 +52,18 @@ export function formatUsd(cents: number): string {
     currency: "USD",
   }).format(cents / 100);
 }
+
+/**
+ * Format a raw phone for DISPLAY: "6692132181" → "(669) 213-2181" (also
+ * tolerates a leading 1 / punctuation). Anything that isn't a US 10-digit
+ * number passes through as typed. tel: hrefs keep the raw value — this is
+ * purely so a human can tell it's a phone number at a glance.
+ */
+export function formatPhone(s?: string | null): string {
+  const raw = (s ?? "").trim();
+  const digits = raw.replace(/\D/g, "");
+  const ten =
+    digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+  if (ten.length !== 10) return raw;
+  return `(${ten.slice(0, 3)}) ${ten.slice(3, 6)}-${ten.slice(6)}`;
+}

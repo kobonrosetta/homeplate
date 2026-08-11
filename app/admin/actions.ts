@@ -52,11 +52,40 @@ export async function setCookStatus(formData: FormData) {
   // Read the prior state so we can tell a real transition from a no-op re-click
   // and phrase the email correctly (first approval vs reactivation, live vs
   // payouts-pending).
-  const { data: before } = await db
+  const { data: before, error: beforeErr } = await db
     .from("cooks")
-    .select("status, business_name, slug, profile_id, stripe_ready")
+    .select("status, business_name, slug, profile_id, stripe_ready, pickup_available")
     .eq("id", id)
     .maybeSingle();
+  // FAIL CLOSED: this id came from a rendered admin row, so a null/errored
+  // read is always abnormal (transient DB hiccup). Proceeding would skip the
+  // pickup-address gate below AND the status-change email — bounce instead.
+  if (beforeErr || !before) {
+    redirect(
+      `/admin/kitchen/${id}?error=${encodeURIComponent(
+        "Couldn't load this kitchen's current state — nothing was changed. Reload and try again."
+      )}`
+    );
+  }
+  // HARD GATE on activation: a pickup kitchen must have a handoff location
+  // BEFORE it can take orders — approving without one strands every paid
+  // buyer with a confirmation that has nowhere to send them (happened with
+  // the first real order: the cook skipped the wizard's final step, built
+  // everything from the dashboard, and approval never checked).
+  if (status === "active" && before?.pickup_available) {
+    const { data: priv } = await db
+      .from("cook_private")
+      .select("street_address, pickup_location")
+      .eq("cook_id", id)
+      .maybeSingle();
+    if (!priv?.street_address?.trim() && !priv?.pickup_location?.trim()) {
+      redirect(
+        `/admin/kitchen/${id}?error=${encodeURIComponent(
+          "Can't activate: this kitchen offers pickup but has no pickup address on file. Ask the chef to add it (Dashboard → Settings), or turn pickup off first."
+        )}`
+      );
+    }
+  }
   await db.from("cooks").update({ status }).eq("id", id);
   if (before) {
     await notifyCookStatusChange({

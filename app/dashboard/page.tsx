@@ -30,7 +30,7 @@ export default async function DashboardOverview() {
   const qtr = quarterOf(now);
   const prevQtr = previousQuarter(now);
 
-  const [{ data: listings }, { data: orders }, { data: taxOrders }] =
+  const [{ data: listings }, { data: orders }, { data: taxOrders }, { data: priv }] =
     await Promise.all([
       supabase
         .from("listings")
@@ -56,6 +56,13 @@ export default async function DashboardOverview() {
         .is("refunded_at", null)
         .gte("created_at", prevQtr.start.toISOString())
         .lt("created_at", qtr.end.toISOString()),
+      // Owner-only (RLS) — where buyers pick up. A pickup kitchen without one
+      // leaves paid buyers with no location, so its absence is an urgent task.
+      supabase
+        .from("cook_private")
+        .select("street_address, pickup_location")
+        .eq("cook_id", cook.id)
+        .maybeSingle(),
     ]);
 
   const items = listings ?? [];
@@ -131,6 +138,20 @@ export default async function DashboardOverview() {
 
   // Prioritized — the order they're pushed is the order they're shown.
   const tasks: { label: string; href: string; urgent?: boolean }[] = [];
+  // A pickup kitchen with no handoff location strands every paid buyer —
+  // their confirmation has nowhere to send them. Pushed FIRST on purpose:
+  // it outranks even new orders, because those buyers can't collect.
+  if (
+    cook.pickup_available &&
+    !priv?.street_address?.trim() &&
+    !priv?.pickup_location?.trim()
+  )
+    tasks.push({
+      label:
+        "Add your pickup address — buyers who order have no way to know where to collect their food",
+      href: "/dashboard/settings",
+      urgent: true,
+    });
   if (newOrders > 0)
     tasks.push({
       label: `${newOrders} new ${
