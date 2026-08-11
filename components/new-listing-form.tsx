@@ -367,8 +367,9 @@ export default function NewListingForm({
 
           {mode === "ready_now" && (
             <p className="mt-2 text-xs text-faint">
-              Shows a green “Ready today” — for food you have on hand or can make
-              same-day.
+              For food you can make with no notice. Buyers see “Get it today”
+              on your pickup days — on other days it shows your next pickup
+              day, e.g. “Get it Saturday”.
             </p>
           )}
 
@@ -388,7 +389,8 @@ export default function NewListingForm({
                 days
               </div>
               <p className="mt-1 text-xs text-faint">
-                Buyers see “Ready by [date]”, counted from the day they order.
+                Buyers see “Get it [date]” — your notice counted from the day
+                they order, landing on your next pickup day.
               </p>
             </div>
           )}

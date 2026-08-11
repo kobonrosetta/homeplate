@@ -7,6 +7,7 @@ import { FormError } from "@/components/form";
 import EmptyState from "@/components/empty-state";
 import ForkMark from "@/components/fork-mark";
 import { toggleListing, deleteListing } from "../listings/actions";
+import { parsePickupDays } from "@/lib/availability";
 
 export default async function MenuPage({
   searchParams,
@@ -24,6 +25,21 @@ export default async function MenuPage({
 
   const items = listings ?? [];
 
+  // Honest-timing nudge: a kitchen with LIMITED pickup days plus zero-notice
+  // ("ready now") dishes is implicitly promising same-day handoff on those
+  // days — which a batch cook usually can't honor. Say so, once, right here.
+  const handoffDays = parsePickupDays(cook.pickup_windows);
+  const zeroNoticeDishes = items.filter(
+    (l: any) =>
+      (l.kind ?? "dish") === "dish" &&
+      (l.fulfillment_mode ?? "ready_now") === "ready_now"
+  ).length;
+  const showNoticeNudge =
+    cook.pickup_available !== false &&
+    handoffDays !== null &&
+    handoffDays.size <= 5 &&
+    zeroNoticeDishes > 0;
+
   return (
     <div>
       <div className="flex items-center justify-between">
@@ -39,6 +55,22 @@ export default async function MenuPage({
       <div className="mt-4">
         <FormError message={searchParams.error} />
       </div>
+
+      {showNoticeNudge && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-medium">
+            Can buyers really order same-day on your pickup days?
+          </p>
+          <p className="mt-1">
+            Your pickup times are limited, but {zeroNoticeDishes}{" "}
+            {zeroNoticeDishes === 1 ? "dish is" : "dishes are"} set to
+            &ldquo;ready now&rdquo; — so on a pickup day, buyers can order for
+            same-day handoff. If you need heads-up to cook, edit each dish and
+            give it a lead time (e.g. &ldquo;2 days&rsquo; notice&rdquo;) —
+            buyers will then see the right &ldquo;Get it&rdquo; date up front.
+          </p>
+        </div>
+      )}
 
       {items.length === 0 ? (
         <div className="mt-6">

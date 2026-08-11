@@ -63,6 +63,15 @@ export default function CartPage() {
           {cart.cook.name}
         </Link>
       </p>
+      {(cart.cook.pickupAvailable ?? true) &&
+        (cart.cook.pickupWindows ?? []).length > 0 && (
+        // Surface the kitchen's handoff schedule mid-funnel — a buyer must
+        // never first learn "weekends only" at the payment screen.
+        <p className="mt-2 rounded-lg bg-card px-3 py-2 text-sm text-muted shadow-soft">
+          🕐 <span className="font-medium text-ink">Pickup times:</span>{" "}
+          {(cart.cook.pickupWindows ?? []).join(" · ")}
+        </p>
+      )}
 
       <ul className="mt-6 divide-y divide-line rounded-xl bg-card shadow-soft">
         {cart.items.map((i) => (

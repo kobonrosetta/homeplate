@@ -212,8 +212,11 @@ async function notifyOrderConfirmed(
               order.pickup_time ? ` · ${escapeHtml(order.pickup_time)}` : ""
             }`;
       // The concrete "you'll get it by" date, frozen on the order at checkout.
+      // The snapshotted date is the HANDOFF day (ready-by pushed to the
+      // kitchen's next pickup day) — "For Saturday, August 15" reads right in
+      // both emails: the chef preps for it, the buyer receives on it.
       const readyByLine = order.ready_by_date
-        ? `<p><strong>Ready by:</strong> ${formatDateLong(order.ready_by_date)}</p>`
+        ? `<p><strong>For:</strong> ${formatDateLong(order.ready_by_date)}</p>`
         : "";
       // Stripe payment reference — the buyer can quote this to us for any
       // question about the charge, and it's directly searchable in Stripe.

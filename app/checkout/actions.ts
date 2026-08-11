@@ -8,9 +8,10 @@ import { calcServiceFeeCents } from "@/lib/constants";
 import { createCheckoutSession } from "@/lib/stripe";
 import {
   availabilityFromListing,
-  computeReadyBy,
+  computeGetIt,
   isOrderable,
   pacificTodayIso,
+  parsePickupDays,
 } from "@/lib/availability";
 import {
   deriveUnitPrice,
@@ -162,7 +163,9 @@ export async function startCheckout(formData: FormData) {
 
   const { data: cook } = await supabase
     .from("cooks")
-    .select("id, status, stripe_ready, delivery_available, pickup_windows")
+    .select(
+      "id, status, stripe_ready, pickup_available, delivery_available, pickup_windows"
+    )
     .eq("id", cookId)
     .maybeSingle();
   if (!cook || cook.status !== "active")
@@ -248,10 +251,23 @@ export async function startCheckout(formData: FormData) {
   // estimate not a deadline, and recomputing at payment would push logic into
   // the money-critical, idempotent confirmPaidOrder for negligible payoff.
   const today = pacificTodayIso();
+  // Handoff days apply only to PICKUP orders at a pickup-enabled kitchen, and
+  // the ONE window the buyer selected beats the union of all windows — the
+  // promise must never read "Get it: Saturday" above a chosen Sunday slot.
+  // Delivery runs on the chef's own arrangements, so its promise stays the
+  // plain ready-by. Preorder lines always keep their cook-set date
+  // (computeGetIt exempts them). Unparseable text → null → old behavior.
+  const handoffDays =
+    fulfillment === "pickup" && cook!.pickup_available !== false
+      ? (pickupTime ? parsePickupDays([pickupTime]) : null) ??
+        parsePickupDays(windows)
+      : null;
   let orderReadyBy: string | null = null;
   for (const l of rows) {
     const a = availabilityFromListing(l as any);
-    const rb = isOrderable(a, today) ? computeReadyBy(a, today) : null;
+    const rb = isOrderable(a, today)
+      ? computeGetIt(a, today, handoffDays)
+      : null;
     if (!rb) {
       err(
         "/cart",

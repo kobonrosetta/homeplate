@@ -2,6 +2,7 @@ import {
   availabilityBadge,
   availabilityFromListing,
   pacificTodayIso,
+  parsePickupDays,
 } from "@/lib/availability";
 
 // Tone → warm-editorial pill colors, matching the verified badge / "Only N left"
@@ -14,11 +15,14 @@ const TONE: Record<string, string> = {
 };
 
 // Reads a listing's availability columns and renders the buyer-facing timing
-// chip ("Ready today" / "Ready by Sat, Aug 9" / "For Sat, Aug 9 · order by
-// Aug 7" / "Ordering closed"). `today` can be passed to avoid recomputing.
+// chip ("Get it today" / "Get it Sat, Aug 15" / "Get it Sat, Aug 22 · order by
+// Aug 21" / "Ordering closed"). Pass the kitchen's `pickupWindows` so the date
+// reflects when the buyer can actually RECEIVE the dish, not just when it can
+// be made. `today` can be passed to avoid recomputing.
 export default function AvailabilityPill({
   listing,
   today,
+  pickupWindows,
   className = "",
 }: {
   listing: {
@@ -28,11 +32,13 @@ export default function AvailabilityPill({
     order_by?: string | null;
   };
   today?: string;
+  pickupWindows?: string[] | null;
   className?: string;
 }) {
   const badge = availabilityBadge(
     availabilityFromListing(listing),
-    today ?? pacificTodayIso()
+    today ?? pacificTodayIso(),
+    parsePickupDays(pickupWindows)
   );
   return (
     <span

@@ -162,7 +162,7 @@ export default async function BuyerOrdersPage() {
                   <div className="mt-3 space-y-0.5 border-t border-line pt-3 text-sm">
                     {o.ready_by_date && (
                       <p className="text-ink">
-                        <span className="text-faint">Ready by: </span>
+                        <span className="text-faint">Get it: </span>
                         <span className="font-medium">
                           {formatDateLong(o.ready_by_date)}
                         </span>

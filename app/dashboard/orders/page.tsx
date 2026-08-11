@@ -216,7 +216,7 @@ function OrderCard({ o, active }: { o: any; active?: boolean }) {
         {o.ready_by_date && (
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-faint">
-              Ready by
+              For
             </p>
             <p className="mt-0.5 font-medium text-ink">
               {formatDateLong(o.ready_by_date)}
