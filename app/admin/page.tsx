@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getAdminUser } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { formatUsd } from "@/lib/constants";
+import { formatUsd, formatPhone } from "@/lib/constants";
 import EmptyState from "@/components/empty-state";
 import { renameCook } from "./actions";
 import {
@@ -200,7 +200,7 @@ export default async function AdminPage({
           {" · "}
           {phone ? (
             <a href={`tel:${phone}`} className="hover:text-ink hover:underline">
-              {phone}
+              {formatPhone(phone)}
             </a>
           ) : (
             <span className="text-amber-700">no phone</span>

@@ -7,6 +7,7 @@ import {
   calcServiceFeeCents,
   calcTotalCents,
   formatUsd,
+  formatPhone,
 } from "../lib/constants";
 import {
   normalizePermit,
@@ -69,6 +70,17 @@ function checkAsync(name: string, fn: () => Promise<void>) {
 }
 
 // --- slug logic ---
+check("formatPhone: raw 10 digits → (669) 213-2181", () =>
+  assert.equal(formatPhone("6692132181"), "(669) 213-2181"));
+check("formatPhone: leading 1 + punctuation tolerated", () => {
+  assert.equal(formatPhone("1-669-213-2181"), "(669) 213-2181");
+  assert.equal(formatPhone("(669) 213 2181"), "(669) 213-2181");
+});
+check("formatPhone: non-US / junk passes through as typed", () => {
+  assert.equal(formatPhone("+44 20 7946 0958"), "+44 20 7946 0958");
+  assert.equal(formatPhone("ask for Q"), "ask for Q");
+  assert.equal(formatPhone(null), "");
+});
 check("slugify: basic", () => assert.equal(slugify("Kate's Bread"), "kates-bread"));
 check("slugify: collapses spaces/punctuation", () =>
   assert.equal(slugify("  The   Daily  Loaf!! "), "the-daily-loaf"));

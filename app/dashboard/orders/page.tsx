@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getCurrentCook } from "@/lib/cook";
 import { createClient } from "@/lib/supabase/server";
-import { formatUsd, SITE_URL } from "@/lib/constants";
+import { formatUsd, formatPhone, SITE_URL } from "@/lib/constants";
 import { formatDateLong } from "@/lib/availability";
 import { advanceOrder } from "./actions";
 import { cancelPaymentRequest } from "./request-actions";
@@ -239,7 +239,7 @@ function OrderCard({ o, active }: { o: any; active?: boolean }) {
           </p>
           <p className="mt-0.5 text-ink">
             {o.contact_name || "Buyer"}
-            {o.contact_phone ? ` · ${o.contact_phone}` : ""}
+            {o.contact_phone ? ` · ${formatPhone(o.contact_phone)}` : ""}
           </p>
         </div>
       </div>

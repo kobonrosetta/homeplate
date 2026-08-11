@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { formatUsd } from "@/lib/constants";
+import { formatUsd, formatPhone } from "@/lib/constants";
 import { formatDateLong } from "@/lib/availability";
 import { pickupLocation } from "@/lib/handoff";
 import ReviewForm from "@/components/review-form";
@@ -189,7 +189,7 @@ export default async function BuyerOrdersPage() {
                           href={`tel:${kitchenPhone}`}
                           className="text-brand hover:underline"
                         >
-                          {kitchenPhone}
+                          {formatPhone(kitchenPhone)}
                         </a>
                       </p>
                     )}
