@@ -11,11 +11,14 @@ export default function ShareLink({
   text,
   showUrl = false,
   label = "Share your link",
+  className,
 }: {
   url: string;
   text?: string;
   showUrl?: boolean;
   label?: string;
+  /** Override the button styling (e.g. a quiet outline on buyer pages). */
+  className?: string;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -41,7 +44,10 @@ export default function ShareLink({
     <button
       type="button"
       onClick={share}
-      className="shrink-0 rounded-full bg-brand px-5 py-2 text-sm font-medium text-white hover:bg-brand/90"
+      className={
+        className ??
+        "shrink-0 rounded-full bg-brand px-5 py-2 text-sm font-medium text-white hover:bg-brand/90"
+      }
     >
       {copied ? "Copied ✓" : label}
     </button>

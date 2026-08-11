@@ -2,7 +2,8 @@ import Link from "next/link";
 import { cache } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { formatUsd } from "@/lib/constants";
+import { formatUsd, SITE_URL } from "@/lib/constants";
+import ShareLink from "@/components/share-link";
 import AddToCart from "@/components/add-to-cart";
 import AvailabilityPill from "@/components/availability-pill";
 import {
@@ -237,6 +238,12 @@ export default async function KitchenPage({
           <p className="max-w-[11rem] text-right text-xs text-faint">
             Followers get an email when new dishes are posted.
           </p>
+          <ShareLink
+            url={`${SITE_URL}/kitchen/${cook.slug}`}
+            text={`${cook.business_name} on ForkFork — county-verified home cooking in ${titleCase(cook.city) || "Santa Clara County"}`}
+            label="↗ Share"
+            className="rounded-full border border-line px-4 py-1.5 text-sm font-medium text-muted transition hover:border-muted hover:text-ink"
+          />
         </div>
       </div>
 
