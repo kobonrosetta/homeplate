@@ -190,7 +190,7 @@ export default async function CheckoutSuccessPage({
             <div className="mt-2 space-y-1 border-t border-line pt-2">
               {order.ready_by_date && (
                 <p className="text-ink">
-                  <span className="text-faint">Ready by: </span>
+                  <span className="text-faint">Get it: </span>
                   <span className="font-medium">
                     {formatDateLong(order.ready_by_date)}
                   </span>

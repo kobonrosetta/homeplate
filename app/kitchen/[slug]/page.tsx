@@ -315,7 +315,16 @@ export default async function KitchenPage({
                       {l.description}
                     </p>
                   )}
-                  <AvailabilityPill listing={l} today={today} className="mt-2 self-start" />
+                  <AvailabilityPill
+                    listing={l}
+                    today={today}
+                    // Windows are PICKUP days — meaningless (possibly stale)
+                    // when the kitchen doesn't offer pickup.
+                    pickupWindows={
+                      cook.pickup_available ? cook.pickup_windows : null
+                    }
+                    className="mt-2 self-start"
+                  />
                   {lowStock && (
                     <p className="mt-1 text-xs font-medium text-amber-600">
                       Only {l.quantity_available} left

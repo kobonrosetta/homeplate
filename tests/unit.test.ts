@@ -33,6 +33,9 @@ import {
   validateAvailability,
   availabilityBadge,
   pacificTodayIso,
+  parsePickupDays,
+  nextHandoffIso,
+  computeGetIt,
 } from "../lib/availability";
 
 let pass = 0;
@@ -362,15 +365,92 @@ check("validate: valid preorder ok", () =>
   assert.equal(validateAvailability({ mode: "preorder", readyDate: "2026-08-20", orderBy: "2026-08-18" }, TODAY), null));
 
 // badges
-check("badge: ready_now → Ready today / now", () => {
+check("badge: ready_now → Get it today / now", () => {
   const b = availabilityBadge({ mode: "ready_now" }, TODAY);
   assert.equal(b.tone, "now");
-  assert.equal(b.text, "Ready today");
+  assert.equal(b.text, "Get it today");
 });
 check("badge: lead_time → soon + a date", () => {
   const b = availabilityBadge({ mode: "lead_time", leadDays: 2 }, TODAY);
   assert.equal(b.tone, "soon");
-  assert.ok(b.text.startsWith("Ready by "));
+  assert.ok(b.text.startsWith("Get it "));
+});
+
+// ---- handoff-aware "Get it" model (pickup-day parsing) ----
+// TODAY (2026-08-07) is a FRIDAY.
+
+check("parsePickupDays: Chef Q's real windows → Sat+Sun", () => {
+  const d = parsePickupDays(["Saturdays 11AM-10 PM", "Sundays 2PM to 7 PM"]);
+  assert.deepEqual([...d!].sort(), [0, 6]);
+});
+check("parsePickupDays: abbreviations + weekend keyword", () => {
+  assert.deepEqual([...parsePickupDays(["Sat & Sun evenings"])!].sort(), [0, 6]);
+  assert.deepEqual([...parsePickupDays(["weekends only"])!].sort(), [0, 6]);
+  assert.deepEqual([...parsePickupDays(["Fri 5-8pm"])!], [5]);
+});
+check("parsePickupDays: one unreadable window → null (schedule unknown)", () => {
+  assert.equal(parsePickupDays(["Saturdays 11-10", "after church"]), null);
+  assert.equal(parsePickupDays(["whenever works"]), null);
+  assert.equal(parsePickupDays([]), null);
+  assert.equal(parsePickupDays(null), null);
+});
+check("parsePickupDays: day words don't fire inside other words", () => {
+  assert.equal(parsePickupDays(["saturated market hours"]), null);
+  assert.equal(parsePickupDays(["sunset pickups"]), null);
+});
+check("nextHandoffIso: pushes to the next scheduled day", () => {
+  const satSun = new Set([0, 6]);
+  assert.equal(nextHandoffIso("2026-08-07", satSun), "2026-08-08"); // Fri → Sat
+  assert.equal(nextHandoffIso("2026-08-08", satSun), "2026-08-08"); // Sat stays
+  assert.equal(nextHandoffIso("2026-08-10", satSun), "2026-08-15"); // Mon → next Sat
+});
+check("getIt: ready_now on a non-handoff day → next pickup day", () => {
+  const days = parsePickupDays(["Saturdays 11AM-10 PM", "Sundays 2PM to 7 PM"]);
+  // Friday, zero-notice dish, weekend-only kitchen → Saturday, not today.
+  assert.equal(computeGetIt({ mode: "ready_now" }, TODAY, days), "2026-08-08");
+  const b = availabilityBadge({ mode: "ready_now" }, TODAY, days);
+  assert.equal(b.tone, "soon");
+  assert.equal(b.text, "Get it Sat, Aug 8");
+});
+check("getIt: lead time composes with handoff days", () => {
+  const days = new Set([0, 6]);
+  // Fri + 3 days notice → ready Mon → next handoff = Sat Aug 15.
+  assert.equal(
+    computeGetIt({ mode: "lead_time", leadDays: 3 }, TODAY, days),
+    "2026-08-15"
+  );
+});
+check("getIt: same-day only when chef said zero notice AND today is a handoff day", () => {
+  const days = new Set([0, 6]);
+  const sat = "2026-08-08";
+  assert.equal(computeGetIt({ mode: "ready_now" }, sat, days), sat);
+  assert.equal(availabilityBadge({ mode: "ready_now" }, sat, days).text, "Get it today");
+});
+check("badge: preorder date is the cook's word — NEVER pushed by windows", () => {
+  const days = new Set([0, 6]);
+  // Cook set Thu Aug 20 (a one-off event day) at a weekend-windows kitchen:
+  // the explicit date wins; the weekly heuristic must not rewrite it.
+  const b = availabilityBadge(
+    { mode: "preorder", readyDate: "2026-08-20", orderBy: "2026-08-18" },
+    TODAY,
+    days
+  );
+  assert.equal(b.text, "Get it Thu, Aug 20 · order by Tue, Aug 18");
+});
+check("parsePickupDays: day RANGES expand inclusively", () => {
+  assert.deepEqual([...parsePickupDays(["Mon-Fri 5-8pm"])!].sort(), [1, 2, 3, 4, 5]);
+  assert.deepEqual([...parsePickupDays(["Tuesday through Thursday"])!].sort(), [2, 3, 4]);
+  assert.deepEqual([...parsePickupDays(["Fri-Mon"])!].sort(), [0, 1, 5, 6]); // wraps the week
+});
+check("parsePickupDays: frequency/negation qualifiers → null (can't represent)", () => {
+  assert.equal(parsePickupDays(["1st Saturday of the month"]), null);
+  assert.equal(parsePickupDays(["Every other Saturday 11-2"]), null);
+  assert.equal(parsePickupDays(["Fri 5-8pm", "Closed Sundays"]), null);
+  assert.equal(parsePickupDays(["Weekends", "No pickup Mondays"]), null);
+});
+check("badge: unknown schedule (null days) falls back to plain ready-by", () => {
+  const b = availabilityBadge({ mode: "ready_now" }, TODAY, null);
+  assert.equal(b.text, "Get it today");
 });
 check("badge: preorder open → date tone", () =>
   assert.equal(availabilityBadge({ mode: "preorder", readyDate: "2026-08-20", orderBy: "2026-08-18" }, TODAY).tone, "date"));

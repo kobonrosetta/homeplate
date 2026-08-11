@@ -191,7 +191,11 @@ export default async function ListingPage({
           )}
           {listing.kind !== "extra" && (
             <div className="mt-4">
-              <AvailabilityPill listing={listing} today={today} />
+              <AvailabilityPill
+                listing={listing}
+                today={today}
+                pickupWindows={cook.pickup_available ? cook.pickup_windows : null}
+              />
             </div>
           )}
 
