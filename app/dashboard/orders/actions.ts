@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentCook } from "@/lib/cook";
 import { restockOrderItems } from "@/lib/orders";
 import { escapeHtml, sendEmail, wrapEmail } from "@/lib/email";
-import { formatUsd, SUPPORT_EMAIL } from "@/lib/constants";
+import { formatUsd, SITE_URL, SUPPORT_EMAIL } from "@/lib/constants";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // Target status -> the statuses an order may come FROM. Pending never appears:
 // an unpaid order can't be advanced, completed, or cancelled by a cook — only
@@ -48,12 +49,14 @@ export async function advanceOrder(formData: FormData) {
   if (status === "cancelled") await restockOrderItems(orderId);
 
   // Buyer-facing notifications on the transitions they care about. Best-effort
-  // — a failed email must never break the cook's status update.
-  if (status === "ready" || status === "cancelled") {
+  // — a failed email must never break the cook's status update. The transition
+  // guard above means each of these sends at most once per order (a re-click
+  // matches zero rows and returns early).
+  if (status === "ready" || status === "cancelled" || status === "completed") {
     try {
       const { data: order } = await supabase
         .from("orders")
-        .select("contact_email, contact_name, fulfillment, total_cents")
+        .select("contact_email, contact_name, fulfillment, total_cents, buyer_id")
         .eq("id", orderId)
         .maybeSingle();
       const kitchen = cook?.business_name ?? "The kitchen";
@@ -127,6 +130,47 @@ export async function advanceOrder(formData: FormData) {
             ),
           });
         }
+      }
+
+      if (status === "completed" && order?.contact_email) {
+        // Review ask — reviews are the storefront's trust currency, and buyers
+        // forget unless nudged at the moment the meal is fresh. Guests (an
+        // anonymous checkout session) can't reach the Purchases review form
+        // from an email link, so they get a reply-to-us version instead —
+        // still feedback, still a support channel.
+        let buyerIsGuest = false;
+        if (order.buyer_id) {
+          const bu = await createAdminClient().auth.admin.getUserById(
+            order.buyer_id
+          );
+          buyerIsGuest = Boolean(bu?.data?.user?.is_anonymous);
+        }
+        const first = order.contact_name
+          ? `, ${escapeHtml(order.contact_name)}`
+          : "";
+        await sendEmail({
+          to: order.contact_email,
+          subject: `How was ${kitchen}?`,
+          html: wrapEmail(
+            buyerIsGuest
+              ? `<h2>How was it${first}?</h2>
+                 <p>We hope ${escapeHtml(kitchen)} hit the spot.</p>
+                 <p>Loved it — or didn't? <strong>Just reply to this email</strong>
+                 and tell us. We read everything, and we'll pass it straight to
+                 the chef.</p>`
+              : `<h2>How was it${first}?</h2>
+                 <p>We hope ${escapeHtml(kitchen)} hit the spot.</p>
+                 <p>Would you leave a quick review? For a home chef, a review
+                 from a real order means everything — it's what tells the next
+                 neighbor this food is worth trying.</p>
+                 <p style="margin:22px 0">
+                   <a href="${SITE_URL}/orders"
+                      style="background:#b45309;color:#ffffff;font-weight:600;text-decoration:none;padding:11px 22px;border-radius:999px;display:inline-block">
+                     Leave a review &rarr;
+                   </a>
+                 </p>`
+          ),
+        });
       }
     } catch {
       /* notifications must never break the status update */
