@@ -2,7 +2,8 @@ import Link from "next/link";
 import { cache } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { formatUsd } from "@/lib/constants";
+import { formatUsd, SITE_URL } from "@/lib/constants";
+import ShareLink from "@/components/share-link";
 import { allergenLabels } from "@/lib/allergens";
 import {
   availabilityFromListing,
@@ -190,11 +191,17 @@ export default async function ListingPage({
             </p>
           )}
           {listing.kind !== "extra" && (
-            <div className="mt-4">
+            <div className="mt-4 flex flex-wrap items-center gap-2">
               <AvailabilityPill
                 listing={listing}
                 today={today}
                 pickupWindows={cook.pickup_available ? cook.pickup_windows : null}
+              />
+              <ShareLink
+                url={`${SITE_URL}/listing/${listing.id}`}
+                text={`${listing.title} from ${cook.business_name} on ForkFork`}
+                label="↗ Share"
+                className="rounded-full border border-line px-3 py-0.5 text-xs font-medium text-muted transition hover:border-muted hover:text-ink"
               />
             </div>
           )}
