@@ -113,20 +113,23 @@ export async function advanceOrder(formData: FormData) {
             to: admins,
             subject: `Refund owed: cancelled order ${String(orderId).slice(0, 8)}`,
             html: wrapEmail(
-              `<h2>Manual refund needed</h2>
+              `<h2>Refund needed — one click in the admin console</h2>
                <p>${escapeHtml(kitchen)} cancelled order <strong>${escapeHtml(
                  String(orderId)
                )}</strong>. Refund <strong>${formatUsd(
                  order?.total_cents ?? 0
-               )}</strong> to the buyer in the Stripe dashboard.</p>
-               <p><strong>Important: this order paid the chef via Connect.</strong>
-               When you issue the refund you MUST also <strong>reverse the transfer</strong>
-               and <strong>refund the application fee</strong>
-               (API: <code>reverse_transfer=true, refund_application_fee=true</code>).
-               Otherwise the chef keeps their cut and ForkFork eats the whole refund.</p>
-               <p>If the chef's earnings have already paid out to their bank, reversing can
-               drive their Stripe balance negative (ForkFork covers the shortfall), so
-               refund before their payout settles whenever possible.</p>`
+               )}</strong> to the buyer:</p>
+               <p><strong>Use the Refund button on the order</strong> in the admin
+               console (Admin &rarr; the kitchen &rarr; this order). It handles the
+               Connect mechanics automatically — reverses the chef's transfer and
+               returns the service fee — so nothing can be forgotten. Avoid
+               refunding by hand in the Stripe dashboard; a naive refund there
+               leaves the chef their cut and ForkFork eating the whole refund
+               (if you ever must: <code>reverse_transfer=true,
+               refund_application_fee=true</code>).</p>
+               <p>Refund promptly: once the chef's earnings pay out to their bank
+               (~2 business days), reversing can drive their Stripe balance
+               negative (ForkFork covers the shortfall).</p>`
             ),
           });
         }
