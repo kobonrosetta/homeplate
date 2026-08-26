@@ -1,0 +1,29 @@
+# Refresh the county permit lists (approved_operators) weekly, so a
+# freshly-permitted cook can be verified within days instead of waiting up to a
+# month for a manual re-run. Calls the app's refresh endpoint; the endpoint
+# pulls both Santa Clara County datasets (MEHKO + cottage) and upserts them.
+#
+# Setup: reuses the same CRON_SECRET repository secret as the other crons
+# (GitHub → Settings → Secrets), matching the CRON_SECRET env var on Render.
+name: Refresh permit lists
+
+on:
+  schedule:
+    # Mondays ~06:17 America/Los_Angeles (13:17 UTC). Off-the-hour to dodge
+    # GitHub's top-of-hour cron congestion; weekly keeps pace with the county's
+    # ~2-3 new operators/week.
+    - cron: "17 13 * * 1"
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the refresh endpoint
+        run: |
+          # Generous timeout — the endpoint pages two Socrata datasets and does
+          # two upserts. Retries ride out any transient hiccup.
+          curl -sS --fail-with-body -X POST \
+            --max-time 240 --retry 3 --retry-delay 30 --retry-all-errors \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://forkfork.app/api/cron/refresh-permits
