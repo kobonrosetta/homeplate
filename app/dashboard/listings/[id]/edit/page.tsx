@@ -7,6 +7,7 @@ import NewListingForm from "@/components/new-listing-form";
 import OptionsEditor from "@/components/options-editor";
 import { MAX_GROUPS_PER_LISTING, MAX_OPTIONS_PER_GROUP } from "@/lib/options";
 import { taxRateForCity } from "@/lib/tax";
+import { parsePickupDays, pickupDaysLabel } from "@/lib/availability";
 
 export default async function EditListingPage({
   params,
@@ -63,6 +64,11 @@ export default async function EditListingPage({
         servedHotUI={cook.operation_type === "mehko"}
         taxRate={taxRateForCity(cook.city)}
         taxPlace={cook.city?.trim() || "Santa Clara County"}
+        limitedPickupLabel={pickupDaysLabel(
+          parsePickupDays(
+            cook.pickup_available !== false ? cook.pickup_windows : null
+          )
+        )}
         defaults={{
           title: listing.title,
           category: listing.category,

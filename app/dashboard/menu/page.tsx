@@ -7,7 +7,13 @@ import { FormError } from "@/components/form";
 import EmptyState from "@/components/empty-state";
 import ForkMark from "@/components/fork-mark";
 import { toggleListing, deleteListing } from "../listings/actions";
-import { parsePickupDays } from "@/lib/availability";
+import {
+  parsePickupDays,
+  pacificTodayIso,
+  isOrderable,
+  availabilityFromListing,
+} from "@/lib/availability";
+import AvailabilityPill from "@/components/availability-pill";
 
 export default async function MenuPage({
   searchParams,
@@ -24,6 +30,25 @@ export default async function MenuPage({
     .order("created_at", { ascending: false });
 
   const items = listings ?? [];
+  const today = pacificTodayIso();
+  // The buyer sees a dish's "Get it …" date pushed to the kitchen's next pickup
+  // day, so the cook's own preview must use the same schedule (or none, if
+  // pickup is off) to match exactly what a buyer sees.
+  const handoffWindows =
+    cook.pickup_available !== false ? cook.pickup_windows : null;
+
+  // "Your menu has gone dark" alarm: a SHOWN, in-stock dish whose preorder
+  // window has lapsed reads "Ordering closed" to buyers — they can't buy it.
+  // A cook can't fix what she can't see, and the row only showed stock before,
+  // so surface the count loudly. (Sold-out is excluded — it has its own label
+  // and is usually deliberate; hidden dishes are off on purpose.)
+  const closedShownDishes = items.filter(
+    (l: any) =>
+      (l.kind ?? "dish") === "dish" &&
+      l.is_available &&
+      !(l.limited_quantity && l.quantity_available <= 0) &&
+      !isOrderable(availabilityFromListing(l), today)
+  ).length;
 
   // Honest-timing nudge: a kitchen with LIMITED pickup days plus zero-notice
   // ("ready now") dishes is implicitly promising same-day handoff on those
@@ -55,6 +80,24 @@ export default async function MenuPage({
       <div className="mt-4">
         <FormError message={searchParams.error} />
       </div>
+
+      {closedShownDishes > 0 && (
+        <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+          <p className="font-medium">
+            {closedShownDishes}{" "}
+            {closedShownDishes === 1 ? "dish can’t" : "dishes can’t"} be ordered
+            right now.
+          </p>
+          <p className="mt-1">
+            Buyers see &ldquo;Ordering closed&rdquo; on{" "}
+            {closedShownDishes === 1 ? "it" : "them"} — the preorder window has
+            passed. Open{" "}
+            {closedShownDishes === 1 ? "the dish" : "each one"} below and set a
+            new date, or switch it to &ldquo;A few days&rsquo; notice&rdquo; so
+            it rolls forward on its own and never goes dark again.
+          </p>
+        </div>
+      )}
 
       {showNoticeNudge && (
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -112,6 +155,21 @@ export default async function MenuPage({
                       ? ` · photo ${l.photo_quality_score}/100`
                       : ""}
                   </p>
+                  {/* What a buyer actually sees for this dish. Only for shown,
+                      in-stock dishes (a buyer sees nothing for a hidden one, and
+                      "Sold out" already covers a zero-stock one). Closed reads
+                      loud here so a dark menu can't be missed. */}
+                  {(l.kind ?? "dish") === "dish" &&
+                    l.is_available &&
+                    !(l.limited_quantity && l.quantity_available <= 0) && (
+                      <AvailabilityPill
+                        listing={l}
+                        today={today}
+                        pickupWindows={handoffWindows}
+                        emphasizeClosed
+                        className="mt-1.5"
+                      />
+                    )}
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-2">

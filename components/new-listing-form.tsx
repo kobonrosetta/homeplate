@@ -66,6 +66,7 @@ export default function NewListingForm({
   servedHotUI = false,
   taxRate,
   taxPlace,
+  limitedPickupLabel,
 }: {
   action: (formData: FormData) => void;
   error?: string;
@@ -76,6 +77,13 @@ export default function NewListingForm({
   servedHotUI?: boolean;
   taxRate?: number;
   taxPlace?: string;
+  /**
+   * The kitchen's handoff days ("Saturdays", "Sat & Sun") when pickup is
+   * limited to some days, else null/undefined. Non-null turns the "ready now"
+   * hint into a warning: a zero-notice dish lets a buyer order for same-day
+   * pickup on those days, which a batch cook usually can't honor.
+   */
+  limitedPickupLabel?: string | null;
 }) {
   const [description, setDescription] = useState(defaults?.description ?? "");
   const [generating, setGenerating] = useState(false);
@@ -365,13 +373,28 @@ export default function NewListingForm({
           </div>
           <input type="hidden" name="fulfillment_mode" value={mode} />
 
-          {mode === "ready_now" && (
-            <p className="mt-2 text-xs text-faint">
-              For food you can make with no notice. Buyers see “Get it today”
-              on your pickup days — on other days it shows your next pickup
-              day, e.g. “Get it Saturday”.
-            </p>
-          )}
+          {mode === "ready_now" &&
+            (limitedPickupLabel ? (
+              <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                <p className="font-medium">
+                  You hand off on {limitedPickupLabel}.
+                </p>
+                <p className="mt-1">
+                  “Ready now” lets a buyer order this for{" "}
+                  <strong>same-day pickup</strong> on those days. Perfect if you
+                  keep it on hand — but if you batch-cook and need a heads-up,
+                  choose <strong>“A few days’ notice”</strong> instead. Buyers
+                  then see an honest “Get it [date]”, and it never goes stale on
+                  you.
+                </p>
+              </div>
+            ) : (
+              <p className="mt-2 text-xs text-faint">
+                For food you can make with no notice. Buyers see “Get it today”
+                on your pickup days — on other days it shows your next pickup
+                day, e.g. “Get it Saturday”.
+              </p>
+            ))}
 
           {mode === "lead_time" && (
             <div className="mt-3">

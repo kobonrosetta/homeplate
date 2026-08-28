@@ -24,6 +24,7 @@ export default function AvailabilityPill({
   today,
   pickupWindows,
   className = "",
+  emphasizeClosed = false,
 }: {
   listing: {
     fulfillment_mode?: string | null;
@@ -34,17 +35,26 @@ export default function AvailabilityPill({
   today?: string;
   pickupWindows?: string[] | null;
   className?: string;
+  /**
+   * On a buyer surface a closed dish is quietly greyed. On the COOK's own menu
+   * dashboard it's a problem to fix — set this so "Ordering closed" turns loud
+   * (rose, with a ⚠) so a menu that's gone dark can't be missed.
+   */
+  emphasizeClosed?: boolean;
 }) {
   const badge = availabilityBadge(
     availabilityFromListing(listing),
     today ?? pacificTodayIso(),
     parsePickupDays(pickupWindows)
   );
+  const loud = emphasizeClosed && badge.tone === "closed";
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${TONE[badge.tone]} ${className}`}
+      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+        loud ? "border-rose-300 bg-rose-50 text-rose-700" : TONE[badge.tone]
+      } ${className}`}
     >
-      {badge.text}
+      {loud ? `⚠ ${badge.text}` : badge.text}
     </span>
   );
 }

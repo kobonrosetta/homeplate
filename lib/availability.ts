@@ -293,6 +293,22 @@ export function parsePickupDays(
   return days.size ? days : null;
 }
 
+// Short human label for a LIMITED handoff schedule — "Saturdays", "Sat & Sun",
+// "Fri, Sat & Sun". Returns null for an unknown schedule (parse failed) OR a
+// full 7-day/daily one, so a non-null result means exactly "this kitchen only
+// hands off on some days". Used to warn a cook that a zero-notice ("ready now")
+// dish over-promises same-day pickup on those days.
+const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+export function pickupDaysLabel(
+  days: Set<number> | null | undefined
+): string | null {
+  if (!days || days.size === 0 || days.size >= 7) return null;
+  const names = [...days].sort((a, b) => a - b).map((d) => DAY_ABBR[d]);
+  if (names.length === 1) return `${names[0]}s`;
+  if (names.length === 2) return `${names[0]} & ${names[1]}`;
+  return `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
+}
+
 // Day-of-week (0=Sun) for a "YYYY-MM-DD" string, DST-proof via UTC noon.
 export function isoDayOfWeek(iso: string): number {
   const [y, m, d] = iso.split("-").map(Number);
