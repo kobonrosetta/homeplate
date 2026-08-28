@@ -46,6 +46,13 @@ type CartContextValue = {
   loaded: boolean;
   count: number;
   subtotalCents: number;
+  /**
+   * Bumped on every addItem so a global toast can confirm the add — buyers
+   * (esp. on mobile, where the cart badge is off-screen while reading a dish)
+   * otherwise get no feedback that the tap landed. `nonce` re-fires the toast
+   * even when the same dish is added twice.
+   */
+  justAdded: { title: string; photoUrl: string | null; nonce: number } | null;
   addItem: (cook: CartCook, item: Omit<CartItem, "quantity">, qty?: number) => void;
   removeItem: (key: string) => void;
   setQty: (key: string, qty: number) => void;
@@ -63,6 +70,11 @@ const STORAGE_KEY = "forkfork_cart";
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<Cart>(null);
   const [loaded, setLoaded] = useState(false);
+  const [justAdded, setJustAdded] = useState<{
+    title: string;
+    photoUrl: string | null;
+    nonce: number;
+  } | null>(null);
 
   // Load any saved cart on first mount (client only).
   useEffect(() => {
@@ -105,6 +117,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
         // every add instead of fossilizing at first-add time.
         return { cook, items };
       });
+      // Signal the toast. Monotonic nonce (not Date.now) so re-adding the same
+      // dish still re-fires it, without depending on wall-clock time.
+      setJustAdded((prev) => ({
+        title: item.title,
+        photoUrl: item.photoUrl,
+        nonce: (prev?.nonce ?? 0) + 1,
+      }));
     },
     []
   );
@@ -200,6 +219,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     loaded,
     count,
     subtotalCents,
+    justAdded,
     addItem,
     removeItem,
     setQty,

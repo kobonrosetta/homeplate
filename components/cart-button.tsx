@@ -20,7 +20,10 @@ export default function CartButton({ icon = false }: { icon?: boolean }) {
       >
         <CartIcon />
         {count > 0 && (
-          <span className="absolute right-0 top-0 min-w-[1.1rem] rounded-full bg-brand px-1 py-0.5 text-center text-[10px] font-medium leading-none text-white">
+          <span
+            key={count}
+            className="cart-bump absolute right-0 top-0 min-w-[1.1rem] rounded-full bg-brand px-1 py-0.5 text-center text-[10px] font-medium leading-none text-white"
+          >
             {count}
           </span>
         )}
@@ -32,7 +35,10 @@ export default function CartButton({ icon = false }: { icon?: boolean }) {
     <Link href="/cart" className="text-muted hover:text-ink">
       Cart
       {count > 0 && (
-        <span className="ml-1 rounded-full bg-brand px-1.5 py-0.5 text-xs font-medium text-white">
+        <span
+          key={count}
+          className="cart-bump ml-1 inline-block rounded-full bg-brand px-1.5 py-0.5 text-xs font-medium text-white"
+        >
           {count}
         </span>
       )}
