@@ -136,8 +136,17 @@ export default async function KitchenPage({
   ]);
 
   const all = menu.all;
-  const items = all.filter((l: any) => (l.kind ?? "dish") === "dish");
   const today = pacificTodayIso();
+  // A dish a buyer can't act on right now — sold out, or a preorder past its
+  // order-by cutoff ("Ordering closed") — sinks to the bottom of the menu so a
+  // wall of closed items never buries the ones they can actually add to the
+  // cart. Sort is stable, so newest-first order holds within each group.
+  const dishClosed = (l: any) =>
+    (l.limited_quantity && l.quantity_available <= 0) ||
+    !isOrderable(availabilityFromListing(l), today);
+  const items = all
+    .filter((l: any) => (l.kind ?? "dish") === "dish")
+    .sort((a: any, b: any) => Number(dishClosed(a)) - Number(dishClosed(b)));
   const extras = all.filter((l: any) => l.kind === "extra");
   const hasOptions = new Set(menu.groupRows.map((g: any) => g.listing_id));
 
