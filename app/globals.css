@@ -84,3 +84,24 @@ h3.uppercase {
     animation: none;
   }
 }
+
+/* Cart badge pop — replayed by remounting the badge on each count change (a
+   changing React key), so a buyer catches the header count ticking up even
+   when their eye is on the dish they just added. */
+@keyframes cart-bump {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.4);
+  }
+}
+.cart-bump {
+  animation: cart-bump 0.4s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cart-bump {
+    animation: none;
+  }
+}

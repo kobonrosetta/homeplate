@@ -4,6 +4,7 @@ import "./globals.css";
 import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";
 import { CartProvider } from "@/components/cart-context";
+import CartToast from "@/components/cart-toast";
 import { SITE_URL } from "@/lib/constants";
 import JsonLd from "@/components/json-ld";
 import { organizationSchema } from "@/lib/schema";
@@ -68,6 +69,7 @@ export default function RootLayout({
             <div className="flex-1">{children}</div>
             <SiteFooter />
           </div>
+          <CartToast />
         </CartProvider>
       </body>
     </html>
