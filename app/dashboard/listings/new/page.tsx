@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentCook } from "@/lib/cook";
 import { taxRateForCity } from "@/lib/tax";
+import { parsePickupDays, pickupDaysLabel } from "@/lib/availability";
 import { createListing } from "../actions";
 import NewListingForm from "@/components/new-listing-form";
 
@@ -12,6 +13,10 @@ export default async function NewListingPage({
 }) {
   const { cook } = await getCurrentCook();
   if (!cook) redirect("/sell");
+
+  const limitedPickupLabel = pickupDaysLabel(
+    parsePickupDays(cook.pickup_available !== false ? cook.pickup_windows : null)
+  );
 
   return (
     <div className="max-w-xl">
@@ -25,6 +30,7 @@ export default async function NewListingPage({
         servedHotUI={cook.operation_type === "mehko"}
         taxRate={taxRateForCity(cook.city)}
         taxPlace={cook.city?.trim() || "Santa Clara County"}
+        limitedPickupLabel={limitedPickupLabel}
         defaults={{
           // New dishes inherit the kitchen's default availability (overridable).
           fulfillmentMode: cook.default_fulfillment_mode ?? "ready_now",

@@ -35,6 +35,7 @@ import {
   availabilityBadge,
   pacificTodayIso,
   parsePickupDays,
+  pickupDaysLabel,
   nextHandoffIso,
   computeGetIt,
 } from "../lib/availability";
@@ -409,6 +410,22 @@ check("parsePickupDays: one unreadable window → null (schedule unknown)", () =
 check("parsePickupDays: day words don't fire inside other words", () => {
   assert.equal(parsePickupDays(["saturated market hours"]), null);
   assert.equal(parsePickupDays(["sunset pickups"]), null);
+});
+check("pickupDaysLabel: limited schedules get a short label", () => {
+  assert.equal(pickupDaysLabel(new Set([6])), "Sats");
+  assert.equal(pickupDaysLabel(new Set([0, 6])), "Sun & Sat");
+  assert.equal(pickupDaysLabel(new Set([5, 6, 0])), "Sun, Fri & Sat");
+  // Chef Q's real weekend schedule, end to end.
+  assert.equal(
+    pickupDaysLabel(parsePickupDays(["Saturdays 11AM-10 PM", "Sundays 2-7"])),
+    "Sun & Sat"
+  );
+});
+check("pickupDaysLabel: unknown or 7-day schedule → null (no warning)", () => {
+  assert.equal(pickupDaysLabel(new Set([0, 1, 2, 3, 4, 5, 6])), null); // daily
+  assert.equal(pickupDaysLabel(parsePickupDays(["daily 9-5"])), null);
+  assert.equal(pickupDaysLabel(null), null);
+  assert.equal(pickupDaysLabel(new Set()), null);
 });
 check("nextHandoffIso: pushes to the next scheduled day", () => {
   const satSun = new Set([0, 6]);
