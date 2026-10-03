@@ -16,6 +16,7 @@ import {
   deleteListing,
   setListingAvailability,
   refundOrder,
+  reinstateOrder,
 } from "../../actions";
 
 export const dynamic = "force-dynamic";
@@ -133,6 +134,8 @@ export default async function AdminKitchenPage({
         <p className="mt-4 rounded-lg bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
           {searchParams.saved === "refunded"
             ? "Refund issued — the buyer has been notified."
+            : searchParams.saved === "reinstated"
+            ? "Order reinstated — it's back on the cook's dashboard as Confirmed, and the buyer has been emailed that it's on again."
             : "Saved."}
         </p>
       )}
@@ -314,18 +317,38 @@ export default async function AdminKitchenPage({
                       ✓ Refunded
                     </span>
                   ) : o.stripe_payment_intent_id ? (
-                    <form action={refundOrder}>
-                      <input type="hidden" name="order_id" value={o.id} />
-                      <input type="hidden" name="cook_id" value={cook.id} />
-                      <ConfirmSubmit
-                        className="whitespace-nowrap rounded-full border border-red-200 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
-                        message={`Fully refund ${formatUsd(
-                          o.total_cents
-                        )} to the buyer? This reverses the cook's transfer and returns your service fee. Can't be undone.`}
-                      >
-                        Refund
-                      </ConfirmSubmit>
-                    </form>
+                    <div className="flex items-center gap-2">
+                      {/* A cancelled order with its money still in place has
+                          exactly two honest resolutions: give the money back
+                          (Refund) or, if the cook cancelled by mistake, put
+                          the order back (Reinstate). */}
+                      {o.status === "cancelled" && (
+                        <form action={reinstateOrder}>
+                          <input type="hidden" name="order_id" value={o.id} />
+                          <input type="hidden" name="cook_id" value={cook.id} />
+                          <ConfirmSubmit
+                            className="whitespace-nowrap rounded-full border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
+                            message={`Reinstate this ${formatUsd(
+                              o.total_cents
+                            )} order? It returns to the cook's dashboard as "Confirmed", limited stock is re-deducted, and the buyer is emailed that their order is back on. Only do this when the cook cancelled by mistake.`}
+                          >
+                            Reinstate
+                          </ConfirmSubmit>
+                        </form>
+                      )}
+                      <form action={refundOrder}>
+                        <input type="hidden" name="order_id" value={o.id} />
+                        <input type="hidden" name="cook_id" value={cook.id} />
+                        <ConfirmSubmit
+                          className="whitespace-nowrap rounded-full border border-red-200 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
+                          message={`Fully refund ${formatUsd(
+                            o.total_cents
+                          )} to the buyer? This reverses the cook's transfer and returns your service fee. Can't be undone.`}
+                        >
+                          Refund
+                        </ConfirmSubmit>
+                      </form>
+                    </div>
                   ) : null}
                 </div>
               </div>
@@ -336,6 +359,9 @@ export default async function AdminKitchenPage({
           Refund reverses the cook&apos;s transfer + returns the service fee
           automatically (Stripe keeps only its processing cut). The buyer is
           emailed. Un-fulfilled orders are also cancelled and restocked.
+          Cancelled-but-unrefunded orders can instead be <em>Reinstated</em>
+          (for cook fat-fingers): back to Confirmed, stock re-taken, buyer
+          emailed that it&apos;s on again.
         </p>
       </Section>
 

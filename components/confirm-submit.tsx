@@ -7,14 +7,22 @@ export default function ConfirmSubmit({
   children,
   message,
   className,
+  name,
+  value,
 }: {
   children: React.ReactNode;
   message: string;
   className?: string;
+  /** Optional submit-button form field (e.g. name="status" value="cancelled")
+      so a multi-button server-action form can confirm just one of its actions. */
+  name?: string;
+  value?: string;
 }) {
   return (
     <button
       type="submit"
+      name={name}
+      value={value}
       className={className}
       onClick={(e) => {
         if (!window.confirm(message)) e.preventDefault();
