@@ -6,7 +6,7 @@ import { getAdminUser } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyCookStatusChange } from "@/lib/cook-notify";
 import { createRefund } from "@/lib/stripe";
-import { restockOrderItems } from "@/lib/orders";
+import { restockOrderItems, deductOrderItems } from "@/lib/orders";
 import { escapeHtml, sendEmail, wrapEmail } from "@/lib/email";
 import { formatUsd, SUPPORT_EMAIL } from "@/lib/constants";
 import { titleCase } from "@/lib/handoff";
@@ -406,4 +406,93 @@ export async function refundOrder(formData: FormData) {
 
   bumpAdmin(cookId);
   redirect(`/admin/kitchen/${cookId}?saved=refunded`);
+}
+
+// One-click reinstate of a mistakenly-cancelled order (a cook fat-fingered a
+// $340 buffet cancellation the night before delivery, Oct 2026 — recovering
+// took manual DB surgery). Only valid while the money is still in place:
+// status 'cancelled' AND never refunded. Flips the order back to 'confirmed'
+// (the service role is exempt from the status-transition trigger — this is
+// the one sanctioned path out of 'cancelled'), re-takes any limited stock the
+// cancellation restocked, and emails the buyer that the order is back on —
+// the automatic cancellation email promised them a refund, so staying silent
+// would mean a no-show or a chargeback.
+export async function reinstateOrder(formData: FormData) {
+  const orderId = String(formData.get("order_id") ?? "");
+  const cookId = String(formData.get("cook_id") ?? "");
+  await adminOrBounce(cookId);
+  if (!orderId || !cookId) redirect("/admin");
+  const db = createAdminClient();
+  const fail = (msg: string) =>
+    redirect(`/admin/kitchen/${cookId}?error=${encodeURIComponent(msg)}`);
+
+  const { data: order } = await db
+    .from("orders")
+    .select(
+      "id, status, refunded_at, total_cents, stripe_payment_intent_id, contact_email, contact_name, fulfillment, cook_id"
+    )
+    .eq("id", orderId)
+    .maybeSingle();
+  if (!order) fail("Order not found.");
+  if (order!.cook_id !== cookId) fail("Order does not belong to this kitchen.");
+  if (order!.status !== "cancelled")
+    fail("Only a cancelled order can be reinstated.");
+  if (order!.refunded_at)
+    fail(
+      "This order was already refunded — the buyer's money is on its way back, so it can't be reinstated. Have them place a fresh order instead."
+    );
+  if (!order!.stripe_payment_intent_id)
+    fail("This order was never paid — nothing to reinstate.");
+
+  // Guarded flip: only out of 'cancelled', and verify it actually matched so a
+  // concurrent refund/reinstate can't double-apply the side effects below.
+  const { data: flipped } = await db
+    .from("orders")
+    .update({ status: "confirmed" })
+    .eq("id", orderId)
+    .eq("status", "cancelled")
+    .select("id");
+  if (!flipped || flipped.length === 0)
+    fail("The order just changed state — refresh and check again.");
+
+  // Re-take the limited stock the cancellation put back on the shelf.
+  await deductOrderItems(orderId);
+
+  // Tell the buyer it's back on. Best-effort — the reinstate must stand even
+  // if email fails (the admin can always follow up by hand).
+  if (order!.contact_email) {
+    try {
+      const { data: cook } = await db
+        .from("cooks")
+        .select("business_name")
+        .eq("id", cookId)
+        .maybeSingle();
+      const kitchen = cook?.business_name ?? "the kitchen";
+      await sendEmail({
+        to: order!.contact_email,
+        subject: `Your order is back on: ${kitchen}`,
+        html: wrapEmail(
+          `<h2>Your order is back on</h2>
+           <p>Hi${
+             order!.contact_name ? ` ${escapeHtml(order!.contact_name)}` : ""
+           } — good news: your ${formatUsd(
+            order!.total_cents ?? 0
+          )} order at ${escapeHtml(
+            kitchen
+          )} was cancelled by mistake and has been fully reinstated. Your ${
+            order!.fulfillment === "delivery" ? "delivery" : "pickup"
+          } is on as planned.</p>
+           <p>Your original payment stands — no refund was issued and you will
+           not be charged again. Please disregard the earlier cancellation
+           email.</p>
+           <p>Questions? Just reply, or email ${escapeHtml(SUPPORT_EMAIL)}.</p>`
+        ),
+      });
+    } catch {
+      /* email must never block the reinstate */
+    }
+  }
+
+  bumpAdmin(cookId);
+  redirect(`/admin/kitchen/${cookId}?saved=reinstated`);
 }

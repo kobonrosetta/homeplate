@@ -149,6 +149,45 @@ export async function restockOrderItems(orderId: string): Promise<void> {
   }
 }
 
+// Reverse of restockOrderItems — re-takes the stock a cancellation put back.
+// Used when an admin REINSTATES a mistakenly-cancelled order. Clamped at zero:
+// if other buyers bought the restocked units in the meantime, inventory must
+// not go negative — the admin is making an explicit call that the cook will
+// cover the reinstated order regardless.
+export async function deductOrderItems(orderId: string): Promise<void> {
+  const admin = createAdminClient();
+  const { data: order } = await admin
+    .from("orders")
+    .select("cook_id")
+    .eq("id", orderId)
+    .maybeSingle();
+  const orderCookId = order?.cook_id ?? null;
+  const { data: lines } = await admin
+    .from("order_items")
+    .select("listing_id, quantity")
+    .eq("order_id", orderId);
+
+  for (const line of lines ?? []) {
+    if (!line.listing_id) continue;
+    const { data: listing } = await admin
+      .from("listings")
+      .select("limited_quantity, quantity_available, cook_id")
+      .eq("id", line.listing_id)
+      .maybeSingle();
+    if (listing?.limited_quantity && listing.cook_id === orderCookId) {
+      await admin
+        .from("listings")
+        .update({
+          quantity_available: Math.max(
+            0,
+            (listing.quantity_available ?? 0) - line.quantity
+          ),
+        })
+        .eq("id", line.listing_id);
+    }
+  }
+}
+
 async function notifyOrderConfirmed(
   admin: ReturnType<typeof createAdminClient>,
   orderId: string

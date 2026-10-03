@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatUsd, formatPhone, SITE_URL } from "@/lib/constants";
 import { formatDateLong } from "@/lib/availability";
 import { advanceOrder } from "./actions";
+import ConfirmSubmit from "@/components/confirm-submit";
 import { cancelPaymentRequest } from "./request-actions";
 import ShareLink from "@/components/share-link";
 import StatusPill from "@/components/status-pill";
@@ -266,13 +267,20 @@ function OrderCard({ o, active }: { o: any; active?: boolean }) {
           className="mt-4 flex flex-wrap justify-end gap-2"
         >
           <input type="hidden" name="order_id" value={o.id} />
-          <button
+          {/* Cancelling is the one destructive button here: it emails the buyer
+              a "you're being refunded" notice and there's no undo from this
+              dashboard (a $340 fat-finger taught us, Oct 2026) — so it alone
+              gets a confirm dialog. */}
+          <ConfirmSubmit
             name="status"
             value="cancelled"
+            message={`Cancel this ${formatUsd(o.total_cents)} order${
+              o.contact_name ? ` from ${o.contact_name}` : ""
+            }?\n\nThe buyer is immediately emailed that the order is cancelled and their payment is being refunded. This can't be undone from your dashboard — if you cancel by mistake, contact ForkFork right away.`}
             className="rounded-full border border-line px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
           >
             Cancel order
-          </button>
+          </ConfirmSubmit>
           {o.status === "confirmed" && (
             <button
               name="status"
