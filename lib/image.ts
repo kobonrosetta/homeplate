@@ -12,6 +12,14 @@
 
 import sharp from "sharp";
 
+// Bound sharp's appetite for the small (512MB) web instance: one libvips
+// worker thread, no pixel cache. Upload optimization isn't latency-sensitive
+// at our scale, and the unbounded defaults (threads = CPU cores + a ~50MB
+// operation cache) are what let a few concurrent decodes OOM the whole box
+// (Render memory-limit restart, Oct 6 2026). Process-wide, set once here.
+sharp.cache(false);
+sharp.concurrency(1);
+
 export const PHOTO_MAX_EDGE = 1600; // dish/extra photos + covers
 export const AVATAR_MAX_EDGE = 800; // renders small everywhere
 

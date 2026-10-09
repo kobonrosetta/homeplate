@@ -4,6 +4,18 @@ import { createClient } from "@supabase/supabase-js";
 import { loadOgFonts } from "@/lib/og-font";
 import { titleCase } from "@/lib/handoff";
 
+// This is the heaviest request in the app — a DB read, a photo fetch, a sharp
+// transcode, and a satori render — and crawlers re-hit share cards constantly
+// (bots swept the site after 60+ listings went live Sep 29; the box OOM'd
+// Oct 6). Serve a cached render for an hour instead of re-doing all of that
+// per hit: staleness on a share card is invisible, the memory headroom isn't.
+export const revalidate = 3600;
+
+// Match lib/image.ts's process-wide sharp bounds in case this route is the
+// first sharp user in a fresh instance (one worker thread, no pixel cache).
+sharp.cache(false);
+sharp.concurrency(1);
+
 // The share card for a kitchen — what unfurls when the cook's link lands in a
 // WhatsApp group or an Instagram bio. Split layout: warm-editorial brand panel
 // (name + verified badge) beside their best food photo; a full-bleed branded
