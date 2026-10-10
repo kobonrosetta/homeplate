@@ -4,17 +4,28 @@ import { createClient } from "@supabase/supabase-js";
 import { loadOgFonts } from "@/lib/og-font";
 import { titleCase } from "@/lib/handoff";
 
-// This is the heaviest request in the app — a DB read, a photo fetch, a sharp
-// transcode, and a satori render — and crawlers re-hit share cards constantly
-// (bots swept the site after 60+ listings went live Sep 29; the box OOM'd
-// Oct 6). Serve a cached render for an hour instead of re-doing all of that
-// per hit: staleness on a share card is invisible, the memory headroom isn't.
-export const revalidate = 3600;
-
 // Match lib/image.ts's process-wide sharp bounds in case this route is the
 // first sharp user in a fresh instance (one worker thread, no pixel cache).
 sharp.cache(false);
 sharp.concurrency(1);
+
+// This is the heaviest request in the app — a DB read, a photo fetch, a sharp
+// transcode, and a satori render — and crawlers re-hit share cards constantly
+// (bots swept the site after 60+ listings went live Sep 29; the box OOM'd at
+// Render's 512MB limit on Oct 6). Next 14.2 metadata routes ignore
+// `revalidate` (verified: no x-nextjs-cache header, ~114ms per repeat hit),
+// so the cache is hand-rolled: finished PNGs per slug, 1h TTL, insertion-
+// order eviction. 24 cards × ~100KB ≈ 2-3MB ceiling — memory spent here to
+// avoid the ~150MB render bursts that OOM'd the box. Staleness on a share
+// card is invisible; the headroom isn't.
+const CARD_TTL_MS = 60 * 60 * 1000;
+const CARD_CACHE_MAX = 24;
+const cardCache = new Map<string, { buf: ArrayBuffer; exp: number }>();
+
+const pngHeaders = {
+  "Content-Type": "image/png",
+  "Cache-Control": "public, max-age=3600",
+};
 
 // The share card for a kitchen — what unfurls when the cook's link lands in a
 // WhatsApp group or an Instagram bio. Split layout: warm-editorial brand panel
@@ -35,6 +46,23 @@ export default async function Image({
 }: {
   params: { slug: string };
 }) {
+  const hit = cardCache.get(params.slug);
+  if (hit && hit.exp > Date.now()) {
+    return new Response(hit.buf.slice(0), { headers: pngHeaders });
+  }
+  const rendered = await renderCard(params.slug);
+  const buf = await rendered.arrayBuffer();
+  cardCache.delete(params.slug); // re-insert = move to newest
+  cardCache.set(params.slug, { buf, exp: Date.now() + CARD_TTL_MS });
+  while (cardCache.size > CARD_CACHE_MAX) {
+    const oldest = cardCache.keys().next().value;
+    if (oldest === undefined) break;
+    cardCache.delete(oldest);
+  }
+  return new Response(buf.slice(0), { headers: pngHeaders });
+}
+
+async function renderCard(slug: string): Promise<ImageResponse> {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -46,7 +74,7 @@ export default async function Image({
   const { data: cook } = await supabase
     .from("cooks")
     .select("id, business_name, city, permit_verified, listings(photo_url)")
-    .eq("slug", params.slug)
+    .eq("slug", slug)
     .eq("status", "active")
     .eq("stripe_ready", true) // match the kitchen page: no OG card for a 404
     .eq("listings.is_available", true)
