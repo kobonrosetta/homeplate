@@ -447,10 +447,12 @@ export default async function KitchenPage({
           </div>
         )}
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-ink">
-            By {cook.owner_name || cook.business_name}
-            <span className="ml-2 whitespace-nowrap text-xs font-medium text-brand">
-              Meet the chef ↓
+          <p className="flex items-baseline gap-2 text-sm font-semibold text-ink">
+            <span className="truncate">
+              By {cook.owner_name || cook.business_name}
+            </span>
+            <span className="shrink-0 text-xs font-medium text-brand">
+              Meet the chef <span aria-hidden="true">↓</span>
             </span>
           </p>
           {cookTagline(cook.tagline, cook.bio) && (

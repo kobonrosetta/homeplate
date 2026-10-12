@@ -26,6 +26,7 @@ export default function BioClamp({
       {long && (
         <button
           type="button"
+          aria-expanded={open}
           onClick={() => setOpen((o) => !o)}
           className="mt-1 text-sm font-medium text-brand hover:underline"
         >

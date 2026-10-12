@@ -21,9 +21,10 @@ export async function updateKitchen(formData: FormData) {
   const ownerName = String(formData.get("owner_name") ?? "").trim();
   const operationType = String(formData.get("operation_type") ?? "cottage");
   const bio = String(formData.get("bio") ?? "").trim();
-  const tagline = String(formData.get("tagline") ?? "")
-    .trim()
-    .slice(0, 120);
+  // Code-point-safe cap (see lib/menu-display.ts cookTagline).
+  const tagline = Array.from(String(formData.get("tagline") ?? "").trim())
+    .slice(0, 120)
+    .join("");
   const streetAddress = String(formData.get("street_address") ?? "").trim();
   const city = titleCase(String(formData.get("city") ?? "")); // "campbell" → "Campbell"
   const zip = String(formData.get("zip") ?? "").trim();
@@ -68,7 +69,7 @@ export async function updateKitchen(formData: FormData) {
     );
   }
 
-  await supabase
+  const { error: cookError } = await supabase
     .from("cooks")
     .update({
       business_name: businessName,
@@ -88,6 +89,14 @@ export async function updateKitchen(formData: FormData) {
       default_lead_days: defaultLeadDays,
     })
     .eq("profile_id", user.id);
+  // A trigger rejection (protected column / fresh-DB replay without the
+  // matching migration) must not masquerade as a successful save.
+  if (cookError) {
+    redirect(
+      "/dashboard/settings?error=" +
+        encodeURIComponent("Couldn\u2019t save your changes \u2014 please try again.")
+    );
+  }
 
   // The kitchen's buyer-facing contact phone lives on the profile.
   await supabase

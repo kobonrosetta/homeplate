@@ -57,12 +57,32 @@ export function cookTagline(
   tagline: string | null | undefined,
   bio: string | null | undefined
 ): string | null {
+  // Code-point-safe one-line cap (a plain .slice can cut an emoji in half,
+  // leaving a lone surrogate rendering as \ufffd before the ellipsis).
+  const cap = (x: string) => {
+    const cps = Array.from(x);
+    return cps.length > 120 ? cps.slice(0, 117).join("").trimEnd() + "…" : x;
+  };
   const t = (tagline ?? "").trim();
-  if (t) return t.length > 120 ? t.slice(0, 117).trimEnd() + "…" : t;
+  if (t) return cap(t);
   const b = (bio ?? "").trim();
   if (!b) return null;
-  const m = b.match(/^[^.!?]*[.!?]/);
-  const first = (m ? m[0] : b).trim();
-  if (!first) return null;
-  return first.length > 120 ? first.slice(0, 117).trimEnd() + "…" : first;
+  // First sentence, abbreviation-proof: a terminator only counts when it's
+  // followed by whitespace/end AND at least ~20 chars in — otherwise "Born in
+  // St. Louis…" would yield the storefront line "Born in St.". No qualifying
+  // terminator → the whole bio, capped.
+  let first = b;
+  const re = /[.!?](?=\s|$)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(b))) {
+    if (m.index >= 19) {
+      first = b.slice(0, m.index + 1);
+      break;
+    }
+  }
+  first = first.trim();
+  // A degenerate "sentence" with no real content (punctuation-only bios)
+  // hides the line rather than rendering noise.
+  if (!/[\p{L}\p{N}]/u.test(first)) return null;
+  return cap(first);
 }
