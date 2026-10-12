@@ -142,6 +142,15 @@ export default async function BrowsePage({
             >
               Sell on ForkFork — keep 100% of your price →
             </Link>
+            <p className="mt-3 text-sm text-muted">
+              Not permitted yet?{" "}
+              <Link
+                href="/get-permitted"
+                className="font-medium text-brand underline-offset-2 hover:underline"
+              >
+                We&rsquo;ll show you how →
+              </Link>
+            </p>
           </div>
         </section>
       ) : (

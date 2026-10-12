@@ -59,7 +59,7 @@ export async function wizardSaveKitchen(formData: FormData) {
 
   if (!businessName || !contactPhone) {
     redirect(
-      "/sell?error=" +
+      "/sell?start=1&have=1&error=" +
         encodeURIComponent("A kitchen name and a contact phone are required.")
     );
   }
@@ -120,7 +120,7 @@ export async function wizardSaveKitchen(formData: FormData) {
     if (lastError || !cookId) {
       console.error("wizardSaveKitchen: cook insert failed", lastError);
       redirect(
-        "/sell?error=" +
+        "/sell?start=1&have=1&error=" +
           encodeURIComponent("Couldn't create your kitchen. Please try again.")
       );
     }
