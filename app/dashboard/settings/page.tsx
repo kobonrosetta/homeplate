@@ -172,7 +172,7 @@ export default async function SettingsPage({
             />
             <p className="mt-1 text-xs text-faint">
               Shown at the top of your storefront, next to your photo. Leave it
-              blank and we&rsquo;ll use the first line of your story below.
+              blank and we&rsquo;ll use the first sentence of your story below.
             </p>
           </div>
 

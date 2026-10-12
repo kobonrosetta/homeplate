@@ -454,6 +454,17 @@ check("cookTagline: tagline wins, bio first-sentence fallback, caps at one line"
   const long = "A".repeat(200) + ". rest";
   assert.equal(cookTagline(null, long)!.length <= 120, true);
   assert.equal(cookTagline(null, long)!.endsWith("…"), true);
+  // Abbreviations must not become the storefront line (review finding).
+  assert.equal(
+    cookTagline(null, "Mr. Smith's kitchen has fed Campbell for 20 years. Come hungry."),
+    "Mr. Smith's kitchen has fed Campbell for 20 years.");
+  assert.equal(
+    cookTagline(null, "Born in St. Louis, raised on BBQ. Now in San Jose."),
+    "Born in St. Louis, raised on BBQ.");
+  assert.equal(
+    cookTagline(null, "I've cooked professionally for 3.5 years in Oakland kitchens!"),
+    "I've cooked professionally for 3.5 years in Oakland kitchens!");
+  assert.equal(cookTagline(null, "...."), null);
 });
 check("pickupDaysLabel: limited schedules get a short label", () => {
   assert.equal(pickupDaysLabel(new Set([6])), "Sats");
