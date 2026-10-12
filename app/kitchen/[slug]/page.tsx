@@ -11,6 +11,12 @@ import {
   isOrderable,
   pacificTodayIso,
 } from "@/lib/availability";
+import {
+  MENU_SECTIONS,
+  menuSectionFor,
+  splitFeedsFromTitle,
+} from "@/lib/menu-display";
+import CartBar from "@/components/cart-bar";
 import FeeNote from "@/components/fee-note";
 import FollowToggle from "@/components/follow-toggle";
 import ReviewsSection from "@/components/reviews-section";
@@ -138,15 +144,31 @@ export default async function KitchenPage({
   const all = menu.all;
   const today = pacificTodayIso();
   // A dish a buyer can't act on right now — sold out, or a preorder past its
-  // order-by cutoff ("Ordering closed") — sinks to the bottom of the menu so a
-  // wall of closed items never buries the ones they can actually add to the
-  // cart. Sort is stable, so newest-first order holds within each group.
+  // order-by cutoff ("Ordering closed") — moves OUT of the main menu into a
+  // collapsed "currently unavailable" block at the bottom, so a wall of
+  // closed items never buries the ones they can actually add to the cart.
   const dishClosed = (l: any) =>
     (l.limited_quantity && l.quantity_available <= 0) ||
     !isOrderable(availabilityFromListing(l), today);
-  const items = all
-    .filter((l: any) => (l.kind ?? "dish") === "dish")
-    .sort((a: any, b: any) => Number(dishClosed(a)) - Number(dishClosed(b)));
+  const dishes = all.filter((l: any) => (l.kind ?? "dish") === "dish");
+  // Within the open menu, photographed dishes lead: the first row is the
+  // storefront's handshake, and a gray placeholder on a $185 tray makes a
+  // worse first impression than a $5 side with a great shot. Stable sort, so
+  // newest-first order holds within each half.
+  const openDishes = dishes
+    .filter((l: any) => !dishClosed(l))
+    .sort((a: any, b: any) => Number(!a.photo_url) - Number(!b.photo_url));
+  const closedDishes = dishes.filter(dishClosed);
+  // Sectioning is derived from the cook's own title conventions
+  // ("BUFFET-STYLE: …", "FAMILY-STYLE: …"). Only sectionize when the split is
+  // real — at least two sections with 2+ dishes each — so a kitchen that
+  // doesn't use the convention keeps today's flat grid untouched.
+  const sections = MENU_SECTIONS.map((s) => ({
+    ...s,
+    items: openDishes.filter((l: any) => menuSectionFor(l.title) === s.id),
+  })).filter((s) => s.items.length > 0);
+  const useSections =
+    sections.filter((s) => s.items.length >= 2).length >= 2;
   const extras = all.filter((l: any) => l.kind === "extra");
   const hasOptions = new Set(menu.groupRows.map((g: any) => g.listing_id));
 
@@ -163,11 +185,132 @@ export default async function KitchenPage({
   // dishes, so there's essentially always one). Cook portrait + join month
   // power the "Meet the cook" block below.
   const heroImage =
-    cook.cover_url || items.find((l: any) => l.photo_url)?.photo_url || null;
+    cook.cover_url ||
+    openDishes.find((l: any) => l.photo_url)?.photo_url ||
+    dishes.find((l: any) => l.photo_url)?.photo_url ||
+    null;
   const joined = cook.created_at ? new Date(cook.created_at) : null;
   const joinedLabel = joined
     ? joined.toLocaleDateString("en-US", { month: "long", year: "numeric" })
     : null;
+
+  // One dish card, reused by the sectioned grid, the flat fallback grid, and
+  // the collapsed "currently unavailable" block. The feeds parenthetical is
+  // lifted out of the (often ALL-CAPS) title into a quiet chip beside the
+  // availability pill, so party size gets MORE visible while titles shout less.
+  const renderDish = (l: any, i: number) => {
+    const soldOut = l.limited_quantity && l.quantity_available <= 0;
+    // A preorder past its cutoff can't be ordered — treat like sold out.
+    const orderable = isOrderable(availabilityFromListing(l), today);
+    const blocked = soldOut || !orderable;
+    const lowStock =
+      l.limited_quantity &&
+      l.quantity_available > 0 &&
+      l.quantity_available <= 3;
+    const disp = splitFeedsFromTitle(l.title);
+    return (
+      <div
+        key={l.id}
+        className={`rise group flex flex-col overflow-hidden rounded-2xl bg-card shadow-soft transition hover:shadow-lift ${
+          blocked ? "opacity-60" : ""
+        }`}
+        style={{ animationDelay: `${Math.min(i * 60, 480)}ms` }}
+      >
+        <Link
+          href={`/listing/${l.id}`}
+          className="block aspect-[4/3] overflow-hidden bg-line"
+        >
+          {l.photo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={l.photo_url}
+              alt={l.title}
+              loading="lazy"
+              decoding="async"
+              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-faint">
+              <ForkMark size={44} />
+            </div>
+          )}
+        </Link>
+        <div className="flex flex-1 flex-col p-4">
+          <Link
+            href={`/listing/${l.id}`}
+            className="font-display text-[17px] font-semibold leading-tight text-ink hover:underline"
+          >
+            {disp.title}
+          </Link>
+          {l.description && (
+            <p className="mt-1 line-clamp-2 text-sm text-muted">
+              {l.description}
+            </p>
+          )}
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <AvailabilityPill
+              listing={l}
+              today={today}
+              // Windows are PICKUP days — meaningless (possibly stale)
+              // when the kitchen doesn't offer pickup.
+              pickupWindows={
+                cook.pickup_available ? cook.pickup_windows : null
+              }
+            />
+            {disp.feeds && (
+              <span className="inline-flex items-center rounded-full border border-line bg-bg px-2.5 py-0.5 text-xs font-medium text-muted">
+                {disp.feeds}
+              </span>
+            )}
+          </div>
+          {lowStock && (
+            <p className="mt-1 text-xs font-medium text-amber-600">
+              Only {l.quantity_available} left
+            </p>
+          )}
+          <div className="mt-auto flex items-center justify-between pt-3">
+            <span className="font-semibold text-ink">
+              {hasOptions.has(l.id)
+                ? `from ${formatUsd(l.price_cents)}`
+                : formatUsd(l.price_cents)}
+            </span>
+            {soldOut ? (
+              <SoldOutTag />
+            ) : !orderable ? (
+              <span className="rounded-full bg-line/60 px-3 py-1 text-xs font-medium text-muted">
+                Ordering closed
+              </span>
+            ) : hasOptions.has(l.id) ? (
+              <Link
+                href={`/listing/${l.id}`}
+                className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90"
+              >
+                Choose options
+              </Link>
+            ) : (
+              <AddToCart
+                cook={{
+                  id: cook.id,
+                  name: cook.business_name,
+                  slug: cook.slug,
+                  pickupAvailable: cook.pickup_available,
+                  deliveryAvailable: cook.delivery_available,
+                  pickupWindows: cook.pickup_windows ?? [],
+                }}
+                item={{
+                  listingId: l.id,
+                  title: l.title,
+                  priceCents: l.price_cents,
+                  photoUrl: l.photo_url,
+                }}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
 
   return (
     <main className="mx-auto max-w-5xl px-6 pt-8 pb-16">
@@ -279,116 +422,66 @@ export default async function KitchenPage({
 
       <h2 className="mt-12 text-lg font-semibold text-ink">Menu</h2>
       <FeeNote className="mt-1" />
-      {items.length === 0 ? (
+      {dishes.length === 0 ? (
         <div className="mt-4"><EmptyState title="No items available right now." /></div>
       ) : (
-        <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((l: any, i: number) => {
-            const soldOut = l.limited_quantity && l.quantity_available <= 0;
-            // A preorder past its cutoff can't be ordered — treat like sold out.
-            const orderable = isOrderable(availabilityFromListing(l), today);
-            const blocked = soldOut || !orderable;
-            const lowStock =
-              l.limited_quantity &&
-              l.quantity_available > 0 &&
-              l.quantity_available <= 3;
-            return (
-              <div
-                key={l.id}
-                className={`rise group flex flex-col overflow-hidden rounded-2xl bg-card shadow-soft transition hover:shadow-lift ${
-                  blocked ? "opacity-60" : ""
-                }`}
-                style={{ animationDelay: `${Math.min(i * 60, 480)}ms` }}
-              >
-                <Link
-                  href={`/listing/${l.id}`}
-                  className="block aspect-[4/3] overflow-hidden bg-line"
+        <>
+          {useSections && (
+            <nav className="mt-4 flex flex-wrap gap-2">
+              {sections.map((s) => (
+                <a
+                  key={s.id}
+                  href={`#${s.id}`}
+                  className="rounded-full border border-line bg-card px-3.5 py-1.5 text-sm font-medium text-ink hover:border-muted"
                 >
-                  {l.photo_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={l.photo_url}
-                      alt={l.title}
-                      loading="lazy"
-                      decoding="async"
-                      className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-faint">
-                      <ForkMark size={44} />
-                    </div>
-                  )}
-                </Link>
-                <div className="flex flex-1 flex-col p-4">
-                  <Link
-                    href={`/listing/${l.id}`}
-                    className="font-display text-[17px] font-semibold leading-tight text-ink hover:underline"
-                  >
-                    {l.title}
-                  </Link>
-                  {l.description && (
-                    <p className="mt-1 line-clamp-2 text-sm text-muted">
-                      {l.description}
-                    </p>
-                  )}
-                  <AvailabilityPill
-                    listing={l}
-                    today={today}
-                    // Windows are PICKUP days — meaningless (possibly stale)
-                    // when the kitchen doesn't offer pickup.
-                    pickupWindows={
-                      cook.pickup_available ? cook.pickup_windows : null
-                    }
-                    className="mt-2 self-start"
-                  />
-                  {lowStock && (
-                    <p className="mt-1 text-xs font-medium text-amber-600">
-                      Only {l.quantity_available} left
-                    </p>
-                  )}
-                  <div className="mt-auto flex items-center justify-between pt-3">
-                    <span className="font-semibold text-ink">
-                      {hasOptions.has(l.id)
-                        ? `from ${formatUsd(l.price_cents)}`
-                        : formatUsd(l.price_cents)}
-                    </span>
-                    {soldOut ? (
-                      <SoldOutTag />
-                    ) : !orderable ? (
-                      <span className="rounded-full bg-line/60 px-3 py-1 text-xs font-medium text-muted">
-                        Ordering closed
-                      </span>
-                    ) : hasOptions.has(l.id) ? (
-                      <Link
-                        href={`/listing/${l.id}`}
-                        className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90"
-                      >
-                        Choose options
-                      </Link>
-                    ) : (
-                      <AddToCart
-                        cook={{
-                          id: cook.id,
-                          name: cook.business_name,
-                          slug: cook.slug,
-                          pickupAvailable: cook.pickup_available,
-                          deliveryAvailable: cook.delivery_available,
-                          pickupWindows: cook.pickup_windows ?? [],
-                        }}
-                        item={{
-                          listingId: l.id,
-                          title: l.title,
-                          priceCents: l.price_cents,
-                          photoUrl: l.photo_url,
-                        }}
-                      />
-                    )}
-                  </div>
+                  {s.title}
+                </a>
+              ))}
+            </nav>
+          )}
+          {useSections ? (
+            sections.map((s) => (
+              <section key={s.id} id={s.id} className="scroll-mt-24">
+                <h3 className="mt-8 font-display text-xl font-semibold text-ink">
+                  {s.title}
+                </h3>
+                <div className="mt-3 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                  {s.items.map((l: any, i: number) => renderDish(l, i))}
                 </div>
+              </section>
+            ))
+          ) : openDishes.length > 0 ? (
+            <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {openDishes.map((l: any, i: number) => renderDish(l, i))}
+            </div>
+          ) : null}
+          {closedDishes.length > 0 && (
+            <>
+              {openDishes.length === 0 && (
+                <p className="mt-4 text-sm text-muted">
+                  Nothing&rsquo;s orderable right now &mdash; follow the kitchen
+                  for a heads-up when dishes come back.
+                </p>
+              )}
+              <h3 className="mt-10 text-sm font-medium text-muted">
+                Currently unavailable
+              </h3>
+              <div className="mt-3 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {closedDishes.slice(0, 3).map((l: any, i: number) => renderDish(l, i))}
               </div>
-            );
-          })}
-        </div>
+              {closedDishes.length > 3 && (
+                <details className="mt-4">
+                  <summary className="cursor-pointer list-none text-sm font-medium text-muted hover:text-ink [&::-webkit-details-marker]:hidden">
+                    {closedDishes.length - 3} more currently unavailable ›
+                  </summary>
+                  <div className="mt-3 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    {closedDishes.slice(3).map((l: any, i: number) => renderDish(l, i))}
+                  </div>
+                </details>
+              )}
+            </>
+          )}
+        </>
       )}
 
       {extras.length > 0 && (
@@ -518,6 +611,7 @@ export default async function KitchenPage({
       </section>
 
       <ReviewsSection reviews={revs} />
+      <CartBar />
     </main>
   );
 }

@@ -39,6 +39,11 @@ import {
   nextHandoffIso,
   computeGetIt,
 } from "../lib/availability";
+import {
+  MENU_SECTIONS,
+  menuSectionFor,
+  splitFeedsFromTitle,
+} from "../lib/menu-display";
 
 let pass = 0;
 let fail = 0;
@@ -410,6 +415,33 @@ check("parsePickupDays: one unreadable window → null (schedule unknown)", () =
 check("parsePickupDays: day words don't fire inside other words", () => {
   assert.equal(parsePickupDays(["saturated market hours"]), null);
   assert.equal(parsePickupDays(["sunset pickups"]), null);
+});
+check("menu sections: 40 Acres' real naming maps cleanly", () => {
+  assert.equal(menuSectionFor("BUFFET-STYLE: SHRIMP, CHICKEN & SAUSAGE JAMBALAYA (FEEDS 18-20)"), "trays");
+  assert.equal(menuSectionFor("BUFFET STYLE: BAKED MACARONI & CHEESE ( FEEDS 18-20)"), "trays");
+  assert.equal(menuSectionFor("FAMILY-STYLE: THE \"CLASSIC\" SOUL FOOD DINNER (FEEDS 8-10)"), "family-dinners");
+  assert.equal(menuSectionFor("JERK CHICKEN FAMILY DINNER"), "family-dinners");
+  assert.equal(menuSectionFor("CANDIED YAMS"), "plates-sides");
+  assert.equal(menuSectionFor("KETO OXTAIL BOWL"), "plates-sides");
+  assert.equal(MENU_SECTIONS.length, 3);
+});
+check("feeds badge: parsed out of the title, first range wins", () => {
+  assert.deepEqual(splitFeedsFromTitle("BUFFET STYLE: BBQ CHICKEN (FEEDS 18-20/40-45PCS)"),
+    { title: "BUFFET STYLE: BBQ CHICKEN", feeds: "Feeds 18–20" });
+  assert.deepEqual(splitFeedsFromTitle("CHILLED SHRIMP SALAD (SMALL FEEDS 8-10)"),
+    { title: "CHILLED SHRIMP SALAD", feeds: "Feeds 8–10" });
+  assert.deepEqual(splitFeedsFromTitle("THE CLASSIC SOUL FOOD DINNER (Serves 4-6)"),
+    { title: "THE CLASSIC SOUL FOOD DINNER", feeds: "Feeds 4–6" });
+  assert.equal(splitFeedsFromTitle("SOUTHEN OXTAILS & GRAVY FEAST (FEEDS 1)").feeds, "Feeds 1");
+});
+check("feeds badge: no parenthetical, odd input -> untouched title, null feeds", () => {
+  assert.deepEqual(splitFeedsFromTitle("CANDIED YAMS"), { title: "CANDIED YAMS", feeds: null });
+  assert.deepEqual(splitFeedsFromTitle("40 oz SIGNATURE SEAFOOD GUMBO NO CRAB (40 OZ / 1-2 Servings)").feeds, null);
+  assert.equal(splitFeedsFromTitle("").title, "");
+  assert.equal(splitFeedsFromTitle("( FEEDS )").feeds, null);
+  // Nested parens are unrepresentable — degrade to untouched title, no chip.
+  assert.deepEqual(splitFeedsFromTitle("JAMBALAYA (FEEDS 18-20 (two half-pans))"),
+    { title: "JAMBALAYA (FEEDS 18-20 (two half-pans))", feeds: null });
 });
 check("pickupDaysLabel: limited schedules get a short label", () => {
   assert.equal(pickupDaysLabel(new Set([6])), "Sats");
