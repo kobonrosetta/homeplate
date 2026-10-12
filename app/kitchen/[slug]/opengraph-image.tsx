@@ -53,8 +53,10 @@ export default async function Image({
 }: {
   params: { slug: string };
 }) {
-  // Fast path: a real kitchen's card already in cache (no DB touch).
-  const hit = cardCache.get(params.slug);
+  // Fast path: a real kitchen's card already in cache (no DB touch). Keys are
+  // namespaced ("s:<slug>" / "fallback") so no DB slug value — however it got
+  // written — can ever collide with the shared fallback slot.
+  const hit = cardCache.get(`s:${params.slug}`);
   if (hit && hit.exp > Date.now()) {
     return new Response(hit.buf.slice(0), { headers: pngHeaders });
   }
@@ -73,7 +75,7 @@ export default async function Image({
     .eq("status", "active")
     .eq("stripe_ready", true)
     .maybeSingle();
-  const key = exists ? params.slug : "__fallback__";
+  const key = exists ? `s:${params.slug}` : "fallback";
 
   const keyed = cardCache.get(key);
   if (keyed && keyed.exp > Date.now()) {

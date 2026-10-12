@@ -64,9 +64,13 @@ export async function startCheckout(formData: FormData) {
     String(formData.get("fulfillment") ?? "pickup") === "delivery"
       ? "delivery"
       : "pickup";
-  const contactName = String(formData.get("contact_name") ?? "").trim();
-  const contactPhone = String(formData.get("contact_phone") ?? "").trim();
-  const contactEmail = String(formData.get("email") ?? "").trim();
+  const contactName = String(formData.get("contact_name") ?? "")
+    .trim()
+    .slice(0, 120);
+  const contactPhone = String(formData.get("contact_phone") ?? "")
+    .trim()
+    .slice(0, 40);
+  const contactEmail = String(formData.get("email") ?? "").trim().slice(0, 254);
   // Capped: windows are ≤80 chars, and free-text must not be a novel.
   const pickupTime = String(formData.get("pickup_time") ?? "")
     .trim()
