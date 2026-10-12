@@ -163,6 +163,20 @@ export default async function SettingsPage({
           </div>
 
           <div>
+            <TextField
+              label="One-line intro"
+              name="tagline"
+              defaultValue={cook.tagline ?? ""}
+              maxLength={120}
+              placeholder="e.g. Oakland family traditions, Southern comfort, Puerto Rican sazón."
+            />
+            <p className="mt-1 text-xs text-faint">
+              Shown at the top of your storefront, next to your photo. Leave it
+              blank and we&rsquo;ll use the first line of your story below.
+            </p>
+          </div>
+
+          <div>
             <TextArea
               label="Your story"
               name="bio"

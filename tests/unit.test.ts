@@ -43,6 +43,7 @@ import {
   MENU_SECTIONS,
   menuSectionFor,
   splitFeedsFromTitle,
+  cookTagline,
 } from "../lib/menu-display";
 
 let pass = 0;
@@ -442,6 +443,17 @@ check("feeds badge: no parenthetical, odd input -> untouched title, null feeds",
   // Nested parens are unrepresentable — degrade to untouched title, no chip.
   assert.deepEqual(splitFeedsFromTitle("JAMBALAYA (FEEDS 18-20 (two half-pans))"),
     { title: "JAMBALAYA (FEEDS 18-20 (two half-pans))", feeds: null });
+});
+check("cookTagline: tagline wins, bio first-sentence fallback, caps at one line", () => {
+  assert.equal(cookTagline("Soul food with sazón.", "Long bio here."), "Soul food with sazón.");
+  assert.equal(
+    cookTagline(null, "40 Acres Soul Kitchen is a permitted home-based food business. More text follows."),
+    "40 Acres Soul Kitchen is a permitted home-based food business.");
+  assert.equal(cookTagline("  ", null), null);
+  assert.equal(cookTagline(null, "No terminal punctuation at all"), "No terminal punctuation at all");
+  const long = "A".repeat(200) + ". rest";
+  assert.equal(cookTagline(null, long)!.length <= 120, true);
+  assert.equal(cookTagline(null, long)!.endsWith("…"), true);
 });
 check("pickupDaysLabel: limited schedules get a short label", () => {
   assert.equal(pickupDaysLabel(new Set([6])), "Sats");
