@@ -71,8 +71,12 @@ export async function startCheckout(formData: FormData) {
   const pickupTime = String(formData.get("pickup_time") ?? "")
     .trim()
     .slice(0, 120);
-  const deliveryAddress = String(formData.get("delivery_address") ?? "").trim();
-  const notes = String(formData.get("notes") ?? "").trim();
+  // Same cap rationale for the other free-text fields (they flow into emails
+  // and the cook dashboard; unbounded input is a layout/abuse vector).
+  const deliveryAddress = String(formData.get("delivery_address") ?? "")
+    .trim()
+    .slice(0, 300);
+  const notes = String(formData.get("notes") ?? "").trim().slice(0, 500);
 
   const err = (to: string, msg: string) =>
     redirect(`${to}?error=${encodeURIComponent(msg)}`);
@@ -206,6 +210,16 @@ export async function startCheckout(formData: FormData) {
   // different option choices). served_hot is snapshotted like title/price:
   // the cook's quarterly tax numbers must not change when a listing is
   // later edited or deleted.
+  // No real cart wants 50 trays of one dish — that's a typo (50 for 5) or
+  // abuse, and after payment the only recourse is a manual refund. Bounce
+  // honestly instead of silently clamping; genuinely huge orders belong on a
+  // cook payment link where the price is negotiated.
+  if (priced.some((r) => Math.floor(r.quantity || 1) > 20)) {
+    err(
+      "/cart",
+      "For more than 20 of one item, message the kitchen directly — large orders go through a custom payment link."
+    );
+  }
   const items = priced.map((r) => {
     const qty = Math.max(1, Math.floor(r.quantity || 1));
     return {

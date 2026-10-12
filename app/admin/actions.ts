@@ -446,11 +446,17 @@ export async function reinstateOrder(formData: FormData) {
 
   // Guarded flip: only out of 'cancelled', and verify it actually matched so a
   // concurrent refund/reinstate can't double-apply the side effects below.
+  // The refunded_at guard is load-bearing IN the CAS (not just the pre-read
+  // above): refundOrder on an already-cancelled order sets refunded_at but
+  // leaves status='cancelled', so a Reinstate racing the ~1-2s Stripe refund
+  // window would otherwise yield refunded_at + status='confirmed' — buyer
+  // refunded, cook fulfilling a free order, UI showing only "✓ Refunded".
   const { data: flipped } = await db
     .from("orders")
     .update({ status: "confirmed" })
     .eq("id", orderId)
     .eq("status", "cancelled")
+    .is("refunded_at", null)
     .select("id");
   if (!flipped || flipped.length === 0)
     fail("The order just changed state — refresh and check again.");

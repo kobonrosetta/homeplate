@@ -41,19 +41,49 @@ export const alt = "A county-verified home kitchen on ForkFork";
 export const size = { width: 840, height: 441 };
 export const contentType = "image/png";
 
+// Shared anon client (public reads only, no cookies) for the existence probe
+// and the card render.
+const anonDb = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
 export default async function Image({
   params,
 }: {
   params: { slug: string };
 }) {
+  // Fast path: a real kitchen's card already in cache (no DB touch).
   const hit = cardCache.get(params.slug);
   if (hit && hit.exp > Date.now()) {
     return new Response(hit.buf.slice(0), { headers: pngHeaders });
   }
-  const rendered = await renderCard(params.slug);
+
+  // Junk-slug guard (post-#119 review finding): an unknown slug renders the
+  // branded fallback card, and keying the cache by raw slug let crawler junk
+  // or a deliberate attacker evict every REAL kitchen's card (24-slot FIFO)
+  // and force cold satori+sharp renders — the exact cost the cache exists to
+  // kill. So on a cache miss, one cheap indexed probe decides the key: real
+  // kitchens cache per-slug; everything unknown shares ONE '__fallback__'
+  // slot (at most one fallback render per hour, no matter the junk volume).
+  const { data: exists } = await anonDb
+    .from("cooks")
+    .select("id")
+    .eq("slug", params.slug)
+    .eq("status", "active")
+    .eq("stripe_ready", true)
+    .maybeSingle();
+  const key = exists ? params.slug : "__fallback__";
+
+  const keyed = cardCache.get(key);
+  if (keyed && keyed.exp > Date.now()) {
+    return new Response(keyed.buf.slice(0), { headers: pngHeaders });
+  }
+
+  const rendered = await renderCard(exists ? params.slug : "");
   const buf = await rendered.arrayBuffer();
-  cardCache.delete(params.slug); // re-insert = move to newest
-  cardCache.set(params.slug, { buf, exp: Date.now() + CARD_TTL_MS });
+  cardCache.delete(key); // re-insert = move to newest
+  cardCache.set(key, { buf, exp: Date.now() + CARD_TTL_MS });
   while (cardCache.size > CARD_CACHE_MAX) {
     const oldest = cardCache.keys().next().value;
     if (oldest === undefined) break;
@@ -63,10 +93,7 @@ export default async function Image({
 }
 
 async function renderCard(slug: string): Promise<ImageResponse> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = anonDb;
 
   // One round-trip: the cook plus their newest available photo as an embedded
   // select — link-preview crawlers give this route only a few seconds, so
