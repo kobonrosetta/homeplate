@@ -12,6 +12,19 @@ import { escapeHtml, notifyAdmins } from "@/lib/email";
 // paranoid: a hidden honeypot field silently swallows bots, every field is
 // length-capped and HTML-escaped, and a lead needs a name plus at least one
 // way to reach them.
+// In-memory dedupe + coarse throttle. Resets on deploy/restart — that's
+// acceptable as a belt: it stops a curl loop from re-emailing the same lead
+// endlessly and caps total sends per hour so lead spam can't burn the Resend
+// quota that order emails ride on. The durable fix (a cook_leads table as
+// system of record, email as best-effort ping — the joinWaitlist pattern)
+// needs a hand-run migration and is tracked separately.
+const seenLeads = new Map<string, number>();
+let windowStart = 0;
+let windowSends = 0;
+const LEAD_TTL_MS = 24 * 60 * 60 * 1000;
+const WINDOW_MS = 60 * 60 * 1000;
+const WINDOW_MAX = 20;
+
 export async function submitCookLead(formData: FormData) {
   const trap = String(formData.get("website") ?? "");
   // Newlines stripped: `name` goes into an email SUBJECT — never let a form
@@ -34,6 +47,24 @@ export async function submitCookLead(formData: FormData) {
       "/get-permitted?error=" +
         encodeURIComponent("Add your name and a phone number or email.")
     );
+  }
+
+  // Same contact within 24h, or more than WINDOW_MAX leads this hour →
+  // pretend success without sending (the lead saw the form; a human retry
+  // tomorrow still works, and admins aren't floodable).
+  const key = `${email.toLowerCase()}|${phone}`;
+  const now = Date.now();
+  const last = seenLeads.get(key);
+  if (last && now - last < LEAD_TTL_MS) redirect("/get-permitted?sent=1");
+  if (now - windowStart > WINDOW_MS) {
+    windowStart = now;
+    windowSends = 0;
+  }
+  if (windowSends >= WINDOW_MAX) redirect("/get-permitted?sent=1");
+  seenLeads.set(key, now);
+  windowSends++;
+  if (seenLeads.size > 1000) {
+    for (const [k, t] of seenLeads) if (now - t > LEAD_TTL_MS) seenLeads.delete(k);
   }
 
   await notifyAdmins(

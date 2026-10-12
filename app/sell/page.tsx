@@ -119,7 +119,9 @@ export default async function SellPage({
           </p>
           <div className="mt-6 grid gap-3">
             <Link
-              href="/sell?have=1"
+              href={`/sell?start=1&have=1${
+                searchParams.welcome === "1" ? "&welcome=1" : ""
+              }`}
               className="rounded-2xl bg-brand px-5 py-4 font-medium text-white shadow-soft transition hover:bg-brand/90"
             >
               Yes — I have a permit (or my registration number)
