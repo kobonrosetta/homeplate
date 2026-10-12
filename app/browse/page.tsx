@@ -93,10 +93,10 @@ export default async function BrowsePage({
       )}
       <h1 className="text-3xl font-semibold text-ink">Local kitchens</h1>
       <p className="mt-1 text-muted">
-        {kitchens.length > 0
-          ? `${kitchens.length} home ${
-              kitchens.length === 1 ? "kitchen" : "kitchens"
-            } open now.`
+        {kitchens.length === 1
+          ? "Our first kitchen is live — more joining for the holidays."
+          : kitchens.length > 0
+          ? `${kitchens.length} home kitchens open now.`
           : "Verified home chefs and bakers."}
       </p>
 
@@ -216,6 +216,28 @@ export default async function BrowsePage({
               </div>
             </Link>
           ))}
+          {/* The last grid cell recruits: a buyer's neighborhood has cooks in
+              it, and a half-empty grid should work for supply, not just look
+              sparse. Both paths qualified: permitted -> wizard, not-yet ->
+              the lead-capture guide. */}
+          <div className="flex flex-col justify-center rounded-2xl border border-dashed border-line bg-card/60 p-6 text-center">
+            <p className="font-display text-lg font-semibold text-ink">
+              Run a county-permitted home kitchen?
+            </p>
+            <Link
+              href="/sell"
+              className="mt-2 font-medium text-brand underline-offset-2 hover:underline"
+            >
+              Set up your storefront free →
+            </Link>
+            <p className="mt-4 text-sm text-muted">Not permitted yet?</p>
+            <Link
+              href="/get-permitted"
+              className="mt-1 text-sm font-medium text-brand underline-offset-2 hover:underline"
+            >
+              We&rsquo;ll show you how →
+            </Link>
+          </div>
         </div>
       )}
     </main>
