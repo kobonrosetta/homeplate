@@ -74,6 +74,12 @@ export default async function BrowsePage({
           ? ratings.reduce((a: number, b: number) => a + b, 0) / reviewCount
           : 0,
         thumb: avail.find((l: any) => l.photo_url)?.photo_url ?? null,
+        // Up to three MORE photographed dishes for the mini-strip — menu
+        // breadth at a glance, which is the whole catering story.
+        thumbs: avail
+          .filter((l: any) => l.photo_url)
+          .slice(1, 4)
+          .map((l: any) => l.photo_url),
       };
     })
     .filter((k) => k.count > 0);
@@ -184,6 +190,21 @@ export default async function BrowsePage({
                   <div className="absolute left-3 top-3"><VerifiedBadge variant="overlay" /></div>
                 )}
               </div>
+              {k.thumbs.length >= 3 && (
+                <div className="grid grid-cols-3 gap-0.5">
+                  {k.thumbs.map((u: string, ti: number) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={ti}
+                      src={u}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      className="h-16 w-full object-cover"
+                    />
+                  ))}
+                </div>
+              )}
               <div className="flex flex-1 flex-col p-5">
                 <p className="text-[11px] uppercase tracking-[0.11em] text-faint">
                   {k.area ? `${k.area} · ` : ""}

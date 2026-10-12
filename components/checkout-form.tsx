@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { useCart } from "@/components/cart-context";
@@ -25,6 +25,18 @@ export default function CheckoutForm({
 }) {
   const { cart, loaded, subtotalCents } = useCart();
   const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
+  // Picker hints only (server re-validates in Pacific): set after mount so
+  // SSR and hydration agree — new Date() in render would differ between the
+  // UTC server and the browser.
+  const [dateMin, setDateMin] = useState("");
+  const [dateMax, setDateMax] = useState("");
+  useEffect(() => {
+    const d = new Date();
+    setDateMin(d.toLocaleDateString("en-CA"));
+    const m = new Date();
+    m.setDate(m.getDate() + 60);
+    setDateMax(m.toLocaleDateString("en-CA"));
+  }, []);
 
   // Don't flash "your cart is empty" before localStorage has been read.
   if (!loaded) return null;
@@ -167,14 +179,29 @@ export default function CheckoutForm({
           </Field>
         )
       ) : (
-        <Field label="Delivery address">
-          <input
-            name="delivery_address"
-            required
-            placeholder="123 Main St, Sunnyvale"
-            className={INPUT}
-          />
-        </Field>
+        <>
+          <Field label="Delivery address">
+            <input
+              name="delivery_address"
+              required
+              placeholder="123 Main St, Sunnyvale"
+              className={INPUT}
+            />
+          </Field>
+          <Field label="When is it for? (event date, optional)">
+            <input
+              name="event_date"
+              type="date"
+              min={dateMin || undefined}
+              max={dateMax || undefined}
+              className={INPUT}
+            />
+            <p className="mt-1 text-xs text-faint">
+              Ordering for a party or gathering? Tell the kitchen the actual
+              date so they plan for it — confirmations will show this date.
+            </p>
+          </Field>
+        </>
       )}
 
       <Field label="Note for the kitchen (optional)">

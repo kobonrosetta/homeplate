@@ -71,7 +71,7 @@ export default async function CheckoutSuccessPage({
     ? await admin
         .from("orders")
         .select(
-          "id, buyer_id, fulfillment, total_cents, pickup_time, ready_by_date, delivery_address, cook_id, contact_email, order_items(title, quantity, line_total_cents)"
+          "id, buyer_id, fulfillment, total_cents, pickup_time, ready_by_date, event_date, delivery_address, cook_id, contact_email, order_items(title, quantity, line_total_cents)"
         )
         .eq("id", orderId)
         .maybeSingle()
@@ -188,11 +188,11 @@ export default async function CheckoutSuccessPage({
               </div>
             ))}
             <div className="mt-2 space-y-1 border-t border-line pt-2">
-              {order.ready_by_date && (
+              {(order.event_date ?? order.ready_by_date) && (
                 <p className="text-ink">
                   <span className="text-faint">Get it: </span>
                   <span className="font-medium">
-                    {formatDateLong(order.ready_by_date)}
+                    {formatDateLong(order.event_date ?? order.ready_by_date)}
                   </span>
                 </p>
               )}
