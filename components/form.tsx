@@ -34,6 +34,7 @@ export function TextField({
   step,
   autoComplete,
   minLength,
+  maxLength,
 }: {
   label: string;
   name: string;
@@ -44,6 +45,7 @@ export function TextField({
   step?: string;
   autoComplete?: string;
   minLength?: number;
+  maxLength?: number;
 }) {
   return (
     <label className="block">
@@ -57,6 +59,7 @@ export function TextField({
         step={step}
         autoComplete={autoComplete}
         minLength={minLength}
+        maxLength={maxLength}
         className={inputClass}
       />
     </label>

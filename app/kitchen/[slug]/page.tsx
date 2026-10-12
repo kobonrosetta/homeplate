@@ -15,8 +15,10 @@ import {
   MENU_SECTIONS,
   menuSectionFor,
   splitFeedsFromTitle,
+  cookTagline,
 } from "@/lib/menu-display";
 import CartBar from "@/components/cart-bar";
+import BioClamp from "@/components/bio-clamp";
 import FeeNote from "@/components/fee-note";
 import FollowToggle from "@/components/follow-toggle";
 import ReviewsSection from "@/components/reviews-section";
@@ -40,7 +42,7 @@ const getActiveCook = cache(async (slug: string) => {
   const { data } = await supabase
     .from("cooks")
     .select(
-      "id, business_name, owner_name, slug, city, neighborhood, operation_type, permit_verified, bio, avatar_url, cover_url, created_at, pickup_available, delivery_available, pickup_windows, cuisine_tags"
+      "id, business_name, owner_name, slug, city, neighborhood, operation_type, permit_verified, bio, tagline, avatar_url, cover_url, created_at, pickup_available, delivery_available, pickup_windows, cuisine_tags"
     )
     .eq("slug", slug)
     .eq("status", "active")
@@ -420,6 +422,45 @@ export default async function KitchenPage({
         </p>
       )}
 
+      {/* Chef strip — the trust story's face above the menu. One glance says
+          "a real person cooks this"; the full bio stays in "Meet the chef"
+          below, one tap away via the anchor. */}
+      <a
+        href="#meet-the-chef"
+        className="mt-5 flex items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3 shadow-soft transition hover:shadow-lift sm:max-w-xl"
+      >
+        {cook.avatar_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={cook.avatar_url}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="h-11 w-11 shrink-0 rounded-full object-cover"
+          />
+        ) : (
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand/10 font-display text-lg font-semibold text-brand">
+            {(cook.owner_name || cook.business_name || "?")
+              .trim()
+              .charAt(0)
+              .toUpperCase()}
+          </div>
+        )}
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-ink">
+            By {cook.owner_name || cook.business_name}
+            <span className="ml-2 whitespace-nowrap text-xs font-medium text-brand">
+              Meet the chef ↓
+            </span>
+          </p>
+          {cookTagline(cook.tagline, cook.bio) && (
+            <p className="truncate text-sm text-muted">
+              {cookTagline(cook.tagline, cook.bio)}
+            </p>
+          )}
+        </div>
+      </a>
+
       <h2 className="mt-12 text-lg font-semibold text-ink">Menu</h2>
       <FeeNote className="mt-1" />
       {dishes.length === 0 ? (
@@ -551,7 +592,10 @@ export default async function KitchenPage({
           buyer actually decides on. Degrades gracefully: a monogram when
           there's no photo, and it still carries the name + credentials when
           there's no story yet. */}
-      <section className="mt-14 border-t border-line pt-10">
+      <section
+        id="meet-the-chef"
+        className="mt-14 scroll-mt-24 border-t border-line pt-10"
+      >
         <h2 className="text-lg font-semibold text-ink">Meet the chef</h2>
         <div className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-start">
           {cook.avatar_url ? (
@@ -581,9 +625,10 @@ export default async function KitchenPage({
               {joinedLabel ? ` · on ForkFork since ${joinedLabel}` : ""}
             </p>
             {cook.bio && (
-              <p className="mt-3 max-w-2xl leading-relaxed text-ink">
-                {cook.bio}
-              </p>
+              <BioClamp
+                text={cook.bio}
+                className="mt-3 max-w-2xl"
+              />
             )}
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
               {cook.permit_verified && (

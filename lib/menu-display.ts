@@ -48,3 +48,21 @@ export function splitFeedsFromTitle(raw: string): {
     .trim();
   return { title: title || s.trim(), feeds: `Feeds ${core}` };
 }
+
+// The one-liner for the chef strip at the top of the kitchen page: the
+// cook-written tagline when set, else the first sentence of the bio,
+// capped so it stays one line. Null (no tagline, no bio) hides the line —
+// the strip still shows the face + name.
+export function cookTagline(
+  tagline: string | null | undefined,
+  bio: string | null | undefined
+): string | null {
+  const t = (tagline ?? "").trim();
+  if (t) return t.length > 120 ? t.slice(0, 117).trimEnd() + "…" : t;
+  const b = (bio ?? "").trim();
+  if (!b) return null;
+  const m = b.match(/^[^.!?]*[.!?]/);
+  const first = (m ? m[0] : b).trim();
+  if (!first) return null;
+  return first.length > 120 ? first.slice(0, 117).trimEnd() + "…" : first;
+}

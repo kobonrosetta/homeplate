@@ -21,6 +21,9 @@ export async function updateKitchen(formData: FormData) {
   const ownerName = String(formData.get("owner_name") ?? "").trim();
   const operationType = String(formData.get("operation_type") ?? "cottage");
   const bio = String(formData.get("bio") ?? "").trim();
+  const tagline = String(formData.get("tagline") ?? "")
+    .trim()
+    .slice(0, 120);
   const streetAddress = String(formData.get("street_address") ?? "").trim();
   const city = titleCase(String(formData.get("city") ?? "")); // "campbell" → "Campbell"
   const zip = String(formData.get("zip") ?? "").trim();
@@ -72,6 +75,7 @@ export async function updateKitchen(formData: FormData) {
       owner_name: ownerName || null,
       operation_type: operationType,
       bio: bio || null,
+      tagline: tagline || null,
       city: city || null,
       zip: zip || null,
       cuisine_tags: cuisineTags,
