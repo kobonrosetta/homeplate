@@ -125,7 +125,15 @@ export default function CookPitch({ signedIn = false }: { signedIn?: boolean }) 
               >
                 register as a cottage food operator
               </a>
-              . Come back when it&apos;s in hand, and we&apos;ll be here.
+              . Or{" "}
+              <Link
+                href="/get-permitted"
+                className="font-medium underline hover:text-ink"
+              >
+                tell us you&apos;re on the way
+              </Link>{" "}
+              and we&apos;ll personally walk you through it — your storefront
+              will be ready the day the permit is.
             </p>
           </div>
         </div>

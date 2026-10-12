@@ -29,7 +29,7 @@ export const dynamic = "force-dynamic";
 export default async function SellPage({
   searchParams,
 }: {
-  searchParams: { step?: string; error?: string; start?: string; welcome?: string };
+  searchParams: { step?: string; error?: string; start?: string; welcome?: string; have?: string };
 }) {
   // Not signed in (or just a guest-checkout session)? This is a prospective
   // cook clicking "Apply to sell" — show the pitch, not a login wall.
@@ -101,6 +101,39 @@ export default async function SellPage({
           </p>
         </div>
       )}
+      {/* Permit-first gate: sort intent BEFORE any form investment. Two
+          non-permitted applications (Sofi, Luna Catering) reached the pending
+          queue because the permit question used to arrive at Step 3 — after
+          the kitchen and dishes were already lovingly filled in, "submit
+          anyway" wins. Answering "not yet" routes to /get-permitted (lead
+          capture + county guidance) instead of the approval queue. */}
+      {!cook && searchParams.have !== "1" ? (
+        <section className="mt-2">
+          <h1 className="font-display text-2xl font-semibold text-ink">
+            First, a quick question
+          </h1>
+          <p className="mt-2 leading-relaxed text-muted">
+            Do you have a Santa Clara County home-kitchen permit (MEHKO) or
+            cottage food registration? Every kitchen here is verified against
+            the county&rsquo;s list — it&rsquo;s why buyers trust us.
+          </p>
+          <div className="mt-6 grid gap-3">
+            <Link
+              href="/sell?have=1"
+              className="rounded-2xl bg-brand px-5 py-4 font-medium text-white shadow-soft transition hover:bg-brand/90"
+            >
+              Yes — I have a permit (or my registration number)
+            </Link>
+            <Link
+              href="/get-permitted"
+              className="rounded-2xl border border-line bg-card px-5 py-4 font-medium text-ink shadow-soft transition hover:shadow-lift"
+            >
+              Not yet — show me how to get one
+            </Link>
+          </div>
+        </section>
+      ) : (
+        <>
       <Tracker step={step} />
 
       <div className="mt-6">
@@ -134,6 +167,8 @@ export default async function SellPage({
         Each step saves when you continue, so you can leave and pick up where you
         left off.
       </p>
+        </>
+      )}
     </main>
   );
 }
