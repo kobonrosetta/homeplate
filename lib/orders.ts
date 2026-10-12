@@ -197,7 +197,7 @@ async function notifyOrderConfirmed(
     const { data: order } = await admin
       .from("orders")
       .select(
-        "buyer_id, cook_id, fulfillment, pickup_time, ready_by_date, delivery_address, contact_name, contact_phone, contact_email, notes, subtotal_cents, total_cents, stripe_payment_intent_id, order_items(title, quantity)"
+        "buyer_id, cook_id, fulfillment, pickup_time, ready_by_date, event_date, delivery_address, contact_name, contact_phone, contact_email, notes, subtotal_cents, total_cents, stripe_payment_intent_id, order_items(title, quantity)"
       )
       .eq("id", orderId)
       .maybeSingle();
@@ -254,8 +254,11 @@ async function notifyOrderConfirmed(
       // The snapshotted date is the HANDOFF day (ready-by pushed to the
       // kitchen's next pickup day) — "For Saturday, August 15" reads right in
       // both emails: the chef preps for it, the buyer receives on it.
-      const readyByLine = order.ready_by_date
-        ? `<p><strong>For:</strong> ${formatDateLong(order.ready_by_date)}</p>`
+      // A buyer-stated event date (delivery) beats the computed ready-by —
+      // the computed date caps at ~2 weeks and is wrong for far-out events.
+      const forDate = order.event_date ?? order.ready_by_date;
+      const readyByLine = forDate
+        ? `<p><strong>For:</strong> ${formatDateLong(forDate)}</p>`
         : "";
       // Stripe payment reference — the buyer can quote this to us for any
       // question about the charge, and it's directly searchable in Stripe.

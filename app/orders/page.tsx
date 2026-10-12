@@ -40,7 +40,7 @@ export default async function BuyerOrdersPage() {
   const { data: orders } = await supabase
     .from("orders")
     .select(
-      "id, status, fulfillment, pickup_time, ready_by_date, delivery_address, total_cents, created_at, cook_id, cooks(business_name, slug, city, profile_id), order_items(title, quantity, line_total_cents), reviews(rating, comment)"
+      "id, status, fulfillment, pickup_time, ready_by_date, event_date, delivery_address, total_cents, created_at, cook_id, cooks(business_name, slug, city, profile_id), order_items(title, quantity, line_total_cents), reviews(rating, comment)"
     )
     .eq("buyer_id", user.id)
     .neq("status", "pending")
@@ -160,11 +160,11 @@ export default async function BuyerOrdersPage() {
 
                 {showHandoff && (
                   <div className="mt-3 space-y-0.5 border-t border-line pt-3 text-sm">
-                    {o.ready_by_date && (
+                    {(o.event_date ?? o.ready_by_date) && (
                       <p className="text-ink">
                         <span className="text-faint">Get it: </span>
                         <span className="font-medium">
-                          {formatDateLong(o.ready_by_date)}
+                          {formatDateLong(o.event_date ?? o.ready_by_date)}
                         </span>
                       </p>
                     )}

@@ -12,6 +12,7 @@ import {
 } from "@/lib/availability";
 import AddToCart from "@/components/add-to-cart";
 import CartBar from "@/components/cart-bar";
+import { splitFeedsFromTitle } from "@/lib/menu-display";
 import AvailabilityPill from "@/components/availability-pill";
 import FeeNote from "@/components/fee-note";
 import PhotoGallery from "@/components/photo-gallery";
@@ -148,7 +149,14 @@ export default async function ListingPage({
         <PhotoGallery urls={galleryUrls} alt={listing.title} />
 
         <div>
-          <h1 className="text-2xl font-semibold text-ink">{listing.title}</h1>
+          <h1 className="text-2xl font-semibold text-ink">
+            {splitFeedsFromTitle(listing.title).title}
+          </h1>
+          {splitFeedsFromTitle(listing.title).feeds && (
+            <span className="mt-1.5 inline-flex items-center rounded-full border border-line bg-bg px-2.5 py-0.5 text-xs font-medium text-muted">
+              {splitFeedsFromTitle(listing.title).feeds}
+            </span>
+          )}
           {!hasOptions && (
             <>
               <p className="mt-1 text-xl font-semibold text-ink">

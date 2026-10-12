@@ -4,7 +4,7 @@ Every schema change to the ForkFork Supabase project has been applied **by hand*
 the Supabase SQL editor — this project does not use the Supabase CLI migration system.
 This file is the canonical record of what was run, in what order, and whether it's live.
 
-**Status: 42 of 42 applied.** (#41's "not yet run" flag was stale — the production `waitlist` table provably exists and holds rows; ledger corrected 2026-10-11 during the state audit.) Original note: #41 (`add-waitlist.sql`) —
+**Status: 43 of 43 applied.** (#41's "not yet run" flag was stale — the production `waitlist` table provably exists and holds rows; ledger corrected 2026-10-11 during the state audit.) Original note: #41 (`add-waitlist.sql`) —
 paste it into the Supabase SQL editor before/with the waitlist PR deploy (the browse
 empty-state form + admin count read/write the new table). #40 (`add-order-refunded.sql`) run by hand in the Supabase
 SQL editor on 2026-08-04 (paired with the admin-refund PR #90). #39
@@ -116,6 +116,7 @@ Project ref: `jycefrvkqybadwupokdn` (Santa Clara County pilot)
 | 40 | `add-order-refunded.sql` | Adds `orders.refunded_at timestamptz` — the marker behind the admin one-click refund (`app/admin/actions.ts refundOrder`, which calls Stripe with reverse_transfer + refund_application_fee so a destination-charge refund is always correct). It's a marker, not a status change: idempotent (blocks a second refund), and a refund on an already-completed order keeps its fulfilled history. Written only by the service-role admin action (bypasses the orders guard; not in any end-user allow-list). Additive; no RLS change. Code reads/writes the column, so **run with/before the deploy**. | ✅ |
 | 41 | `add-waitlist.sql` | New `waitlist` table (buyer demand capture for the pre-launch / thin-supply browse page): `email` (unique), optional `zip`/`city`, server-set `source`, `created_at`. SERVICE-ROLE ONLY — RLS on, **zero policies**, exactly like `payouts` / `cook_stripe`, so the anon/authenticated keys can't read (scrape emails) or write it. The "Get notified" empty-state form posts to a server action (`app/browse/actions.ts joinWaitlist`) that upserts via the service role (ON CONFLICT DO NOTHING → re-submit is idempotent); admin count + `/admin/waitlist/export` CSV read via the service role. Additive; no other tables touched. Code reads/writes the table, so **run with/before the deploy** (until it exists the form insert errors, caught and shown as "try again"). ✅ applied (verified in prod 2026-10-11 — table live with 18 rows since Aug 2026; ledger was stale). | ✅ |
 | 42 | `add-cook-tagline.sql` | `cooks.tagline` (one-line storefront intro, cook-editable) + re-issue `enforce_cook_update_rules` (#39 body + 'tagline' in editable[]). Additive; code falls back to the bio's first sentence when empty. Run BEFORE the chef-strip deploy. ✅ Applied + verified live 2026-10-12 (column reads via REST; 40 Acres tagline seeded from her own bio sentence). | ✅ |
+| 43 | `add-order-event-date.sql` | `orders.event_date` (buyer-stated delivery/event date; optional, delivery checkout only; all order surfaces prefer it over the computed `ready_by_date`). Additive. Run BEFORE the event-date deploy. ✅ Applied + verified live 2026-10-12. | ✅ |
 
 ## Replaying on a fresh database
 

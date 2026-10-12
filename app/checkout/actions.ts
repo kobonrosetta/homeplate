@@ -12,6 +12,9 @@ import {
   isOrderable,
   pacificTodayIso,
   parsePickupDays,
+  isIsoDate,
+  addDaysIso,
+  formatDateLong,
 } from "@/lib/availability";
 import {
   deriveUnitPrice,
@@ -81,6 +84,7 @@ export async function startCheckout(formData: FormData) {
     .trim()
     .slice(0, 300);
   const notes = String(formData.get("notes") ?? "").trim().slice(0, 500);
+  const eventDateRaw = String(formData.get("event_date") ?? "").trim();
 
   const err = (to: string, msg: string) =>
     redirect(`${to}?error=${encodeURIComponent(msg)}`);
@@ -92,6 +96,27 @@ export async function startCheckout(formData: FormData) {
   if (fulfillment === "delivery" && !deliveryAddress)
     err("/checkout", "A delivery address is required.");
 
+
+  // Buyer-stated event date (delivery only, optional): must be a real date,
+  // not in the past, and inside a sane horizon. This is the date every
+  // confirmation shows, so garbage here becomes a printed promise.
+  let eventDate: string | null = null;
+  if (fulfillment === "delivery" && eventDateRaw) {
+    const todayPt = pacificTodayIso();
+    if (!isIsoDate(eventDateRaw)) {
+      err("/checkout", "That event date doesn\u2019t look right \u2014 pick it again.");
+    }
+    if (eventDateRaw < todayPt) {
+      err("/checkout", "That event date is in the past \u2014 double-check it.");
+    }
+    if (eventDateRaw > addDaysIso(todayPt, 60)) {
+      err(
+        "/checkout",
+        "Event dates can be at most 60 days out \u2014 for further-ahead events, message the kitchen."
+      );
+    }
+    eventDate = eventDateRaw;
+  }
   // Authoritative prices — re-read from the DB, never trust the client.
   const ids = requested.map((r) => r.listingId);
   const { data: listings } = await supabase
@@ -294,6 +319,18 @@ export async function startCheckout(formData: FormData) {
     }
     if (!orderReadyBy || rb! > orderReadyBy) orderReadyBy = rb!;
   }
+  // The buyer-stated event date must be one the kitchen can actually hit:
+  // an event date EARLIER than the computed lead-time floor would otherwise
+  // become the printed promise in every email and order surface (event_date
+  // wins over ready_by_date everywhere). Review blocker on this batch.
+  if (eventDate && orderReadyBy && eventDate < orderReadyBy) {
+    err(
+      "/checkout",
+      `This kitchen needs until ${formatDateLong(
+        orderReadyBy
+      )} to make these items \u2014 pick that date or later, or trim the cart.`
+    );
+  }
 
   const subtotal = items.reduce((n, i) => n + i.line_total_cents, 0);
   const fee = calcServiceFeeCents(subtotal);
@@ -318,6 +355,7 @@ export async function startCheckout(formData: FormData) {
       total_cents: total,
       pickup_time: fulfillment === "pickup" ? pickupTime || null : null,
       ready_by_date: orderReadyBy,
+      event_date: eventDate,
       delivery_address: fulfillment === "delivery" ? deliveryAddress : null,
       contact_name: contactName || null,
       contact_phone: contactPhone || null,

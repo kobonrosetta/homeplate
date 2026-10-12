@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
+import { splitFeedsFromTitle } from "@/lib/menu-display";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCart, lineKey } from "@/components/cart-context";
@@ -91,7 +92,14 @@ export default function CartPage() {
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <p className="font-medium text-ink">{i.title}</p>
+              <p className="font-medium text-ink">
+                {splitFeedsFromTitle(i.title).title}
+                {splitFeedsFromTitle(i.title).feeds && (
+                  <span className="ml-2 text-xs font-normal text-muted">
+                    {splitFeedsFromTitle(i.title).feeds}
+                  </span>
+                )}
+              </p>
               {i.optionsLabel && (
                 <p className="text-xs text-faint">{i.optionsLabel}</p>
               )}

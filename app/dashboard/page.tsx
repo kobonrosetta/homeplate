@@ -210,6 +210,23 @@ export default async function DashboardOverview() {
 
   return (
     <div className="space-y-6">
+      {/* The storefront hero auto-picks the newest dish photo until a cover is
+          set — which can be a blurry crop. Nudge until the cook chooses one. */}
+      {!cook.cover_url && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <span className="font-medium">
+            Your storefront&rsquo;s first impression is picked automatically.
+          </span>{" "}
+          Choose a cover photo in{" "}
+          <Link
+            href="/dashboard/settings"
+            className="font-medium underline underline-offset-2"
+          >
+            Settings
+          </Link>{" "}
+          to control what buyers see first.
+        </p>
+      )}
       {cook.status === "pending" && (
         <p className="rounded-lg bg-brand/10 px-4 py-3 text-sm text-brand">
           Build your menu now. It goes live the moment you&apos;re approved and
