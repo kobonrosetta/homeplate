@@ -11,6 +11,7 @@ import {
   pacificTodayIso,
 } from "@/lib/availability";
 import AddToCart from "@/components/add-to-cart";
+import CartBar from "@/components/cart-bar";
 import AvailabilityPill from "@/components/availability-pill";
 import FeeNote from "@/components/fee-note";
 import PhotoGallery from "@/components/photo-gallery";
@@ -262,6 +263,7 @@ export default async function ListingPage({
           </div>
         </div>
       </div>
+      <CartBar />
     </main>
   );
 }
