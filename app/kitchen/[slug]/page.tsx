@@ -18,7 +18,6 @@ import {
   cookTagline,
 } from "@/lib/menu-display";
 import CartBar from "@/components/cart-bar";
-import BioClamp from "@/components/bio-clamp";
 import FeeNote from "@/components/fee-note";
 import FollowToggle from "@/components/follow-toggle";
 import ReviewsSection from "@/components/reviews-section";
@@ -633,10 +632,9 @@ export default async function KitchenPage({
               {joinedLabel ? ` · on ForkFork since ${joinedLabel}` : ""}
             </p>
             {cook.bio && (
-              <BioClamp
-                text={cook.bio}
-                className="mt-3 max-w-2xl"
-              />
+              <p className="mt-3 max-w-2xl whitespace-pre-line leading-relaxed text-ink">
+                {cook.bio}
+              </p>
             )}
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
               {cook.permit_verified && (
