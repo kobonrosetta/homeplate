@@ -10,9 +10,36 @@ strategy; this is the operational tool.
 - **`build-crm.mjs`** — regenerates the CSV. Re-run any time to refresh as the
   county updates its lists: `node gtm/build-crm.mjs`
 
-> ⚠️ Once you start filling in contacts/status, **do it in a Google Sheets copy**
-> (File → Import → upload the CSV), not the CSV itself — re-running the script
-> overwrites the file with fresh blank contact columns.
+- **`contacts-researched.csv`** — the researched contact channels (agent
+  research pass, Oct 2026): every MEHKO operator with permit #, confidence
+  (HIGH / MEDIUM / LOW / GHOST), social, best contact, and a one-line note.
+  **This file is the system of record for contacts.**
+
+> ✅ Re-running `build-crm.mjs` is now safe: it refreshes the county data AND
+> merges `contacts-researched.csv` back in by permit number, so a refresh can
+> no longer wipe outreach research. (It used to blank the contact columns —
+> hence the old "work in a Google Sheets copy" warning.) Status / Last
+> contacted / your own notes still live only in the CSV, so if you track those,
+> keep a Sheets copy or add them to the research file.
+
+## Contact research (Oct 17 2026)
+All **182 MEHKO** (hot-meal) operators in the county were researched by an
+agent sweep — Instagram, Google Maps, Yelp, Facebook, TikTok and the open web —
+with a second adversarial pass verifying each match against name, city and
+food type so a same-named business in another city never gets contacted by
+mistake. Result:
+
+| Confidence | Count | What it means |
+|---|---|---|
+| HIGH | 40 | Contact now — match verified against city + food type |
+| MEDIUM | 11 | Plausible: open the evidence link and eyeball it first |
+| LOW | 2 | Probably the wrong business — treat as unresearched |
+| GHOST | 124 | No findable web presence (word-of-mouth cooks; the exact gap ForkFork fills) |
+
+Findability drops sharply with permit age: the 40 newest permits yielded a
+~58% hit rate, the older 142 about 20%. **New names on the weekly permit
+refresh are the warmest and most reachable leads — work them while they're
+fresh.** Cottage bakers (318) are not yet researched.
 
 ## How it's prioritized
 Sorted by **Tier**, active permits first:
