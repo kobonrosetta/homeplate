@@ -308,7 +308,13 @@ export default async function AdminKitchenPage({
                 </div>
                 <div className="mt-1 flex items-center justify-between gap-3">
                   <p className="text-xs text-faint">
-                    cook keeps {formatUsd(o.subtotal_cents)} ·{" "}
+                    {/* Same short id the cook's dashboard shows, so a cook's
+                        "please reinstate #a7fa4e45" can be matched by eye. */}
+                    <span className="font-mono text-ink/80">
+                      #{String(o.id).slice(0, 8)}
+                    </span>
+                    {o.contact_name ? ` · ${o.contact_name}` : ""} · cook keeps{" "}
+                    {formatUsd(o.subtotal_cents)} ·{" "}
                     {new Date(o.created_at).toLocaleDateString()} ·{" "}
                     {o.fulfillment}
                   </p>
