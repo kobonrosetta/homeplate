@@ -3,6 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useCart, type LiveListing } from "@/components/cart-context";
+import {
+  availabilityFromListing,
+  computeReadyBy,
+  isOrderable,
+  pacificTodayIso,
+} from "@/lib/availability";
 
 // Carts live in localStorage indefinitely, so a saved item's price or
 // availability can drift from what the kitchen sells today. On mount, check
@@ -10,7 +16,14 @@ import { useCart, type LiveListing } from "@/components/cart-context";
 // changed — so the total they see is the total Stripe will charge.
 // (The server re-checks at checkout regardless; this keeps that bounce from
 // ever looping, because the cart has already healed itself.)
-export default function CartSync() {
+// `onReadyBy` (optional) receives the cart's lead-time floor — the latest
+// ready-by date across its lines, before any handoff-day push — so the
+// checkout date picker can start where the kitchen can actually deliver.
+export default function CartSync({
+  onReadyBy,
+}: {
+  onReadyBy?: (iso: string | null) => void;
+} = {}) {
   const { cart, loaded, reconcile } = useCart();
   const [notice, setNotice] = useState<string | null>(null);
   const ran = useRef(false);
@@ -24,7 +37,9 @@ export default function CartSync() {
     const supabase = createClient();
     const listingsQ = supabase
       .from("listings")
-      .select("id, title, price_cents")
+      .select(
+        "id, title, price_cents, fulfillment_mode, lead_days, ready_date, order_by"
+      )
       .in("id", ids)
       .eq("is_available", true);
     // Option deltas are public menu data — lines with options heal their
@@ -66,9 +81,25 @@ export default function CartSync() {
         if (changed.length)
           parts.push(`price updated: ${changed.join(", ")}`);
         if (parts.length) setNotice(`We updated your cart: ${parts.join("; ")}.`);
+        // The lead-time floor for what's actually in the cart, from the same
+        // live rows: latest ready-by across lines, mirroring the server's
+        // orderReadyBy before its handoff-day push (the form applies that
+        // per chosen window). Unorderable lines contribute nothing — the
+        // server bounces those to the cart anyway.
+        if (onReadyBy) {
+          const today = pacificTodayIso();
+          let floor: string | null = null;
+          for (const l of data as any[]) {
+            if (!ids.includes(l.id)) continue;
+            const a = availabilityFromListing(l);
+            const rb = isOrderable(a, today) ? computeReadyBy(a, today) : null;
+            if (rb && (!floor || rb > floor)) floor = rb;
+          }
+          onReadyBy(floor);
+        }
       }
     );
-  }, [loaded, cart, reconcile]);
+  }, [loaded, cart, reconcile, onReadyBy]);
 
   if (!notice) return null;
   return (

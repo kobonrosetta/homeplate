@@ -38,6 +38,8 @@ import {
   pickupDaysLabel,
   nextHandoffIso,
   computeGetIt,
+  pickupDatesFrom,
+  isoDayOfWeek,
 } from "../lib/availability";
 import {
   MENU_SECTIONS,
@@ -416,6 +418,33 @@ check("parsePickupDays: one unreadable window → null (schedule unknown)", () =
 check("parsePickupDays: day words don't fire inside other words", () => {
   assert.equal(parsePickupDays(["saturated market hours"]), null);
   assert.equal(parsePickupDays(["sunset pickups"]), null);
+});
+
+// ---- pre-booked pickup dates (checkout "Pickup date" picker) ----
+// 2026-10-18 is a SUNDAY.
+
+check("pickupDatesFrom: Chef Q's live windows → only Sat/Sun dates, inclusive horizon", () => {
+  const days = parsePickupDays(["Saturdays 2PM-5PM", "Sundays.  2PM to 5 PM"]);
+  assert.deepEqual([...days!].sort(), [0, 6]);
+  assert.deepEqual(pickupDatesFrom("2026-10-18", days, 14), [
+    "2026-10-18",
+    "2026-10-24",
+    "2026-10-25",
+    "2026-10-31",
+    "2026-11-01",
+  ]);
+});
+check("pickupDatesFrom: unknown or empty schedule → no choices (free date input)", () => {
+  assert.deepEqual(pickupDatesFrom("2026-10-18", null, 30), []);
+  assert.deepEqual(pickupDatesFrom("2026-10-18", new Set<number>(), 30), []);
+});
+check("pickupDatesFrom: horizon bound is inclusive of the last day", () => {
+  assert.deepEqual(pickupDatesFrom("2026-10-18", new Set([0]), 7), ["2026-10-18", "2026-10-25"]);
+  assert.deepEqual(pickupDatesFrom("2026-10-18", new Set([0]), 6), ["2026-10-18"]);
+});
+check("pickupDatesFrom: a Thursday never appears for a weekend-only kitchen (server rule mirror)", () => {
+  const days = parsePickupDays(["Saturdays 2PM-5PM"]);
+  for (const d of pickupDatesFrom("2026-10-18", days, 90)) assert.equal(isoDayOfWeek(d), 6);
 });
 check("menu sections: 40 Acres' real naming maps cleanly", () => {
   assert.equal(menuSectionFor("BUFFET-STYLE: SHRIMP, CHICKEN & SAUSAGE JAMBALAYA (FEEDS 18-20)"), "trays");

@@ -5,7 +5,19 @@ import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { useCart } from "@/components/cart-context";
 import CartSync from "@/components/cart-sync";
-import { calcServiceFeeCents, formatUsd } from "@/lib/constants";
+import {
+  calcServiceFeeCents,
+  formatUsd,
+  MAX_EVENT_DAYS_OUT,
+} from "@/lib/constants";
+import {
+  addDaysIso,
+  formatDateShort,
+  nextHandoffIso,
+  pacificTodayIso,
+  parsePickupDays,
+  pickupDatesFrom,
+} from "@/lib/availability";
 import { startCheckout } from "@/app/checkout/actions";
 import { track } from "@/lib/analytics";
 
@@ -25,18 +37,22 @@ export default function CheckoutForm({
 }) {
   const { cart, loaded, subtotalCents } = useCart();
   const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
-  // Picker hints only (server re-validates in Pacific): set after mount so
-  // SSR and hydration agree — new Date() in render would differ between the
-  // UTC server and the browser.
-  const [dateMin, setDateMin] = useState("");
-  const [dateMax, setDateMax] = useState("");
+  // Picker hints only (server re-validates): set after mount so SSR and
+  // hydration agree — a date computed during render would differ between the
+  // UTC server and the browser. Pacific on purpose, matching the server's
+  // notion of "today" so the picker never offers a date Pay then rejects.
+  const [todayIso, setTodayIso] = useState("");
   useEffect(() => {
-    const d = new Date();
-    setDateMin(d.toLocaleDateString("en-CA"));
-    const m = new Date();
-    m.setDate(m.getDate() + 60);
-    setDateMax(m.toLocaleDateString("en-CA"));
+    setTodayIso(pacificTodayIso());
   }, []);
+  const dateMin = todayIso;
+  const dateMax = todayIso ? addDaysIso(todayIso, MAX_EVENT_DAYS_OUT) : "";
+  // Which pickup window the buyer chose (null = the first one). Controlled so
+  // the date choices below can follow the window's days.
+  const [pickupChoice, setPickupChoice] = useState<string | null>(null);
+  // The cart's lead-time floor, reported by CartSync from the live listings:
+  // the earliest date these dishes can be ready, before any handoff-day push.
+  const [readyBy, setReadyBy] = useState<string | null>(null);
 
   // Don't flash "your cart is empty" before localStorage has been read.
   if (!loaded) return null;
@@ -65,12 +81,33 @@ export default function CheckoutForm({
     optionIds: i.optionIds ?? [],
   }));
 
+  const windows = cart.cook.pickupWindows ?? [];
+  const pickupTime = pickupChoice ?? windows[0] ?? "";
+  // Days the chosen window runs (falling back to the union of all windows,
+  // exactly like the server); null when the schedule can't be read.
+  const windowDays = pickupTime
+    ? parsePickupDays([pickupTime]) ?? parsePickupDays(windows)
+    : null;
+  // Earliest date the picker may offer: the cart's lead-time floor, never
+  // before today. The server re-checks both, so this only keeps the common
+  // case from bouncing at Pay.
+  const floor =
+    readyBy && todayIso && readyBy > todayIso ? readyBy : todayIso;
+  const pickupDates =
+    todayIso && windowDays
+      ? pickupDatesFrom(todayIso, windowDays, MAX_EVENT_DAYS_OUT).filter(
+          (d) => d >= floor
+        )
+      : [];
+  const soonest =
+    todayIso && windowDays ? nextHandoffIso(floor, windowDays) ?? floor : floor;
+
   // Plain server-action form: clicking Pay calls startCheckout directly (React
   // handles the submit). Guest sign-in now happens server-side, so there's no
   // client-side auth step that can hang.
   return (
     <>
-      <CartSync />
+      <CartSync onReadyBy={setReadyBy} />
       <form
         action={startCheckout}
         onSubmit={() =>
@@ -150,34 +187,81 @@ export default function CheckoutForm({
       </div>
 
       {fulfillment === "pickup" ? (
-        (cart.cook.pickupWindows ?? []).length > 0 ? (
-          // The cook set their pickup schedule — buyers choose a window
-          // instead of proposing a time the cook never agreed to.
-          <Field label="Pickup time">
-            <select name="pickup_time" className={INPUT}>
-              {(cart.cook.pickupWindows ?? []).map((w) => (
-                <option key={w} value={w}>
-                  {w}
+        <>
+          {windows.length > 0 ? (
+            // The cook set their pickup schedule — buyers choose a window
+            // instead of proposing a time the cook never agreed to.
+            <Field label="Pickup time">
+              <select
+                name="pickup_time"
+                className={INPUT}
+                value={pickupTime}
+                onChange={(e) => setPickupChoice(e.target.value)}
+              >
+                {windows.map((w) => (
+                  <option key={w} value={w}>
+                    {w}
+                  </option>
+                ))}
+                <option value="">Another time (I&apos;ll arrange it with the kitchen)</option>
+              </select>
+              <p className="mt-1 text-xs text-faint">
+                We&apos;ll email you the pickup address after you pay.
+              </p>
+            </Field>
+          ) : (
+            <Field label="Preferred pickup time (optional)">
+              <input
+                name="pickup_time"
+                placeholder="e.g. Saturday afternoon"
+                className={INPUT}
+              />
+              <p className="mt-1 text-xs text-faint">
+                We&apos;ll email you the pickup address after you pay.
+              </p>
+            </Field>
+          )}
+          {pickupTime && pickupDates.length > 0 ? (
+            // The window's days are known: offer only dates it actually runs,
+            // from the cart's lead-time floor forward. Keyed on the window so
+            // switching Sat→Sun resets the choice instead of keeping a Saturday.
+            <Field label="Pickup date">
+              <select
+                key={pickupTime}
+                name="event_date"
+                className={INPUT}
+                defaultValue=""
+              >
+                <option value="">
+                  Soonest available{soonest ? ` (${formatDateShort(soonest)})` : ""}
                 </option>
-              ))}
-              <option value="">Another time (I&apos;ll arrange it with the kitchen)</option>
-            </select>
-            <p className="mt-1 text-xs text-faint">
-              We&apos;ll email you the pickup address after you pay.
-            </p>
-          </Field>
-        ) : (
-          <Field label="Preferred pickup time (optional)">
-            <input
-              name="pickup_time"
-              placeholder="e.g. Saturday afternoon"
-              className={INPUT}
-            />
-            <p className="mt-1 text-xs text-faint">
-              We&apos;ll email you the pickup address after you pay.
-            </p>
-          </Field>
-        )
+                {pickupDates.map((d) => (
+                  <option key={d} value={d}>
+                    {formatDateShort(d)}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-faint">
+                Ordering ahead for a party or a holiday? Pick the day &mdash; your
+                confirmation will show it.
+              </p>
+            </Field>
+          ) : (
+            <Field label="Pickup date (optional)">
+              <input
+                name="event_date"
+                type="date"
+                min={floor || undefined}
+                max={dateMax || undefined}
+                className={INPUT}
+              />
+              <p className="mt-1 text-xs text-faint">
+                Ordering ahead for a party or a holiday? Pick the day &mdash; your
+                confirmation will show it.
+              </p>
+            </Field>
+          )}
+        </>
       ) : (
         <>
           <Field label="Delivery address">

@@ -329,6 +329,25 @@ export function nextHandoffIso(
   return null;
 }
 
+// Every date from `fromIso` through `fromIso + horizonDays` (inclusive) that
+// lands on one of `days` — the choices a checkout "Pickup date" picker offers
+// when the kitchen's weekly schedule parsed. Unknown/empty schedule → [] and
+// callers fall back to a free date input.
+export function pickupDatesFrom(
+  fromIso: string,
+  days: Set<number> | null | undefined,
+  horizonDays: number
+): string[] {
+  if (!days || days.size === 0) return [];
+  const out: string[] = [];
+  let cur = fromIso;
+  for (let i = 0; i <= horizonDays; i++) {
+    if (days.has(isoDayOfWeek(cur))) out.push(cur);
+    cur = addDaysIso(cur, 1);
+  }
+  return out;
+}
+
 // The date the buyer can actually RECEIVE the dish — the ready-by date pushed
 // forward to the kitchen's next handoff day. This is the ONE number every
 // buyer surface shows ("Get it Saturday"), so glance/cart/checkout/email can
