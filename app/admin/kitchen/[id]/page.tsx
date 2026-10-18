@@ -334,9 +334,11 @@ export default async function AdminKitchenPage({
                           <input type="hidden" name="cook_id" value={cook.id} />
                           <ConfirmSubmit
                             className="whitespace-nowrap rounded-full border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
-                            message={`Reinstate this ${formatUsd(
+                            message={`Reinstate order #${String(o.id).slice(0, 8)} — ${
+                              o.contact_name ? `${o.contact_name}'s ` : ""
+                            }${formatUsd(
                               o.total_cents
-                            )} order? It returns to the cook's dashboard as "Confirmed", limited stock is re-deducted, and the buyer is emailed that their order is back on. Only do this when the cook cancelled by mistake.`}
+                            )} ${o.fulfillment} order? It returns to the cook's dashboard as "Confirmed", limited stock is re-deducted, and the buyer is emailed that their order is back on. Only do this when the cook cancelled by mistake.`}
                           >
                             Reinstate
                           </ConfirmSubmit>
@@ -347,9 +349,11 @@ export default async function AdminKitchenPage({
                         <input type="hidden" name="cook_id" value={cook.id} />
                         <ConfirmSubmit
                           className="whitespace-nowrap rounded-full border border-red-200 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
-                          message={`Fully refund ${formatUsd(
+                          message={`Fully refund order #${String(o.id).slice(0, 8)} — ${formatUsd(
                             o.total_cents
-                          )} to the buyer? This reverses the cook's transfer and returns your service fee. Can't be undone.`}
+                          )} back to ${
+                            o.contact_name || "the buyer"
+                          }? This reverses the cook's transfer and returns your service fee. Can't be undone.`}
                         >
                           Refund
                         </ConfirmSubmit>
