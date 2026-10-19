@@ -6,6 +6,7 @@ import { SITE_URL, formatUsd } from "@/lib/constants";
 import ShareLink from "@/components/share-link";
 import EmptyState from "@/components/empty-state";
 import { sectionedMenuIds } from "@/lib/menu-display";
+import { isListingOpen, pacificTodayIso } from "@/lib/availability";
 import {
   MONTH_NAMES,
   formatDueDate,
@@ -35,7 +36,9 @@ export default async function DashboardOverview() {
     await Promise.all([
       supabase
         .from("listings")
-        .select("id, title, kind, is_available, limited_quantity, quantity_available")
+        .select(
+          "id, title, kind, is_available, limited_quantity, quantity_available, fulfillment_mode, lead_days, ready_date, order_by"
+        )
         .eq("cook_id", cook.id),
       // Refunded orders (refunded_at set) are excluded from earnings + tasks —
       // a refunded sale isn't income.
@@ -71,10 +74,18 @@ export default async function DashboardOverview() {
   const visible = items.filter((l: any) => l.is_available).length;
   // A sectioned menu with buffet trays gets a second share link that opens
   // the storefront straight at #trays — the one to hand catering clients.
+  // Same open-dish rule as the storefront: sold-out trays or preorders past
+  // their cutoff aren't rendered there, so no link to a #trays that isn't.
+  const todayIso = pacificTodayIso();
   const hasTraysSection = (
     sectionedMenuIds(
       items
-        .filter((l: any) => l.is_available && (l.kind ?? "dish") === "dish")
+        .filter(
+          (l: any) =>
+            l.is_available &&
+            (l.kind ?? "dish") === "dish" &&
+            isListingOpen(l, todayIso)
+        )
         .map((l: any) => l.title)
     ) ?? []
   ).includes("trays");

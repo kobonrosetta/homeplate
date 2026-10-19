@@ -41,6 +41,7 @@ import {
   pickupDatesFrom,
   isoDayOfWeek,
   pickupDaysSentence,
+  isListingOpen,
 } from "../lib/availability";
 import {
   MENU_SECTIONS,
@@ -572,6 +573,18 @@ check("groupSizeVariants: must-not-merge cases (a wrong merge hides a dish)", ()
   assert.equal(groupSizeVariants(t(["TRAY X (FEEDS 8-10)", "TRAY X"])).length, 2);
   // Plates are never grouped by the page, but the helper alone is still safe on them.
   assert.equal(groupSizeVariants(t(Q_PLATES)).length, Q_PLATES.length);
+});
+check("isListingOpen: storefront and dashboard share one open-dish rule", () => {
+  const today = "2026-10-19";
+  assert.equal(isListingOpen({ fulfillment_mode: "lead_time", lead_days: 2 }, today), true);
+  assert.equal(isListingOpen({ fulfillment_mode: "lead_time", lead_days: 2, limited_quantity: true, quantity_available: 0 }, today), false);
+  assert.equal(isListingOpen({ fulfillment_mode: "lead_time", lead_days: 2, limited_quantity: true, quantity_available: null }, today), false);
+  assert.equal(isListingOpen({ fulfillment_mode: "lead_time", lead_days: 2, limited_quantity: true, quantity_available: 3 }, today), true);
+  // A Thanksgiving preorder past its order-by cutoff is closed.
+  assert.equal(isListingOpen({ fulfillment_mode: "preorder", ready_date: "2026-11-25", order_by: "2026-10-18" }, today), false);
+  // Open preorder inside the 30-day preorder horizon (Nov 25 would still be
+  // too far out on Oct 19 — existing rule, not a closed dish).
+  assert.equal(isListingOpen({ fulfillment_mode: "preorder", ready_date: "2026-11-10", order_by: "2026-11-05" }, today), true);
 });
 check("feedsRange: trays bridge reads 'for 8–20 people'", () => {
   assert.equal(feedsRange(Q_TRAYS), "8–20");

@@ -7,7 +7,7 @@ import { track } from "@/lib/analytics";
 export default function AddToCart({
   cook,
   item,
-  ariaLabel,
+  context,
 }: {
   cook: CartCook;
   item: {
@@ -18,9 +18,11 @@ export default function AddToCart({
     optionIds?: string[];
     optionsLabel?: string;
   };
-  /** Names what gets added when the visible "Add to cart" alone is ambiguous
-   *  (e.g. one row per size inside a grouped dish card). */
-  ariaLabel?: string;
+  /** Screen-reader-only text appended to the visible label when "Add to cart"
+   *  alone is ambiguous (one row per size in a grouped card). Appended, not an
+   *  aria-label, so the accessible name still starts with what's on screen
+   *  and still changes to "Added ✓" (WCAG 2.5.3). */
+  context?: string;
 }) {
   const { cart, addItem } = useCart();
   const [added, setAdded] = useState(false);
@@ -49,7 +51,6 @@ export default function AddToCart({
     <>
       <button
         onClick={handleAdd}
-        aria-label={ariaLabel}
         aria-live="polite"
         className={`rounded-full px-4 py-2 text-sm font-medium text-white transition-all duration-200 ${
           added
@@ -58,6 +59,7 @@ export default function AddToCart({
         }`}
       >
         {added ? "Added ✓" : "Add to cart"}
+        {context && <span className="sr-only">: {context}</span>}
       </button>
 
       {confirmReplace && cart && (
