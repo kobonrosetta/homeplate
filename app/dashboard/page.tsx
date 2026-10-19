@@ -5,6 +5,7 @@ import { getCurrentCook } from "@/lib/cook";
 import { SITE_URL, formatUsd } from "@/lib/constants";
 import ShareLink from "@/components/share-link";
 import EmptyState from "@/components/empty-state";
+import { sectionedMenuIds } from "@/lib/menu-display";
 import {
   MONTH_NAMES,
   formatDueDate,
@@ -34,7 +35,7 @@ export default async function DashboardOverview() {
     await Promise.all([
       supabase
         .from("listings")
-        .select("id, is_available, limited_quantity, quantity_available")
+        .select("id, title, kind, is_available, limited_quantity, quantity_available")
         .eq("cook_id", cook.id),
       // Refunded orders (refunded_at set) are excluded from earnings + tasks —
       // a refunded sale isn't income.
@@ -68,6 +69,15 @@ export default async function DashboardOverview() {
   const items = listings ?? [];
   const totalListings = items.length;
   const visible = items.filter((l: any) => l.is_available).length;
+  // A sectioned menu with buffet trays gets a second share link that opens
+  // the storefront straight at #trays — the one to hand catering clients.
+  const hasTraysSection = (
+    sectionedMenuIds(
+      items
+        .filter((l: any) => l.is_available && (l.kind ?? "dish") === "dish")
+        .map((l: any) => l.title)
+    ) ?? []
+  ).includes("trays");
   const soldOut = items.filter(
     (l: any) =>
       l.is_available && l.limited_quantity && (l.quantity_available ?? 0) <= 0
@@ -273,6 +283,23 @@ export default async function DashboardOverview() {
               showUrl
             />
           </div>
+          {hasTraysSection && (
+            <div className="mt-4 border-t border-line pt-4">
+              <p className="text-sm font-medium text-ink">Catering link</p>
+              <p className="mt-1 text-sm text-muted">
+                Opens your storefront straight to your buffet trays. Send this
+                one to party and event clients.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <ShareLink
+                  url={`${SITE_URL}/kitchen/${cook.slug}#trays`}
+                  text={`Catering trays from ${cook.business_name} on ForkFork`}
+                  label="Share catering link"
+                  showUrl
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
