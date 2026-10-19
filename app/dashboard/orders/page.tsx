@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getCurrentCook } from "@/lib/cook";
 import { createClient } from "@/lib/supabase/server";
 import { formatUsd, formatPhone, SITE_URL } from "@/lib/constants";
-import { formatDateLong } from "@/lib/availability";
+import { formatDateLong, pacificTodayIso } from "@/lib/availability";
 import { advanceOrder } from "./actions";
 import ConfirmSubmit from "@/components/confirm-submit";
 import { cancelPaymentRequest } from "./request-actions";
@@ -47,7 +47,7 @@ export default async function OrdersPage({
   const { data: orders } = await supabase
     .from("orders")
     .select(
-      "id, status, fulfillment, subtotal_cents, service_fee_cents, total_cents, pickup_time, ready_by_date, event_date, notes, contact_name, contact_phone, delivery_address, created_at, order_items(title, quantity, unit_price_cents, line_total_cents)"
+      "id, status, fulfillment, subtotal_cents, service_fee_cents, total_cents, pickup_time, ready_by_date, event_date, notes, contact_name, contact_phone, delivery_address, created_at, custom_request_id, order_items(title, quantity, unit_price_cents, line_total_cents)"
     )
     .eq("cook_id", cook!.id)
     .neq("status", "pending")
@@ -60,6 +60,42 @@ export default async function OrdersPage({
   const past = list.filter(
     (o: any) => o.status === "completed" || o.status === "cancelled"
   );
+  // Active orders read as a prep calendar: soonest handoff first (the
+  // buyer-chosen date wins over the computed ready-by, as on every other
+  // surface), grouped under day headers, date-less pay-link orders last.
+  const todayIso = pacificTodayIso();
+  const handoffOf = (o: any): string | null =>
+    (o.event_date ?? o.ready_by_date ?? null) as string | null;
+  const activeByDay: { key: string; label: string; orders: any[] }[] = [];
+  for (const o of [...active].sort((a: any, b: any) => {
+    const da = handoffOf(a) ?? "9999-12-31";
+    const db = handoffOf(b) ?? "9999-12-31";
+    if (da !== db) return da < db ? -1 : 1;
+    return a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0;
+  })) {
+    const key = handoffOf(o) ?? "none";
+    const last = activeByDay[activeByDay.length - 1];
+    if (last && last.key === key) last.orders.push(o);
+    else
+      activeByDay.push({
+        key,
+        // "Earlier", not "overdue": ready_by_date is an estimate, and a
+        // past-dated active order is as likely handed off and never marked
+        // completed as it is missed. Payment-link orders carry their date
+        // only as the cook's own text, shown on the card.
+        label:
+          key === "none"
+            ? o.custom_request_id
+              ? "Payment-link orders · date is on each order"
+              : "Date to be arranged"
+            : key === todayIso
+              ? `Today · ${formatDateLong(key)}`
+              : key < todayIso
+                ? `Earlier · ${formatDateLong(key)}`
+                : formatDateLong(key),
+        orders: [o],
+      });
+  }
 
   const requestsUi = (
     <>
@@ -106,6 +142,7 @@ export default async function OrdersPage({
                         : ""}{" "}
                       · expires{" "}
                       {new Date(r.expires_at).toLocaleDateString("en-US", {
+                        timeZone: "America/Los_Angeles",
                         month: "short",
                         day: "numeric",
                       })}
@@ -153,9 +190,25 @@ export default async function OrdersPage({
         {active.length === 0 ? (
           <div className="mt-2"><EmptyState title="Nothing to prepare right now" /></div>
         ) : (
-          <div className="mt-3 space-y-4">
-            {active.map((o: any) => (
-              <OrderCard key={o.id} o={o} active />
+          <div className="mt-3 space-y-6">
+            {activeByDay.map((g) => (
+              <div key={g.key}>
+                <p
+                  className={`mb-2 text-sm font-semibold ${
+                    g.key !== "none" && g.key < todayIso ? "text-muted" : "text-ink"
+                  }`}
+                >
+                  {g.label}
+                  <span className="ml-2 font-normal text-faint">
+                    {g.orders.length} {g.orders.length === 1 ? "order" : "orders"}
+                  </span>
+                </p>
+                <div className="space-y-4">
+                  {g.orders.map((o: any) => (
+                    <OrderCard key={o.id} o={o} active />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -179,7 +232,10 @@ export default async function OrdersPage({
 
 function OrderCard({ o, active }: { o: any; active?: boolean }) {
   const s = STATUS[o.status] ?? STATUS.confirmed;
+  // Pacific explicitly: the server's process TZ is UTC on Render, and this
+  // sits right under Pacific day headers.
   const date = new Date(o.created_at).toLocaleString("en-US", {
+    timeZone: "America/Los_Angeles",
     month: "short",
     day: "numeric",
     hour: "numeric",

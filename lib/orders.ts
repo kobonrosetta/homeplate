@@ -254,8 +254,9 @@ async function notifyOrderConfirmed(
       // The snapshotted date is the HANDOFF day (ready-by pushed to the
       // kitchen's next pickup day) — "For Saturday, August 15" reads right in
       // both emails: the chef preps for it, the buyer receives on it.
-      // A buyer-stated event date (delivery) beats the computed ready-by —
-      // the computed date caps at ~2 weeks and is wrong for far-out events.
+      // A buyer-stated date (pickup or delivery, since Oct 2026) beats the
+      // computed ready-by — the computed date caps at ~2 weeks and is wrong
+      // for far-out events.
       const forDate = order.event_date ?? order.ready_by_date;
       const readyByLine = forDate
         ? `<p><strong>For:</strong> ${formatDateLong(forDate)}</p>`

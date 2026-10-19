@@ -19,6 +19,13 @@ export const MAX_LEAD_DAYS = 14;
 export const MAX_PREORDER_HORIZON_DAYS = 30;
 
 /**
+ * How far ahead a buyer may pre-book a pickup or delivery date at checkout
+ * (orders.event_date). 90 days covers the whole holiday season from
+ * mid-October; bespoke further-out events go through a cook payment link.
+ */
+export const MAX_EVENT_DAYS_OUT = 90;
+
+/**
  * The site's public origin, for absolute URLs in emails, share links, and
  * social-card metadata. At go-live: set NEXT_PUBLIC_SITE_URL on Render (and
  * update the fallback) — this constant is the ONLY place the host lives.

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { calcServiceFeeCents } from "@/lib/constants";
+import { calcServiceFeeCents, MAX_EVENT_DAYS_OUT } from "@/lib/constants";
 import { createCheckoutSession } from "@/lib/stripe";
 import {
   availabilityFromListing,
@@ -15,6 +15,9 @@ import {
   isIsoDate,
   addDaysIso,
   formatDateLong,
+  computeReadyBy,
+  isoDayOfWeek,
+  pickupDaysSentence,
 } from "@/lib/availability";
 import {
   deriveUnitPrice,
@@ -97,22 +100,23 @@ export async function startCheckout(formData: FormData) {
     err("/checkout", "A delivery address is required.");
 
 
-  // Buyer-stated event date (delivery only, optional): must be a real date,
-  // not in the past, and inside a sane horizon. This is the date every
-  // confirmation shows, so garbage here becomes a printed promise.
+  // Buyer-stated handoff date (optional, pickup or delivery): must be a real
+  // date, not in the past, and inside a sane horizon. This is the date every
+  // confirmation shows, so garbage here becomes a printed promise. A pickup
+  // date is further checked below against the chosen window's days.
   let eventDate: string | null = null;
-  if (fulfillment === "delivery" && eventDateRaw) {
+  if (eventDateRaw) {
     const todayPt = pacificTodayIso();
     if (!isIsoDate(eventDateRaw)) {
-      err("/checkout", "That event date doesn\u2019t look right \u2014 pick it again.");
+      err("/checkout", "That date doesn\u2019t look right \u2014 pick it again.");
     }
     if (eventDateRaw < todayPt) {
-      err("/checkout", "That event date is in the past \u2014 double-check it.");
+      err("/checkout", "That date is in the past \u2014 double-check it.");
     }
-    if (eventDateRaw > addDaysIso(todayPt, 60)) {
+    if (eventDateRaw > addDaysIso(todayPt, MAX_EVENT_DAYS_OUT)) {
       err(
         "/checkout",
-        "Event dates can be at most 60 days out \u2014 for further-ahead events, message the kitchen."
+        `Dates can be at most ${MAX_EVENT_DAYS_OUT} days out \u2014 for further-ahead events, message the kitchen.`
       );
     }
     eventDate = eventDateRaw;
@@ -306,29 +310,65 @@ export async function startCheckout(formData: FormData) {
         parsePickupDays(windows)
       : null;
   let orderReadyBy: string | null = null;
+  // The UNPUSHED lead-time floor (latest ready-by across lines before any
+  // handoff-day push) \u2014 the same number CartSync hands the checkout picker,
+  // so client and server can never disagree about the earliest date. The
+  // push belongs to the stamped estimate only; the kitchen's schedule is
+  // enforced by the weekday rule below, not by this floor.
+  let leadFloor: string | null = null;
   for (const l of rows) {
     const a = availabilityFromListing(l as any);
-    const rb = isOrderable(a, today)
-      ? computeGetIt(a, today, handoffDays)
-      : null;
-    if (!rb) {
+    const orderable = isOrderable(a, today);
+    const rb = orderable ? computeGetIt(a, today, handoffDays) : null;
+    const base = orderable ? computeReadyBy(a, today) : null;
+    if (!rb || !base) {
       err(
         "/cart",
         `"${l.title}" isn't available to order right now. We've updated your cart.`
       );
     }
     if (!orderReadyBy || rb! > orderReadyBy) orderReadyBy = rb!;
+    if (!leadFloor || base! > leadFloor) leadFloor = base!;
   }
-  // The buyer-stated event date must be one the kitchen can actually hit:
-  // an event date EARLIER than the computed lead-time floor would otherwise
-  // become the printed promise in every email and order surface (event_date
-  // wins over ready_by_date everywhere). Review blocker on this batch.
-  if (eventDate && orderReadyBy && eventDate < orderReadyBy) {
+  // The buyer-stated date must be one the kitchen can actually hit: a date
+  // EARLIER than the lead-time floor would otherwise become the printed
+  // promise in every email and order surface (event_date wins over
+  // ready_by_date everywhere). Review blocker on the original batch.
+  if (eventDate && leadFloor && eventDate < leadFloor) {
     err(
       "/checkout",
       `This kitchen needs until ${formatDateLong(
-        orderReadyBy
+        leadFloor
       )} to make these items \u2014 pick that date or later, or trim the cart.`
+    );
+  }
+  // A pre-booked PICKUP date must land on a day the chosen window actually
+  // runs: "Saturdays 2PM-5PM" plus a Thursday date would print a promise the
+  // kitchen never made. Enforced only when the buyer picked one of the COOK's
+  // windows (a free-typed preference at a kitchen without windows is a note,
+  // not a schedule) and the date isn't a preorder line's own cook-set ready
+  // date (Thanksgiving pies on a Wednesday are the cook's explicit plan).
+  // "Another time" is the deliberate escape hatch for off-schedule
+  // arrangements, and an unreadable schedule stays permissive.
+  const isPreorderDate =
+    !!eventDate &&
+    rows.some(
+      (l) => l.fulfillment_mode === "preorder" && l.ready_date === eventDate
+    );
+  if (
+    fulfillment === "pickup" &&
+    eventDate &&
+    pickupTime &&
+    windows.length > 0 &&
+    handoffDays &&
+    !isPreorderDate &&
+    !handoffDays.has(isoDayOfWeek(eventDate))
+  ) {
+    err(
+      "/checkout",
+      `That pickup window runs on ${
+        pickupDaysSentence(handoffDays) ?? "specific days"
+      } \u2014 pick one of those dates, or choose \u201cAnother time\u201d to arrange a different day with the kitchen.`
     );
   }
 

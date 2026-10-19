@@ -309,6 +309,32 @@ export function pickupDaysLabel(
   return `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
 }
 
+// Buyer-facing version of the same schedule, in full words for an error
+// message — "Saturdays", "Saturdays and Sundays", "Fridays, Saturdays and
+// Sundays". Null for an unknown or 7-day schedule, like pickupDaysLabel.
+const DAY_FULL = [
+  "Sundays",
+  "Mondays",
+  "Tuesdays",
+  "Wednesdays",
+  "Thursdays",
+  "Fridays",
+  "Saturdays",
+];
+export function pickupDaysSentence(
+  days: Set<number> | null | undefined
+): string | null {
+  if (!days || days.size === 0 || days.size >= 7) return null;
+  // Monday-first, so a weekend reads "Saturdays and Sundays", not the other
+  // way round (0 = Sunday in the day-of-week model).
+  const monFirst = (d: number) => (d + 6) % 7;
+  const names = [...days]
+    .sort((a, b) => monFirst(a) - monFirst(b))
+    .map((d) => DAY_FULL[d]);
+  if (names.length === 1) return names[0];
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
 // Day-of-week (0=Sun) for a "YYYY-MM-DD" string, DST-proof via UTC noon.
 export function isoDayOfWeek(iso: string): number {
   const [y, m, d] = iso.split("-").map(Number);
@@ -327,6 +353,25 @@ export function nextHandoffIso(
     cur = addDaysIso(cur, 1);
   }
   return null;
+}
+
+// Every date from `fromIso` through `fromIso + horizonDays` (inclusive) that
+// lands on one of `days` — the choices a checkout "Pickup date" picker offers
+// when the kitchen's weekly schedule parsed. Unknown/empty schedule → [] and
+// callers fall back to a free date input.
+export function pickupDatesFrom(
+  fromIso: string,
+  days: Set<number> | null | undefined,
+  horizonDays: number
+): string[] {
+  if (!days || days.size === 0) return [];
+  const out: string[] = [];
+  let cur = fromIso;
+  for (let i = 0; i <= horizonDays; i++) {
+    if (days.has(isoDayOfWeek(cur))) out.push(cur);
+    cur = addDaysIso(cur, 1);
+  }
+  return out;
 }
 
 // The date the buyer can actually RECEIVE the dish — the ready-by date pushed
