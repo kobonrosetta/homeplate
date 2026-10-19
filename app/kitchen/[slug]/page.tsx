@@ -8,6 +8,7 @@ import AddToCart from "@/components/add-to-cart";
 import AvailabilityPill from "@/components/availability-pill";
 import {
   availabilityFromListing,
+  isListingOpen,
   isOrderable,
   pacificTodayIso,
 } from "@/lib/availability";
@@ -24,6 +25,8 @@ import {
 } from "@/lib/menu-display";
 import CartBar from "@/components/cart-bar";
 import MenuTabs from "@/components/menu-tabs";
+import SectionLink from "@/components/section-link";
+import HashScroll from "@/components/hash-scroll";
 import FeeNote from "@/components/fee-note";
 import FollowToggle from "@/components/follow-toggle";
 import ReviewsSection from "@/components/reviews-section";
@@ -114,16 +117,18 @@ export default async function KitchenPage({
       const all = listings ?? [];
       // Listings with cook-defined options send the buyer to the item page
       // to choose (size, character, …) instead of one-tap adding a base item.
-      const { data: groupRows } = all.length
+      // A group only counts when it has at least one option — the same rule
+      // deriveUnitPrice applies at checkout.
+      const { data: groupRows, error: groupErr } = all.length
         ? await supabase
             .from("listing_option_groups")
-            .select("listing_id")
+            .select("listing_id, listing_options(id)")
             .in(
               "listing_id",
               all.map((l: any) => l.id)
             )
-        : { data: [] as any[] };
-      return { all, groupRows: groupRows ?? [] };
+        : { data: [] as any[], error: null };
+      return { all, groupRows: groupRows ?? [], groupErr: !!groupErr };
     })(),
     supabase
       .from("reviews")
@@ -154,9 +159,7 @@ export default async function KitchenPage({
   // order-by cutoff ("Ordering closed") — moves OUT of the main menu into a
   // collapsed "currently unavailable" block at the bottom, so a wall of
   // closed items never buries the ones they can actually add to the cart.
-  const dishClosed = (l: any) =>
-    (l.limited_quantity && l.quantity_available <= 0) ||
-    !isOrderable(availabilityFromListing(l), today);
+  const dishClosed = (l: any) => !isListingOpen(l, today);
   const dishes = all.filter((l: any) => (l.kind ?? "dish") === "dish");
   // Within the open menu, photographed dishes lead: the first row is the
   // storefront's handshake, and a gray placeholder on a $185 tray makes a
@@ -180,7 +183,16 @@ export default async function KitchenPage({
     (sections.find((s) => s.id === "trays")?.items ?? []).map((l: any) => l.title)
   );
   const extras = all.filter((l: any) => l.kind === "extra");
-  const hasOptions = new Set(menu.groupRows.map((g: any) => g.listing_id));
+  // Fail closed: if the options lookup errored we can't tell which listings
+  // need a choice, so every one goes to its page rather than risking a one-tap
+  // add that checkout would refuse ("Please choose every option").
+  const hasOptions = menu.groupErr
+    ? new Set<string>(all.map((l: any) => l.id))
+    : new Set<string>(
+        menu.groupRows
+          .filter((g: any) => (g.listing_options ?? []).length > 0)
+          .map((g: any) => g.listing_id)
+      );
 
   const revs = reviewsRes.data ?? [];
   const reviewCount = revs.length;
@@ -237,13 +249,19 @@ export default async function KitchenPage({
     return (
       <div
         key={l.id}
-        className={`rise group flex flex-col overflow-hidden rounded-2xl bg-card shadow-soft transition hover:shadow-lift ${
+        // The dish page's "Back to menu" returns to exactly this card.
+        id={`dish-${l.id}`}
+        className={`rise group flex scroll-mt-4 flex-col overflow-hidden rounded-2xl bg-card shadow-soft transition hover:shadow-lift ${
           blocked ? "opacity-60" : ""
         }`}
         style={{ animationDelay: `${Math.min(i * 60, 480)}ms` }}
       >
+        {/* Same destination as the title link below — kept out of the tab
+            order and the accessibility tree (it has no name without a photo). */}
         <Link
           href={`/listing/${l.id}`}
+          aria-hidden="true"
+          tabIndex={-1}
           className="block aspect-[4/3] overflow-hidden bg-line"
         >
           {l.photo_url ? (
@@ -340,7 +358,18 @@ export default async function KitchenPage({
       (a, b) => a.item.price_cents - b.item.price_cents
     );
     const lead = rows.find((r) => r.item.photo_url)?.item ?? rows[0].item;
-    const description = rows.find((r) => r.item.description)?.item.description;
+    // One description for the card only when every size says the same thing
+    // (ignoring case/punctuation — her Mac & Cheese pair differs by a comma).
+    // Sizes with different contents (the family dinner: "your choice main,
+    // 6 muffins" vs "12pc chicken, 12 muffins") each describe themselves.
+    const normDesc = (s: unknown) =>
+      String(s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    const sameDescription = rows.every(
+      (r) => normDesc(r.item.description) === normDesc(rows[0].item.description)
+    );
+    const description = sameDescription
+      ? rows.find((r) => r.item.description)?.item.description
+      : null;
     // One availability pill when every size shares the same timing (the
     // usual case); otherwise each row carries its own.
     const timing = (l: any) =>
@@ -356,6 +385,8 @@ export default async function KitchenPage({
       >
         <Link
           href={`/listing/${lead.id}`}
+          aria-hidden="true"
+          tabIndex={-1}
           className="block aspect-[4/3] overflow-hidden bg-line"
         >
           {lead.photo_url ? (
@@ -401,10 +432,22 @@ export default async function KitchenPage({
               return (
                 <li
                   key={l.id}
-                  className="flex items-center justify-between gap-3 py-2.5"
+                  // "Back to menu" from this size's page lands on its row.
+                  id={`dish-${l.id}`}
+                  className="flex scroll-mt-4 items-center justify-between gap-3 py-2.5"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm text-muted">{size}</p>
+                    <Link
+                      href={`/listing/${l.id}`}
+                      className="text-sm text-muted hover:text-ink hover:underline"
+                    >
+                      {size}
+                    </Link>
+                    {!sameDescription && l.description && (
+                      <p className="line-clamp-2 text-xs text-muted">
+                        {l.description}
+                      </p>
+                    )}
                     <p className="font-semibold text-ink">
                       {hasOptions.has(l.id)
                         ? `from ${formatUsd(l.price_cents)}`
@@ -435,7 +478,7 @@ export default async function KitchenPage({
                   ) : (
                     <AddToCart
                       cook={cartCook}
-                      ariaLabel={`Add ${title}, ${size}, to cart`}
+                      context={`${title}, ${size}`}
                       item={{
                         listingId: l.id,
                         title: l.title,
@@ -544,36 +587,37 @@ export default async function KitchenPage({
       {/* Plain text, not pills: on this page a pill shape means "tap me"
           (the menu tabs, Follow, Share), and look-alike tags read as broken
           buttons. Pickup/Delivery are spelled out in the lines below. */}
-      {(cook.cuisine_tags ?? []).length > 0 && (
-        <p className="mt-4 text-sm text-muted">
-          {(cook.cuisine_tags as string[]).join(" · ")}
-        </p>
-      )}
-
-      {cook.pickup_available &&
-        ((cook.pickup_windows ?? []).length > 0 ? (
-          <p className="mt-2 text-sm text-muted">
-            <span className="font-medium text-ink">Pickup times:</span>{" "}
-            {(cook.pickup_windows as string[]).join(" · ")}
+      {/* One block so the first visible line always sits the same distance
+          under the header, whichever lines this kitchen has. */}
+      <div className="mt-4 space-y-1 text-sm text-muted">
+        {(cook.cuisine_tags ?? []).length > 0 && (
+          <p>{(cook.cuisine_tags as string[]).join(" · ")}</p>
+        )}
+        {cook.pickup_available &&
+          ((cook.pickup_windows ?? []).length > 0 ? (
+            <p>
+              <span className="font-medium text-ink">Pickup times:</span>{" "}
+              {(cook.pickup_windows as string[]).join(" · ")}
+            </p>
+          ) : (
+            <p>
+              <span className="font-medium text-ink">Pickup:</span> available
+              &mdash; time arranged with the kitchen
+            </p>
+          ))}
+        {cook.delivery_available && (
+          <p>
+            <span className="font-medium text-ink">Delivery:</span>{" "}
+            {cook.delivery_notes || "available — details at checkout"}
           </p>
-        ) : (
-          <p className="mt-2 text-sm text-muted">
-            <span className="font-medium text-ink">Pickup:</span> available
-            &mdash; time arranged with the kitchen
-          </p>
-        ))}
-      {cook.delivery_available && (
-        <p className="mt-1 text-sm text-muted">
-          <span className="font-medium text-ink">Delivery:</span>{" "}
-          {cook.delivery_notes || "available — details at checkout"}
-        </p>
-      )}
+        )}
+      </div>
 
       {/* Chef strip — the trust story's face above the menu. One glance says
           "a real person cooks this"; the full bio stays in "Meet the chef"
           below, one tap away via the anchor. */}
-      <a
-        href="#meet-the-chef"
+      <SectionLink
+        id="meet-the-chef"
         className="mt-5 flex items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3 shadow-soft transition hover:shadow-lift sm:max-w-xl"
       >
         {cook.avatar_url ? (
@@ -608,7 +652,7 @@ export default async function KitchenPage({
             </p>
           )}
         </div>
-      </a>
+      </SectionLink>
 
       <h2 className="mt-12 text-lg font-semibold text-ink">Menu</h2>
       <FeeNote className="mt-1" />
@@ -619,15 +663,16 @@ export default async function KitchenPage({
           {useSections ? (
             // The wrapper bounds the pinned tabs: they stick for exactly the
             // length of the sections, then release before Extras / chef /
-            // reviews. scroll-mt-16 parks a tapped section's heading just
-            // under the ~45px bar.
+            // reviews. Jumps land a heading just under the ~47px bar via the
+            // page-level scroll-padding (globals.css) — no per-section
+            // scroll-margin, or the two would add up.
             <div>
               <MenuTabs
-                kitchen={cook.slug}
+                cookSlug={cook.slug}
                 sections={sections.map((s) => ({ id: s.id, label: s.tab }))}
               />
               {sections.map((s) => (
-                <section key={s.id} id={s.id} className="scroll-mt-16">
+                <section key={s.id} id={s.id}>
                   <h3 className="mt-8 font-display text-xl font-semibold text-ink">
                     {s.title}
                   </h3>
@@ -646,8 +691,8 @@ export default async function KitchenPage({
                   </div>
                   {s.id === "plates-sides" &&
                     sections.some((x) => x.id === "trays") && (
-                      <a
-                        href="#trays"
+                      <SectionLink
+                        id="trays"
                         className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-dashed border-line px-5 py-4 text-sm transition hover:border-muted"
                       >
                         <span>
@@ -662,7 +707,7 @@ export default async function KitchenPage({
                         <span className="shrink-0 font-medium text-brand">
                           See trays <span aria-hidden="true">→</span>
                         </span>
-                      </a>
+                      </SectionLink>
                     )}
                 </section>
               ))}
@@ -716,7 +761,8 @@ export default async function KitchenPage({
               return (
                 <div
                   key={l.id}
-                  className={`flex items-center gap-3 rounded-xl bg-card p-3 shadow-soft ${
+                  id={`dish-${l.id}`}
+                  className={`flex scroll-mt-4 items-center gap-3 rounded-xl bg-card p-3 shadow-soft ${
                     soldOut ? "opacity-60" : ""
                   }`}
                 >
@@ -754,7 +800,8 @@ export default async function KitchenPage({
                       href={`/listing/${l.id}`}
                       className="shrink-0 rounded-full bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90"
                     >
-                      Choose
+                      Choose options
+                      <span className="sr-only"> for {l.title}</span>
                     </Link>
                   ) : (
                     <AddToCart
@@ -780,7 +827,7 @@ export default async function KitchenPage({
           there's no story yet. */}
       <section
         id="meet-the-chef"
-        className="mt-14 scroll-mt-24 border-t border-line pt-10"
+        className="mt-14 scroll-mt-8 border-t border-line pt-10"
       >
         <h2 className="text-lg font-semibold text-ink">Meet the chef</h2>
         <div className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-start">
@@ -842,6 +889,7 @@ export default async function KitchenPage({
 
       <ReviewsSection reviews={revs} />
       <CartBar />
+      <HashScroll />
     </main>
   );
 }

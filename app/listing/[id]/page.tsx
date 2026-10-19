@@ -12,7 +12,7 @@ import {
 } from "@/lib/availability";
 import AddToCart from "@/components/add-to-cart";
 import CartBar from "@/components/cart-bar";
-import { splitFeedsFromTitle, menuSectionFor } from "@/lib/menu-display";
+import { splitFeedsFromTitle } from "@/lib/menu-display";
 import AvailabilityPill from "@/components/availability-pill";
 import FeeNote from "@/components/fee-note";
 import PhotoGallery from "@/components/photo-gallery";
@@ -141,16 +141,13 @@ export default async function ListingPage({
           ]),
         ]}
       />
-      {/* Back to this kitchen's menu, at the dish's own section — not to
-          /browse, which dumped a buyer comparing sizes or dishes out of the
-          kitchen entirely. (An unsectioned menu has no such anchor; the
-          browser just lands at the top of the kitchen page.) */}
+      {/* Back to this kitchen's menu, at this exact dish — not to /browse,
+          which dumped a buyer comparing sizes or dishes out of the kitchen
+          entirely. Every card, size row and extra on the kitchen page carries
+          id="dish-<id>", so this lands right wherever the item renders
+          (a section, a flat menu, Extras, or "currently unavailable"). */}
       <Link
-        href={`/kitchen/${cook.slug}${
-          (listing.kind ?? "dish") === "dish"
-            ? `#${menuSectionFor(listing.title)}`
-            : ""
-        }`}
+        href={`/kitchen/${cook.slug}#dish-${listing.id}`}
         className="text-sm text-muted hover:text-ink"
       >
         ← Back to menu

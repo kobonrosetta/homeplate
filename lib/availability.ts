@@ -355,6 +355,26 @@ export function nextHandoffIso(
   return null;
 }
 
+// Can a buyer act on this listing right now — not sold out, and orderable on
+// timing (a preorder past its cutoff is not)? The kitchen page's one rule for
+// "open menu vs. currently unavailable"; the dashboard reuses it so anything
+// it promises about the storefront (e.g. the #trays catering link) matches
+// what the storefront actually renders.
+export function isListingOpen(
+  l: {
+    limited_quantity?: boolean | null;
+    quantity_available?: number | null;
+    fulfillment_mode?: string | null;
+    lead_days?: number | null;
+    ready_date?: string | null;
+    order_by?: string | null;
+  },
+  todayIso: string
+): boolean {
+  if (l.limited_quantity && (l.quantity_available ?? 0) <= 0) return false;
+  return isOrderable(availabilityFromListing(l), todayIso);
+}
+
 // Every date from `fromIso` through `fromIso + horizonDays` (inclusive) that
 // lands on one of `days` — the choices a checkout "Pickup date" picker offers
 // when the kitchen's weekly schedule parsed. Unknown/empty schedule → [] and

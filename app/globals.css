@@ -22,6 +22,15 @@ html {
   color-scheme: light;
 }
 
+/* On a kitchen page with the pinned menu tabs, reserve the bar's height for
+   every scroll-into-view: section jumps land just under it, and keyboard focus
+   moving backwards never hides beneath it (WCAG 2.4.11). In CSS so it applies
+   before hydration; sections carry no scroll-margin of their own, or the two
+   offsets would add up. */
+html:has(nav[aria-label="Menu sections"]) {
+  scroll-padding-top: 4rem;
+}
+
 body {
   /* A barely-there warm wash at the top of every page — depth without a
      "gradient look". Sits on the cream base; also reads in dark mode. */
