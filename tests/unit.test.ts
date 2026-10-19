@@ -40,6 +40,7 @@ import {
   computeGetIt,
   pickupDatesFrom,
   isoDayOfWeek,
+  pickupDaysSentence,
 } from "../lib/availability";
 import {
   MENU_SECTIONS,
@@ -445,6 +446,13 @@ check("pickupDatesFrom: horizon bound is inclusive of the last day", () => {
 check("pickupDatesFrom: a Thursday never appears for a weekend-only kitchen (server rule mirror)", () => {
   const days = parsePickupDays(["Saturdays 2PM-5PM"]);
   for (const d of pickupDatesFrom("2026-10-18", days, 90)) assert.equal(isoDayOfWeek(d), 6);
+});
+check("pickupDaysSentence: buyer-facing full words, never 'Sats'", () => {
+  assert.equal(pickupDaysSentence(new Set([6])), "Saturdays");
+  assert.equal(pickupDaysSentence(new Set([0, 6])), "Saturdays and Sundays");
+  assert.equal(pickupDaysSentence(new Set([5, 6, 0])), "Fridays, Saturdays and Sundays");
+  assert.equal(pickupDaysSentence(null), null);
+  assert.equal(pickupDaysSentence(new Set([0, 1, 2, 3, 4, 5, 6])), null);
 });
 check("menu sections: 40 Acres' real naming maps cleanly", () => {
   assert.equal(menuSectionFor("BUFFET-STYLE: SHRIMP, CHICKEN & SAUSAGE JAMBALAYA (FEEDS 18-20)"), "trays");

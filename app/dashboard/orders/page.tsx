@@ -47,7 +47,7 @@ export default async function OrdersPage({
   const { data: orders } = await supabase
     .from("orders")
     .select(
-      "id, status, fulfillment, subtotal_cents, service_fee_cents, total_cents, pickup_time, ready_by_date, event_date, notes, contact_name, contact_phone, delivery_address, created_at, order_items(title, quantity, unit_price_cents, line_total_cents)"
+      "id, status, fulfillment, subtotal_cents, service_fee_cents, total_cents, pickup_time, ready_by_date, event_date, notes, contact_name, contact_phone, delivery_address, created_at, custom_request_id, order_items(title, quantity, unit_price_cents, line_total_cents)"
     )
     .eq("cook_id", cook!.id)
     .neq("status", "pending")
@@ -71,7 +71,7 @@ export default async function OrdersPage({
     const da = handoffOf(a) ?? "9999-12-31";
     const db = handoffOf(b) ?? "9999-12-31";
     if (da !== db) return da < db ? -1 : 1;
-    return a.created_at < b.created_at ? -1 : 1;
+    return a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0;
   })) {
     const key = handoffOf(o) ?? "none";
     const last = activeByDay[activeByDay.length - 1];
@@ -79,13 +79,19 @@ export default async function OrdersPage({
     else
       activeByDay.push({
         key,
+        // "Earlier", not "overdue": ready_by_date is an estimate, and a
+        // past-dated active order is as likely handed off and never marked
+        // completed as it is missed. Payment-link orders carry their date
+        // only as the cook's own text, shown on the card.
         label:
           key === "none"
-            ? "Date to be arranged"
+            ? o.custom_request_id
+              ? "Payment-link orders · date is on each order"
+              : "Date to be arranged"
             : key === todayIso
               ? `Today · ${formatDateLong(key)}`
               : key < todayIso
-                ? `Overdue · ${formatDateLong(key)}`
+                ? `Earlier · ${formatDateLong(key)}`
                 : formatDateLong(key),
         orders: [o],
       });
@@ -136,6 +142,7 @@ export default async function OrdersPage({
                         : ""}{" "}
                       · expires{" "}
                       {new Date(r.expires_at).toLocaleDateString("en-US", {
+                        timeZone: "America/Los_Angeles",
                         month: "short",
                         day: "numeric",
                       })}
@@ -188,7 +195,7 @@ export default async function OrdersPage({
               <div key={g.key}>
                 <p
                   className={`mb-2 text-sm font-semibold ${
-                    g.key !== "none" && g.key < todayIso ? "text-rose-700" : "text-ink"
+                    g.key !== "none" && g.key < todayIso ? "text-muted" : "text-ink"
                   }`}
                 >
                   {g.label}
@@ -225,7 +232,10 @@ export default async function OrdersPage({
 
 function OrderCard({ o, active }: { o: any; active?: boolean }) {
   const s = STATUS[o.status] ?? STATUS.confirmed;
+  // Pacific explicitly: the server's process TZ is UTC on Render, and this
+  // sits right under Pacific day headers.
   const date = new Date(o.created_at).toLocaleString("en-US", {
+    timeZone: "America/Los_Angeles",
     month: "short",
     day: "numeric",
     hour: "numeric",

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { useCart } from "@/components/cart-context";
-import CartSync from "@/components/cart-sync";
+import CartSync, { type CartReadiness } from "@/components/cart-sync";
 import {
   calcServiceFeeCents,
   formatUsd,
@@ -45,14 +45,14 @@ export default function CheckoutForm({
   useEffect(() => {
     setTodayIso(pacificTodayIso());
   }, []);
-  const dateMin = todayIso;
   const dateMax = todayIso ? addDaysIso(todayIso, MAX_EVENT_DAYS_OUT) : "";
   // Which pickup window the buyer chose (null = the first one). Controlled so
   // the date choices below can follow the window's days.
   const [pickupChoice, setPickupChoice] = useState<string | null>(null);
-  // The cart's lead-time floor, reported by CartSync from the live listings:
-  // the earliest date these dishes can be ready, before any handoff-day push.
-  const [readyBy, setReadyBy] = useState<string | null>(null);
+  // Live readiness of the cart (lead-time floor + per-line modes), reported
+  // by CartSync once its check settles. null = not reported yet, and the
+  // date picker waits for it rather than offering dates that then vanish.
+  const [readiness, setReadiness] = useState<CartReadiness | null>(null);
 
   // Don't flash "your cart is empty" before localStorage has been read.
   if (!loaded) return null;
@@ -82,32 +82,64 @@ export default function CheckoutForm({
   }));
 
   const windows = cart.cook.pickupWindows ?? [];
-  const pickupTime = pickupChoice ?? windows[0] ?? "";
+  // The chosen window, or the first one; a choice CartSync's reconcile has
+  // since deleted falls back too, so the date list never follows a window
+  // the visible select no longer shows.
+  const pickupTime =
+    pickupChoice === "" || (pickupChoice && windows.includes(pickupChoice))
+      ? pickupChoice
+      : windows[0] ?? "";
   // Days the chosen window runs (falling back to the union of all windows,
   // exactly like the server); null when the schedule can't be read.
   const windowDays = pickupTime
     ? parsePickupDays([pickupTime]) ?? parsePickupDays(windows)
     : null;
-  // Earliest date the picker may offer: the cart's lead-time floor, never
-  // before today. The server re-checks both, so this only keeps the common
-  // case from bouncing at Pay.
+  const readyBy = readiness?.floor ?? null;
+  // Earliest date the picker may offer: the cart's unpushed lead-time floor
+  // (the server's leadFloor), never before today.
   const floor =
     readyBy && todayIso && readyBy > todayIso ? readyBy : todayIso;
+  // A preorder dish's cook-set date is always offerable — it's the cook's
+  // explicit plan, even off the weekly schedule — and the server exempts it
+  // from the weekday rule for the same reason.
+  const preorderDates = (readiness?.lines ?? [])
+    .filter((l) => l.mode === "preorder")
+    .map((l) => l.readyBy);
   const pickupDates =
     todayIso && windowDays
-      ? pickupDatesFrom(todayIso, windowDays, MAX_EVENT_DAYS_OUT).filter(
-          (d) => d >= floor
-        )
+      ? [
+          ...new Set([
+            ...pickupDatesFrom(todayIso, windowDays, MAX_EVENT_DAYS_OUT),
+            ...preorderDates,
+          ]),
+        ]
+          .filter((d) => d >= floor && d <= dateMax)
+          .sort()
       : [];
-  const soonest =
-    todayIso && windowDays ? nextHandoffIso(floor, windowDays) ?? floor : floor;
+  // What the server will stamp if the buyer leaves "Soonest available":
+  // preorder lines keep their date, every other line is pushed to the chosen
+  // window's days — the latest wins. Mirrors computeGetIt line by line.
+  const soonest = (() => {
+    if (!todayIso) return "";
+    const lines = readiness?.lines ?? [];
+    let s = todayIso;
+    for (const l of lines) {
+      const d =
+        l.mode === "preorder" || !windowDays
+          ? l.readyBy
+          : nextHandoffIso(l.readyBy, windowDays) ?? l.readyBy;
+      if (d > s) s = d;
+    }
+    if (lines.length === 0 && windowDays) s = nextHandoffIso(s, windowDays) ?? s;
+    return s;
+  })();
 
   // Plain server-action form: clicking Pay calls startCheckout directly (React
   // handles the submit). Guest sign-in now happens server-side, so there's no
   // client-side auth step that can hang.
   return (
     <>
-      <CartSync onReadyBy={setReadyBy} />
+      <CartSync onReadiness={setReadiness} />
       <form
         action={startCheckout}
         onSubmit={() =>
@@ -221,7 +253,11 @@ export default function CheckoutForm({
               </p>
             </Field>
           )}
-          {pickupTime && pickupDates.length > 0 ? (
+          {readiness === null ? (
+            // Don't offer dates until the live check settles — a date chosen
+            // now could silently vanish when the lead-time floor lands.
+            <p className="text-xs text-faint">Checking availability&hellip;</p>
+          ) : pickupTime && pickupDates.length > 0 ? (
             // The window's days are known: offer only dates it actually runs,
             // from the cart's lead-time floor forward. Keyed on the window so
             // switching Sat→Sun resets the choice instead of keeping a Saturday.
@@ -276,7 +312,7 @@ export default function CheckoutForm({
             <input
               name="event_date"
               type="date"
-              min={dateMin || undefined}
+              min={floor || undefined}
               max={dateMax || undefined}
               className={INPUT}
             />

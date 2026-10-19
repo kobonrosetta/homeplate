@@ -309,6 +309,32 @@ export function pickupDaysLabel(
   return `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
 }
 
+// Buyer-facing version of the same schedule, in full words for an error
+// message — "Saturdays", "Saturdays and Sundays", "Fridays, Saturdays and
+// Sundays". Null for an unknown or 7-day schedule, like pickupDaysLabel.
+const DAY_FULL = [
+  "Sundays",
+  "Mondays",
+  "Tuesdays",
+  "Wednesdays",
+  "Thursdays",
+  "Fridays",
+  "Saturdays",
+];
+export function pickupDaysSentence(
+  days: Set<number> | null | undefined
+): string | null {
+  if (!days || days.size === 0 || days.size >= 7) return null;
+  // Monday-first, so a weekend reads "Saturdays and Sundays", not the other
+  // way round (0 = Sunday in the day-of-week model).
+  const monFirst = (d: number) => (d + 6) % 7;
+  const names = [...days]
+    .sort((a, b) => monFirst(a) - monFirst(b))
+    .map((d) => DAY_FULL[d]);
+  if (names.length === 1) return names[0];
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
 // Day-of-week (0=Sun) for a "YYYY-MM-DD" string, DST-proof via UTC noon.
 export function isoDayOfWeek(iso: string): number {
   const [y, m, d] = iso.split("-").map(Number);
