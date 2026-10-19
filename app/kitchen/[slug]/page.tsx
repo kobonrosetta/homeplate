@@ -16,8 +16,14 @@ import {
   menuSectionFor,
   splitFeedsFromTitle,
   cookTagline,
+  sectionedMenuIds,
+  stripSectionPrefix,
+  groupSizeVariants,
+  feedsRange,
+  type SizeGroup,
 } from "@/lib/menu-display";
 import CartBar from "@/components/cart-bar";
+import MenuTabs from "@/components/menu-tabs";
 import FeeNote from "@/components/fee-note";
 import FollowToggle from "@/components/follow-toggle";
 import ReviewsSection from "@/components/reviews-section";
@@ -161,15 +167,18 @@ export default async function KitchenPage({
     .sort((a: any, b: any) => Number(!a.photo_url) - Number(!b.photo_url));
   const closedDishes = dishes.filter(dishClosed);
   // Sectioning is derived from the cook's own title conventions
-  // ("BUFFET-STYLE: …", "FAMILY-STYLE: …"). Only sectionize when the split is
-  // real — at least two sections with 2+ dishes each — so a kitchen that
-  // doesn't use the convention keeps today's flat grid untouched.
+  // ("BUFFET-STYLE: …", "FAMILY-STYLE: …"); sectionedMenuIds owns the rule
+  // (real split only — a kitchen without the convention keeps a flat grid).
   const sections = MENU_SECTIONS.map((s) => ({
     ...s,
     items: openDishes.filter((l: any) => menuSectionFor(l.title) === s.id),
   })).filter((s) => s.items.length > 0);
   const useSections =
-    sections.filter((s) => s.items.length >= 2).length >= 2;
+    sectionedMenuIds(openDishes.map((l: any) => l.title)) !== null;
+  // How many people the trays feed, for the "Feeding a crowd?" bridge.
+  const traysFeed = feedsRange(
+    (sections.find((s) => s.id === "trays")?.items ?? []).map((l: any) => l.title)
+  );
   const extras = all.filter((l: any) => l.kind === "extra");
   const hasOptions = new Set(menu.groupRows.map((g: any) => g.listing_id));
 
@@ -199,7 +208,19 @@ export default async function KitchenPage({
   // the collapsed "currently unavailable" block. The feeds parenthetical is
   // lifted out of the (often ALL-CAPS) title into a quiet chip beside the
   // availability pill, so party size gets MORE visible while titles shout less.
-  const renderDish = (l: any, i: number) => {
+  const cartCook = {
+    id: cook.id,
+    name: cook.business_name,
+    slug: cook.slug,
+    pickupAvailable: cook.pickup_available,
+    deliveryAvailable: cook.delivery_available,
+    pickupWindows: cook.pickup_windows ?? [],
+  };
+  const renderDish = (
+    l: any,
+    i: number,
+    opts: { stripPrefix?: boolean } = {}
+  ) => {
     const soldOut = l.limited_quantity && l.quantity_available <= 0;
     // A preorder past its cutoff can't be ordered — treat like sold out.
     const orderable = isOrderable(availabilityFromListing(l), today);
@@ -208,7 +229,11 @@ export default async function KitchenPage({
       l.limited_quantity &&
       l.quantity_available > 0 &&
       l.quantity_available <= 3;
-    const disp = splitFeedsFromTitle(l.title);
+    const split = splitFeedsFromTitle(l.title);
+    const disp = {
+      ...split,
+      title: opts.stripPrefix ? stripSectionPrefix(split.title) : split.title,
+    };
     return (
       <div
         key={l.id}
@@ -290,14 +315,7 @@ export default async function KitchenPage({
               </Link>
             ) : (
               <AddToCart
-                cook={{
-                  id: cook.id,
-                  name: cook.business_name,
-                  slug: cook.slug,
-                  pickupAvailable: cook.pickup_available,
-                  deliveryAvailable: cook.delivery_available,
-                  pickupWindows: cook.pickup_windows ?? [],
-                }}
+                cook={cartCook}
                 item={{
                   listingId: l.id,
                   title: l.title,
@@ -307,6 +325,129 @@ export default async function KitchenPage({
               />
             )}
           </div>
+        </div>
+      </div>
+    );
+  };
+
+  // One card for a dish listed once per size: the shared photo, title and
+  // description once, then a row per size (smallest first), each adding its
+  // OWN listing — cart, checkout and orders are untouched. Only open dishes
+  // reach here, so every row is orderable; a size with options sends the
+  // buyer to that size's page to choose, like a dish card does.
+  const renderGroup = (g: SizeGroup<any>, i: number) => {
+    const rows = [...g.members].sort(
+      (a, b) => a.item.price_cents - b.item.price_cents
+    );
+    const lead = rows.find((r) => r.item.photo_url)?.item ?? rows[0].item;
+    const description = rows.find((r) => r.item.description)?.item.description;
+    // One availability pill when every size shares the same timing (the
+    // usual case); otherwise each row carries its own.
+    const timing = (l: any) =>
+      [l.fulfillment_mode, l.lead_days, l.ready_date, l.order_by].join("|");
+    const sameTiming = rows.every((r) => timing(r.item) === timing(rows[0].item));
+    const pickupWindows = cook.pickup_available ? cook.pickup_windows : null;
+    const title = stripSectionPrefix(g.title);
+    return (
+      <div
+        key={g.key}
+        className="rise group flex flex-col overflow-hidden rounded-2xl bg-card shadow-soft transition hover:shadow-lift"
+        style={{ animationDelay: `${Math.min(i * 60, 480)}ms` }}
+      >
+        <Link
+          href={`/listing/${lead.id}`}
+          className="block aspect-[4/3] overflow-hidden bg-line"
+        >
+          {lead.photo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={lead.photo_url}
+              alt={title}
+              loading="lazy"
+              decoding="async"
+              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-faint">
+              <ForkMark size={44} />
+            </div>
+          )}
+        </Link>
+        <div className="flex flex-1 flex-col p-4">
+          <Link
+            href={`/listing/${lead.id}`}
+            className="font-display text-[17px] font-semibold leading-tight text-ink hover:underline"
+          >
+            {title}
+          </Link>
+          {description && (
+            <p className="mt-1 line-clamp-2 text-sm text-muted">{description}</p>
+          )}
+          {sameTiming && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <AvailabilityPill
+                listing={rows[0].item}
+                today={today}
+                pickupWindows={pickupWindows}
+              />
+            </div>
+          )}
+          <ul className="mt-auto divide-y divide-line pt-3">
+            {rows.map(({ item: l, size }) => {
+              const lowStock =
+                l.limited_quantity &&
+                l.quantity_available > 0 &&
+                l.quantity_available <= 3;
+              return (
+                <li
+                  key={l.id}
+                  className="flex items-center justify-between gap-3 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm text-muted">{size}</p>
+                    <p className="font-semibold text-ink">
+                      {hasOptions.has(l.id)
+                        ? `from ${formatUsd(l.price_cents)}`
+                        : formatUsd(l.price_cents)}
+                    </p>
+                    {lowStock && (
+                      <p className="text-xs font-medium text-amber-600">
+                        Only {l.quantity_available} left
+                      </p>
+                    )}
+                    {!sameTiming && (
+                      <AvailabilityPill
+                        listing={l}
+                        today={today}
+                        pickupWindows={pickupWindows}
+                        className="mt-1"
+                      />
+                    )}
+                  </div>
+                  {hasOptions.has(l.id) ? (
+                    <Link
+                      href={`/listing/${l.id}`}
+                      aria-label={`Choose options for ${title}, ${size}`}
+                      className="shrink-0 rounded-full bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90"
+                    >
+                      Choose options
+                    </Link>
+                  ) : (
+                    <AddToCart
+                      cook={cartCook}
+                      ariaLabel={`Add ${title}, ${size}, to cart`}
+                      item={{
+                        listingId: l.id,
+                        title: l.title,
+                        priceCents: l.price_cents,
+                        photoUrl: l.photo_url,
+                      }}
+                    />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         </div>
       </div>
     );
@@ -400,26 +541,27 @@ export default async function KitchenPage({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2 text-sm text-muted">
-        {cook.pickup_available && (
-          <span className="rounded-full bg-line px-3 py-1">Pickup</span>
-        )}
-        {cook.delivery_available && (
-          <span className="rounded-full bg-line px-3 py-1">Delivery</span>
-        )}
-        {(cook.cuisine_tags ?? []).map((t: string) => (
-          <span key={t} className="rounded-full bg-line px-3 py-1">
-            {t}
-          </span>
-        ))}
-      </div>
-
-      {cook.pickup_available && (cook.pickup_windows ?? []).length > 0 && (
-        <p className="mt-2 text-sm text-muted">
-          <span className="font-medium text-ink">Pickup times:</span>{" "}
-          {(cook.pickup_windows as string[]).join(" · ")}
+      {/* Plain text, not pills: on this page a pill shape means "tap me"
+          (the menu tabs, Follow, Share), and look-alike tags read as broken
+          buttons. Pickup/Delivery are spelled out in the lines below. */}
+      {(cook.cuisine_tags ?? []).length > 0 && (
+        <p className="mt-4 text-sm text-muted">
+          {(cook.cuisine_tags as string[]).join(" · ")}
         </p>
       )}
+
+      {cook.pickup_available &&
+        ((cook.pickup_windows ?? []).length > 0 ? (
+          <p className="mt-2 text-sm text-muted">
+            <span className="font-medium text-ink">Pickup times:</span>{" "}
+            {(cook.pickup_windows as string[]).join(" · ")}
+          </p>
+        ) : (
+          <p className="mt-2 text-sm text-muted">
+            <span className="font-medium text-ink">Pickup:</span> available
+            &mdash; time arranged with the kitchen
+          </p>
+        ))}
       {cook.delivery_available && (
         <p className="mt-1 text-sm text-muted">
           <span className="font-medium text-ink">Delivery:</span>{" "}
@@ -474,30 +616,57 @@ export default async function KitchenPage({
         <div className="mt-4"><EmptyState title="No items available right now." /></div>
       ) : (
         <>
-          {useSections && (
-            <nav className="mt-4 flex flex-wrap gap-2">
-              {sections.map((s) => (
-                <a
-                  key={s.id}
-                  href={`#${s.id}`}
-                  className="rounded-full border border-line bg-card px-3.5 py-1.5 text-sm font-medium text-ink hover:border-muted"
-                >
-                  {s.title}
-                </a>
-              ))}
-            </nav>
-          )}
           {useSections ? (
-            sections.map((s) => (
-              <section key={s.id} id={s.id} className="scroll-mt-24">
-                <h3 className="mt-8 font-display text-xl font-semibold text-ink">
-                  {s.title}
-                </h3>
-                <div className="mt-3 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                  {s.items.map((l: any, i: number) => renderDish(l, i))}
-                </div>
-              </section>
-            ))
+            // The wrapper bounds the pinned tabs: they stick for exactly the
+            // length of the sections, then release before Extras / chef /
+            // reviews. scroll-mt-16 parks a tapped section's heading just
+            // under the ~45px bar.
+            <div>
+              <MenuTabs
+                kitchen={cook.slug}
+                sections={sections.map((s) => ({ id: s.id, label: s.tab }))}
+              />
+              {sections.map((s) => (
+                <section key={s.id} id={s.id} className="scroll-mt-16">
+                  <h3 className="mt-8 font-display text-xl font-semibold text-ink">
+                    {s.title}
+                  </h3>
+                  <div className="mt-3 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    {s.id === "plates-sides"
+                      ? s.items.map((l: any, i: number) => renderDish(l, i))
+                      : // Trays + family dinners: one card per dish with a row
+                        // per size, not a near-identical card per size.
+                        groupSizeVariants(s.items).map((g, i) =>
+                          g.members.length > 1
+                            ? renderGroup(g, i)
+                            : renderDish(g.members[0].item, i, {
+                                stripPrefix: true,
+                              })
+                        )}
+                  </div>
+                  {s.id === "plates-sides" &&
+                    sections.some((x) => x.id === "trays") && (
+                      <a
+                        href="#trays"
+                        className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-dashed border-line px-5 py-4 text-sm transition hover:border-muted"
+                      >
+                        <span>
+                          <span className="font-medium text-ink">
+                            Feeding a crowd?
+                          </span>{" "}
+                          <span className="text-muted">
+                            Buffet trays
+                            {traysFeed ? ` for ${traysFeed} people` : ""}
+                          </span>
+                        </span>
+                        <span className="shrink-0 font-medium text-brand">
+                          See trays <span aria-hidden="true">→</span>
+                        </span>
+                      </a>
+                    )}
+                </section>
+              ))}
+            </div>
           ) : openDishes.length > 0 ? (
             <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {openDishes.map((l: any, i: number) => renderDish(l, i))}
@@ -538,7 +707,10 @@ export default async function KitchenPage({
           <p className="mt-1 text-sm text-muted">
             Little extras from this kitchen to round out your order.
           </p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          {/* grid-cols-1 = minmax(0,1fr): without it the implicit track sizes
+              to the longest title's full width and the whole page scrolls
+              sideways on phones (41px at 360px, Oct 2026). */}
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {extras.map((l: any) => {
               const soldOut = l.limited_quantity && l.quantity_available <= 0;
               return (
@@ -566,20 +738,27 @@ export default async function KitchenPage({
                     <p className="truncate text-sm font-medium text-ink">
                       {l.title}
                     </p>
-                    <p className="text-sm text-muted">{formatUsd(l.price_cents)}</p>
+                    <p className="text-sm text-muted">
+                      {hasOptions.has(l.id)
+                        ? `from ${formatUsd(l.price_cents)}`
+                        : formatUsd(l.price_cents)}
+                    </p>
                   </div>
                   {soldOut ? (
                     <SoldOutTag />
+                  ) : hasOptions.has(l.id) ? (
+                    // Same gate as dish cards: an extra with options must be
+                    // chosen on its page — a one-tap add would put it in the
+                    // cart without them, and checkout then refuses it.
+                    <Link
+                      href={`/listing/${l.id}`}
+                      className="shrink-0 rounded-full bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90"
+                    >
+                      Choose
+                    </Link>
                   ) : (
                     <AddToCart
-                      cook={{
-                        id: cook.id,
-                        name: cook.business_name,
-                        slug: cook.slug,
-                        pickupAvailable: cook.pickup_available,
-                        deliveryAvailable: cook.delivery_available,
-                        pickupWindows: cook.pickup_windows ?? [],
-                      }}
+                      cook={cartCook}
                       item={{
                         listingId: l.id,
                         title: l.title,

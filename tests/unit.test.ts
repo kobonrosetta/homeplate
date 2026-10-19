@@ -47,6 +47,11 @@ import {
   menuSectionFor,
   splitFeedsFromTitle,
   cookTagline,
+  sectionedMenuIds,
+  stripSectionPrefix,
+  sizeLabelFor,
+  groupSizeVariants,
+  feedsRange,
 } from "../lib/menu-display";
 
 let pass = 0;
@@ -462,6 +467,116 @@ check("menu sections: 40 Acres' real naming maps cleanly", () => {
   assert.equal(menuSectionFor("CANDIED YAMS"), "plates-sides");
   assert.equal(menuSectionFor("KETO OXTAIL BOWL"), "plates-sides");
   assert.equal(MENU_SECTIONS.length, 3);
+});
+
+// ---- kitchen menu navigation (Oct 2026: plates were on screen 15 of 24) ----
+// Chef Q's live 38 dish titles (kind = dish), Oct 19 2026.
+const Q_TRAYS = [
+  "BUFFET STYLE: BAKED MACARONI & CHEESE ( FEEDS 18-20)",
+  "BUFFET STYLE: BAKED MACARONI & CHEESE ( FEEDS 8-10)",
+  "BUFFET STYLE: BAKED SALMON ( FEEDS 18-20)",
+  "BUFFET STYLE: BAKED SALMON ( FEEDS 8-10)",
+  "BUFFET STYLE: BBQ CHICKEN (FEEDS 18-20/40-45PCS)",
+  "BUFFET STYLE: BBQ CHICKEN (FEEDS 8-10/ 20-25PCS)",
+  "BUFFET STYLE: CHILLED SHRIMP SALAD (SMALL FEEDS 18-20)",
+  "BUFFET STYLE: CHILLED SHRIMP SALAD (SMALL FEEDS 8-10)",
+  "BUFFET STYLE: COLLARD GREENS + SMOKED TURKEY (FEEDS 18-20)",
+  "BUFFET STYLE: COLLARD GREENS + SMOKED TURKEY (FEEDS 8-10)",
+  "BUFFET-STYLE: ARROZ CON GANDULES / PUERTORICAN RICE N' PEAS (FEEDS 18-20)",
+  "BUFFET-STYLE: ARROZ CON GANDULES / PUERTORICAN RICE N' PEAS (FEEDS 8-10)",
+  "BUFFET-STYLE: CANDIED YAMS (FEEDS 18-20)",
+  "BUFFET-STYLE: CANDIED YAMS (FEEDS 8-10)",
+  "BUFFET-STYLE: HERB ROASTED CHICKEN (FEEDS 8-10)",
+  "BUFFET-STYLE: PINCHOS / GRILLED CHICKEN KEBOBS -12 EA",
+  "BUFFET-STYLE: PINCHOS / GRILLED CHICKEN KEBOBS -24 EA",
+  "BUFFET-STYLE: PINCHOS / GRILLED CHICKEN KEBOBS -48 EA",
+  "BUFFET-STYLE: ROASTED CHICKEN (FEEDS 18-20)",
+  "BUFFET-STYLE: SHRIMP, CHICKEN & SAUSAGE JAMBALAYA (FEEDS 18-20)",
+  "BUFFET-STYLE: SHRIMP, CHICKEN & SAUSAGE JAMBALAYA (FEEDS 8-10)",
+];
+const Q_FAMILY = [
+  'FAMILY-STYLE: THE "CLASSIC" SOUL FOOD DINNER (FEEDS 4-6)',
+  'FAMILY-STYLE: THE "CLASSIC" SOUL FOOD DINNER (FEEDS 8-10)',
+];
+const Q_PLATES = [
+  "40 oz SIGNATURE SEAFOOD GUMBO NO CRAB (40 OZ / 1-2 Servings)",
+  "40 oz SIGNATURE SEAFOOD GUMBO WITH CRAB (40 OZ / 1-2 Servings)",
+  "ARROZ CON GANDULES (Puertorican Rice with Pigeon Peas)",
+  "BAKED MACARONI & CHEESE",
+  "CANDIED YAMS",
+  "CHICKEN, SAUSAGE & SHRIMP JAMBALAYA BOWL",
+  "CHICKEN, SHRIMP & SAUSAGE JAMBALAYA BOWL",
+  "COLLARD GREENS",
+  "PINCHOS DE POLLO + GARLIC BREAD ( 2 for $10)",
+  "SAMOSA-DILLA (VEGGIE  EMPANADILLA)",
+  "SEAFOOD SALAD",
+  "SHRIMP CRIOLLA EMPANADILLAS",
+  "SOUTHEN OXTAILS & GRAVY FEAST (FEEDS 1)",
+  "SOUTHERN OXTAILS & GRAVY DINNER",
+  'THE "CLASSIC" SOUL FOOD DINNER',
+];
+const t = (titles: string[]) => titles.map((title) => ({ title }));
+
+check("menu order: plates first (16 of 18 checkouts), trays second, family dinners last", () => {
+  assert.deepEqual(MENU_SECTIONS.map((s) => s.id), ["plates-sides", "trays", "family-dinners"]);
+  for (const s of MENU_SECTIONS) assert.ok(s.tab.length <= 15, `tab label "${s.tab}" must fit a phone`);
+});
+check("sectionedMenuIds: her real menu sections in page order; a flat menu stays flat", () => {
+  assert.deepEqual(sectionedMenuIds([...Q_TRAYS, ...Q_FAMILY, ...Q_PLATES]), [
+    "plates-sides",
+    "trays",
+    "family-dinners",
+  ]);
+  // A bakery with no BUFFET/FAMILY titles → one flat grid, no tabs.
+  assert.equal(sectionedMenuIds(["SOURDOUGH LOAF", "CONCHAS (6)", "PAN DE MUERTO"]), null);
+  // One real section + a single stray tray is not a split.
+  assert.equal(sectionedMenuIds(["A PLATE", "B PLATE", "BUFFET STYLE: X (FEEDS 8-10)"]), null);
+});
+check("stripSectionPrefix: display-only, both spellings, never empties a title", () => {
+  assert.equal(stripSectionPrefix("BUFFET STYLE: BAKED SALMON"), "BAKED SALMON");
+  assert.equal(stripSectionPrefix("BUFFET-STYLE: CANDIED YAMS"), "CANDIED YAMS");
+  assert.equal(stripSectionPrefix('FAMILY-STYLE: THE "CLASSIC" SOUL FOOD DINNER'), 'THE "CLASSIC" SOUL FOOD DINNER');
+  assert.equal(stripSectionPrefix("JERK CHICKEN FAMILY DINNER"), "JERK CHICKEN FAMILY DINNER");
+  assert.equal(stripSectionPrefix("BUFFET STYLE:"), "BUFFET STYLE:");
+});
+check("sizeLabelFor: feeds parentheticals and piece counts", () => {
+  assert.deepEqual(sizeLabelFor("BUFFET STYLE: BAKED SALMON ( FEEDS 8-10)"), { base: "BUFFET STYLE: BAKED SALMON", size: "Feeds 8–10" });
+  assert.deepEqual(sizeLabelFor("BUFFET STYLE: BBQ CHICKEN (FEEDS 18-20/40-45PCS)"), { base: "BUFFET STYLE: BBQ CHICKEN", size: "Feeds 18–20" });
+  assert.deepEqual(sizeLabelFor("BUFFET-STYLE: PINCHOS / GRILLED CHICKEN KEBOBS -48 EA"), { base: "BUFFET-STYLE: PINCHOS / GRILLED CHICKEN KEBOBS", size: "48 pcs" });
+  assert.deepEqual(sizeLabelFor("SEAFOOD SALAD"), { base: "SEAFOOD SALAD", size: null });
+});
+check("groupSizeVariants: her 21 tray cards fold to 11, family dinners to 1", () => {
+  const trays = groupSizeVariants(t(Q_TRAYS));
+  assert.equal(trays.length, 11);
+  const sizesOf = (needle: string) =>
+    trays.find((g) => g.title.includes(needle))!.members.map((m) => m.size);
+  assert.deepEqual(sizesOf("BAKED MACARONI"), ["Feeds 18–20", "Feeds 8–10"]);
+  assert.deepEqual(sizesOf("PINCHOS"), ["12 pcs", "24 pcs", "48 pcs"]);
+  assert.deepEqual(sizesOf("CHILLED SHRIMP SALAD"), ["Feeds 18–20", "Feeds 8–10"]);
+  // Groups keep the position of their first member.
+  assert.ok(trays[0].title.includes("BAKED MACARONI"));
+  assert.equal(groupSizeVariants(t(Q_FAMILY)).length, 1);
+  assert.equal(groupSizeVariants(t(Q_FAMILY))[0].members.length, 2);
+});
+check("groupSizeVariants: must-not-merge cases (a wrong merge hides a dish)", () => {
+  const trays = groupSizeVariants(t(Q_TRAYS));
+  // ROASTED vs HERB ROASTED are different dishes — two separate one-member groups.
+  const roasted = trays.filter((g) => /ROASTED CHICKEN/.test(g.title));
+  assert.equal(roasted.length, 2);
+  for (const g of roasted) assert.equal(g.members.length, 1);
+  // Identical titles with no size marker never merge.
+  assert.equal(groupSizeVariants(t(["OXTAIL PLATE", "OXTAIL PLATE"])).length, 2);
+  // Same size twice → ambiguous → never merge.
+  assert.equal(groupSizeVariants(t(["TRAY X (FEEDS 8-10)", "TRAY X (FEEDS 8-10)"])).length, 2);
+  // One sized + one unsized → never merge.
+  assert.equal(groupSizeVariants(t(["TRAY X (FEEDS 8-10)", "TRAY X"])).length, 2);
+  // Plates are never grouped by the page, but the helper alone is still safe on them.
+  assert.equal(groupSizeVariants(t(Q_PLATES)).length, Q_PLATES.length);
+});
+check("feedsRange: trays bridge reads 'for 8–20 people'", () => {
+  assert.equal(feedsRange(Q_TRAYS), "8–20");
+  assert.equal(feedsRange(["SOUTHEN OXTAILS & GRAVY FEAST (FEEDS 1)"]), "1");
+  assert.equal(feedsRange(["PINCHOS -48 EA", "SEAFOOD SALAD"]), null);
 });
 check("feeds badge: parsed out of the title, first range wins", () => {
   assert.deepEqual(splitFeedsFromTitle("BUFFET STYLE: BBQ CHICKEN (FEEDS 18-20/40-45PCS)"),

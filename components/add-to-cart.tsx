@@ -7,6 +7,7 @@ import { track } from "@/lib/analytics";
 export default function AddToCart({
   cook,
   item,
+  ariaLabel,
 }: {
   cook: CartCook;
   item: {
@@ -17,6 +18,9 @@ export default function AddToCart({
     optionIds?: string[];
     optionsLabel?: string;
   };
+  /** Names what gets added when the visible "Add to cart" alone is ambiguous
+   *  (e.g. one row per size inside a grouped dish card). */
+  ariaLabel?: string;
 }) {
   const { cart, addItem } = useCart();
   const [added, setAdded] = useState(false);
@@ -45,6 +49,7 @@ export default function AddToCart({
     <>
       <button
         onClick={handleAdd}
+        aria-label={ariaLabel}
         aria-live="polite"
         className={`rounded-full px-4 py-2 text-sm font-medium text-white transition-all duration-200 ${
           added
