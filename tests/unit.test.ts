@@ -42,7 +42,23 @@ import {
   isoDayOfWeek,
   pickupDaysSentence,
   isListingOpen,
+  isDatedPickupWindow,
+  datedPickupWindowDate,
+  activePickupWindows,
+  expandPickupWindows,
+  pickupChoiceLabel,
+  pickupChoices,
+  pickupScheduleSummary,
+  pickupSlotsLabel,
 } from "../lib/availability";
+import {
+  holidaysForYear,
+  upcomingHolidays,
+  holidayNudge,
+  weeklyPickupHours,
+  holidayPickupLine,
+  holidayPickupLines,
+} from "../lib/holidays";
 import {
   MENU_SECTIONS,
   menuSectionFor,
@@ -585,6 +601,142 @@ check("isListingOpen: storefront and dashboard share one open-dish rule", () => 
   // Open preorder inside the 30-day preorder horizon (Nov 25 would still be
   // too far out on Oct 19 — existing rule, not a closed dish).
   assert.equal(isListingOpen({ fulfillment_mode: "preorder", ready_date: "2026-11-10", order_by: "2026-11-05" }, today), true);
+});
+// ---- holiday pickup days (Oct 30 2026: Thanksgiving pickup wasn't bookable) ----
+const Q_WINDOWS = ["Saturdays 2PM-5PM", "Sundays.  2PM to 5 PM"];
+const TG_LINE = "Thanksgiving pickup: Wed, Nov 25, 2026 · 2PM-5PM";
+
+check("dated pickup lines: recognized and resolved; weekly lines are not", () => {
+  assert.equal(isDatedPickupWindow(TG_LINE), true);
+  assert.equal(datedPickupWindowDate(TG_LINE, "2026-10-30"), "2026-11-25");
+  assert.equal(datedPickupWindowDate("Christmas Eve, Dec 24th 10am-1pm", "2026-10-30"), "2026-12-24");
+  assert.equal(datedPickupWindowDate("Pickup November 26 9-11 AM", "2026-10-30"), "2026-11-26");
+  for (const w of [...Q_WINDOWS, "Weekends 10-2", "Fri 5-8pm", "Mon-Fri 9am to 5pm", "Sat & Sun evenings"]) {
+    assert.equal(isDatedPickupWindow(w), false, w);
+    assert.equal(datedPickupWindowDate(w, "2026-10-30"), null, w);
+  }
+  // Impossible dates are not dates.
+  assert.equal(datedPickupWindowDate("Feb 30, 2027 noon", "2026-10-30"), null);
+});
+check("dated pickup lines: no year → this year, or next year once ~2 months gone", () => {
+  assert.equal(datedPickupWindowDate("Jan 2 pickup 10-12", "2026-12-20"), "2027-01-02");
+  assert.equal(datedPickupWindowDate("Nov 25 2-5pm", "2026-12-01"), "2026-11-25"); // just passed → expired, not next year
+});
+check("parsePickupDays: a holiday line never adds a weekly day", () => {
+  const d = parsePickupDays([...Q_WINDOWS, TG_LINE]);
+  assert.deepEqual([...d!].sort(), [0, 6]); // still Sat+Sun — not "every Wednesday"
+  assert.equal(parsePickupDays([TG_LINE]), null); // only one-offs → no weekly schedule
+});
+check("activePickupWindows: a holiday line disappears after its day", () => {
+  assert.deepEqual(activePickupWindows([...Q_WINDOWS, TG_LINE], "2026-11-25"), [...Q_WINDOWS, TG_LINE]);
+  assert.deepEqual(activePickupWindows([...Q_WINDOWS, TG_LINE], "2026-11-26"), Q_WINDOWS);
+});
+check("holidaysForYear: Thanksgiving is the 4th Thursday of November", () => {
+  assert.equal(holidaysForYear(2026)[0].date, "2026-11-26");
+  assert.equal(holidaysForYear(2027)[0].date, "2027-11-25");
+  assert.equal(holidaysForYear(2028)[0].date, "2028-11-23");
+  assert.deepEqual(holidaysForYear(2026)[0].suggestions, ["2026-11-25", "2026-11-26"]);
+});
+check("upcomingHolidays: only the ones 2–42 days out", () => {
+  assert.deepEqual(upcomingHolidays("2026-10-30").map((h) => h.key), ["thanksgiving-2026"]);
+  assert.deepEqual(upcomingHolidays("2026-12-01").map((h) => h.key), ["christmas-2026", "new-years-eve-2026"]);
+  assert.deepEqual(upcomingHolidays("2026-11-25").map((h) => h.key), ["christmas-2026", "new-years-eve-2026"]); // Thanksgiving is tomorrow — too late
+});
+check("holidayNudge: Chef Q's weekend schedule is asked about Wed 25 / Thu 26", () => {
+  const n = holidayNudge(Q_WINDOWS, "2026-10-30");
+  assert.equal(n?.holiday.key, "thanksgiving-2026");
+  assert.deepEqual(n?.suggestions, ["2026-11-25", "2026-11-26"]);
+});
+check("holidayNudge: handled once she adds a day, or when her week already covers it", () => {
+  assert.equal(holidayNudge([...Q_WINDOWS, TG_LINE], "2026-10-30"), null);
+  // A kitchen that already hands off on Wednesdays and Thursdays has nothing to add.
+  assert.equal(holidayNudge(["Wed & Thu 4-7pm"], "2026-10-30"), null);
+  // Covers Wednesday only → still asked about Thanksgiving Day itself.
+  assert.deepEqual(holidayNudge(["Wednesdays 4-7pm"], "2026-10-30")?.suggestions, ["2026-11-26"]);
+  assert.equal(holidayNudge([], "2026-08-01"), null); // no holiday within 6 weeks
+  // No pickup times at all: buyers already pick any date, so nothing to ask.
+  assert.equal(holidayNudge([], "2026-10-30"), null);
+  assert.equal(holidayNudge(["Halloween pickup: Sat, Oct 24, 2026 · 2PM-5PM"], "2026-10-30"), null);
+});
+check("weeklyPickupHours: her usual hours, lifted from the weekly line", () => {
+  assert.equal(weeklyPickupHours(Q_WINDOWS), "2PM-5PM");
+  assert.equal(weeklyPickupHours(["Sundays.  2PM to 5 PM"]), "2PM to 5 PM");
+  assert.equal(weeklyPickupHours([TG_LINE, "Saturdays 11AM-10 PM"]), "11AM-10 PM");
+  assert.equal(weeklyPickupHours(["Weekends"]), null);
+});
+check("holidayPickupLine: round-trips through the parser and fits the 80-char limit", () => {
+  const line = holidayPickupLine("Thanksgiving pickup", "2026-11-25", "2PM-5PM");
+  assert.equal(line, TG_LINE);
+  assert.equal(datedPickupWindowDate(line, "2026-10-30"), "2026-11-25");
+  const long = holidayPickupLine("New Year's Eve pickup", "2026-12-31", "x".repeat(60));
+  assert.ok(long.length <= 80);
+  assert.equal(datedPickupWindowDate(long, "2026-10-30"), "2026-12-31");
+});
+// Chef Q's real saved pickup times (Oct 30 2026): a day line, then its slot times.
+const Q_LIVE = ["Saturdays", "2 PM", "2:30 PM", "3 PM", "3:30PM", "4 PM", "4:30 PM", "5 PM", "5:30 PM", "Sundays"];
+const Q_SLOTS = Q_LIVE.slice(1, 9);
+
+check("slot layout: a day line with times under it becomes one choice per slot", () => {
+  assert.deepEqual(expandPickupWindows(Q_LIVE), [...Q_SLOTS.map((t) => `Saturdays ${t}`), "Sundays"]);
+  // Idempotent: an expanded list reads back unchanged.
+  assert.deepEqual(expandPickupWindows(expandPickupWindows(Q_LIVE)), expandPickupWindows(Q_LIVE));
+  // One-line windows are untouched.
+  assert.deepEqual(expandPickupWindows(Q_WINDOWS), Q_WINDOWS);
+});
+check("slot layout: her schedule reads as Saturdays and Sundays again", () => {
+  assert.deepEqual([...parsePickupDays(Q_LIVE)!].sort(), [0, 6]);
+  assert.equal(pickupDaysSentence(parsePickupDays(Q_LIVE)), "Saturdays and Sundays");
+  // Each slot carries its own day, for the checkout date picker.
+  assert.deepEqual([...parsePickupDays(["Saturdays 2:30 PM"])!], [6]);
+  // A ready-now dish on Friday Oct 30 promises Saturday, not a weekday.
+  assert.equal(computeGetIt({ mode: "ready_now" }, "2026-10-30", parsePickupDays(Q_LIVE)), "2026-10-31");
+});
+check("slot layout: buyers see a day's slots as one span", () => {
+  assert.deepEqual(pickupScheduleSummary(Q_LIVE), ["Saturdays 2 PM to 5:30 PM", "Sundays"]);
+  assert.equal(pickupSlotsLabel(["11 AM", "4 PM"]), "11 AM, 4 PM"); // a few slots: listed
+  assert.equal(pickupSlotsLabel(["4 PM", "2 PM", "3 PM", "5 PM"]), "4 PM, 2 PM, 3 PM, 5 PM"); // out of order: listed
+  assert.equal(pickupSlotsLabel(["11am", "noon", "12:30 pm", "1 p.m."]), "11am to 1 p.m.");
+  assert.equal(weeklyPickupHours(Q_LIVE), "2 PM to 5:30 PM");
+  assert.equal(weeklyPickupHours(["Saturdays: 2:30PM-5PM"]), "2:30PM-5PM"); // a time's colon survives
+});
+check("holiday day for a slot kitchen: same slots, bookable, gone after the day", () => {
+  const tg = holidayPickupLines("Thanksgiving pickup", "2026-11-25", Q_LIVE);
+  assert.deepEqual(tg, ["Thanksgiving pickup: Wed, Nov 25, 2026", ...Q_SLOTS]);
+  const saved = [...Q_LIVE, ...tg];
+  const pick = "Thanksgiving pickup: Wed, Nov 25, 2026 · 2:30 PM";
+  assert.ok(pickupChoices(saved, "2026-10-30").includes(pick));
+  assert.equal(datedPickupWindowDate(pick, "2026-10-30"), "2026-11-25");
+  assert.deepEqual([...parsePickupDays(saved)!].sort(), [0, 6]); // still not "every Wednesday"
+  assert.equal(holidayNudge(saved, "2026-10-30"), null); // Thanksgiving is handled
+  assert.deepEqual(pickupScheduleSummary(activePickupWindows(saved, "2026-11-25")), [
+    "Saturdays 2 PM to 5:30 PM",
+    "Sundays",
+    "Thanksgiving pickup: Wed, Nov 25, 2026 · 2 PM to 5:30 PM",
+  ]);
+  // After the day the date line AND its slot times go, so no leftover time
+  // lands under another day.
+  assert.deepEqual(activePickupWindows(saved, "2026-11-26"), Q_LIVE);
+  assert.ok(!pickupChoices(saved, "2026-11-26").some((c) => c.includes("Thanksgiving")));
+  // A one-line kitchen still gets one line at its usual hours.
+  assert.deepEqual(holidayPickupLines("Thanksgiving pickup", "2026-11-25", Q_WINDOWS), [TG_LINE]);
+});
+check("pickupChoiceLabel: a holiday slot leads with its date and time on a phone", () => {
+  const t = "2026-10-30";
+  assert.equal(pickupChoiceLabel("Thanksgiving pickup: Wed, Nov 25, 2026 · 2:30 PM", t), "Wed, Nov 25 · 2:30 PM · Thanksgiving");
+  assert.equal(pickupChoiceLabel(TG_LINE, t), "Wed, Nov 25 · 2PM-5PM · Thanksgiving");
+  assert.equal(pickupChoiceLabel("Thanksgiving pickup: Wed, Nov 25, 2026", t), "Wed, Nov 25 · Thanksgiving");
+  // Weekly choices and hand-typed dated lines show as written.
+  assert.equal(pickupChoiceLabel("Saturdays 2:30 PM", t), "Saturdays 2:30 PM");
+  assert.equal(pickupChoiceLabel("Christmas Eve, Dec 24th 10am-1pm", t), "Christmas Eve, Dec 24th 10am-1pm");
+});
+check("holidayNudge: her real layout is asked about Thanksgiving", () => {
+  assert.deepEqual(holidayNudge(Q_LIVE, "2026-10-30")?.suggestions, ["2026-11-25", "2026-11-26"]);
+});
+check("slot layout: lines it can't place keep the old safe fallback", () => {
+  // A time with no day line above it still makes the schedule unknown.
+  assert.equal(parsePickupDays(["2 PM", "Saturdays"]), null);
+  // A line that already has a time doesn't take the line below as its slot.
+  assert.deepEqual(expandPickupWindows(["Saturdays 2PM-5PM", "6 PM"]), ["Saturdays 2PM-5PM", "6 PM"]);
 });
 check("feedsRange: trays bridge reads 'for 8–20 people'", () => {
   assert.equal(feedsRange(Q_TRAYS), "8–20");

@@ -18,6 +18,8 @@ import {
   computeReadyBy,
   isoDayOfWeek,
   pickupDaysSentence,
+  pickupChoices,
+  datedPickupWindowDate,
 } from "@/lib/availability";
 import {
   deriveUnitPrice,
@@ -225,8 +227,13 @@ export async function startCheckout(formData: FormData) {
   // order must name one of the CURRENT windows (or none — the "arrange with
   // the kitchen" choice). Catches stale carts offering a deleted window and
   // devtools-fabricated values alike; the checkout page's CartSync will have
-  // healed the cart by the time the buyer sees this bounce.
-  const windows = (cook!.pickup_windows ?? []) as string[];
+  // healed the cart by the time the buyer sees this bounce. Choices are one
+  // per slot ("Saturdays 2:30 PM" from a "Saturdays" line with times under
+  // it), and a holiday pickup day whose date has passed is no longer one.
+  const windows = pickupChoices(
+    (cook!.pickup_windows ?? []) as string[],
+    pacificTodayIso()
+  );
   if (
     fulfillment === "pickup" &&
     pickupTime &&
@@ -298,14 +305,35 @@ export async function startCheckout(formData: FormData) {
   // estimate not a deadline, and recomputing at payment would push logic into
   // the money-critical, idempotent confirmPaidOrder for negligible payoff.
   const today = pacificTodayIso();
+  // A holiday pickup day ("Thanksgiving pickup: Wed, Nov 25, 2026 · …") IS
+  // the date: the order is for that day, whatever the date field said (the
+  // checkout form fixes it there anyway). A different date can't ride along
+  // with it — that would print two promises.
+  const holidayDate =
+    fulfillment === "pickup" && pickupTime
+      ? datedPickupWindowDate(pickupTime, today)
+      : null;
+  if (holidayDate) {
+    if (eventDate && eventDate !== holidayDate) {
+      err(
+        "/checkout",
+        `That pickup is on ${formatDateLong(holidayDate)} — keep that date, or choose a different pickup time.`
+      );
+    }
+    if (holidayDate > addDaysIso(today, MAX_EVENT_DAYS_OUT)) {
+      err("/checkout", "That holiday pickup is too far out to book yet — check back closer to the date.");
+    }
+    eventDate = holidayDate;
+  }
   // Handoff days apply only to PICKUP orders at a pickup-enabled kitchen, and
   // the ONE window the buyer selected beats the union of all windows — the
   // promise must never read "Get it: Saturday" above a chosen Sunday slot.
   // Delivery runs on the chef's own arrangements, so its promise stays the
-  // plain ready-by. Preorder lines always keep their cook-set date
-  // (computeGetIt exempts them). Unparseable text → null → old behavior.
+  // plain ready-by; so does a holiday pickup day (its date is the promise).
+  // Preorder lines always keep their cook-set date (computeGetIt exempts
+  // them). Unparseable text → null → old behavior.
   const handoffDays =
-    fulfillment === "pickup" && cook!.pickup_available !== false
+    fulfillment === "pickup" && cook!.pickup_available !== false && !holidayDate
       ? (pickupTime ? parsePickupDays([pickupTime]) : null) ??
         parsePickupDays(windows)
       : null;
