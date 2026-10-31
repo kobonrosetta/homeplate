@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { updateKitchen } from "../edit/actions";
 import { toggleKitchenPause } from "./actions";
 import PickupWindowsField from "@/components/pickup-windows-field";
+import { activePickupWindows, pacificTodayIso } from "@/lib/availability";
 import CuisineTagsField from "@/components/cuisine-tags-field";
 import PickupLocationField from "@/components/pickup-location-field";
 import {
@@ -308,7 +309,11 @@ export default async function SettingsPage({
                 name="pickup_available"
                 defaultChecked={cook.pickup_available}
               />
-              <PickupWindowsField defaultValue={cook.pickup_windows ?? []} />
+              {/* Past holiday days are left out, so the next save tidies them away. */}
+              <PickupWindowsField
+                defaultValue={activePickupWindows(cook.pickup_windows ?? [], pacificTodayIso())}
+                holidayHelper
+              />
               <PickupLocationField
                 defaultValue={priv?.pickup_location ?? ""}
                 homeAddress={

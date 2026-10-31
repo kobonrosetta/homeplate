@@ -242,12 +242,196 @@ const dayNum = (token: string) => DAY_NUM[token.slice(0, 3).toLowerCase()];
 const UNPARSEABLE_QUALIFIER =
   /\b(1st|2nd|3rd|4th|5th|first|second|third|fourth|fifth|last|every other|alternat\w*|bi-?weekly|monthly|no|not|closed|except\w*|excluding)\b/i;
 
+// ---- One-off (holiday) pickup days ----
+//
+// A pickup line that names a calendar date — "Thanksgiving pickup: Wed, Nov
+// 25, 2026 · 2PM-5PM" — is a single handoff day, not part of the weekly
+// schedule. The weekly parser skips such lines (so a holiday Wednesday never
+// turns into "every Wednesday"), checkout offers exactly that date, and the
+// line hides itself once the date has passed. Lines stay plain text in
+// cooks.pickup_windows, so cooks can also type one by hand.
+const MONTH_SRC =
+  "(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+const DATED_WINDOW_RE = new RegExp(
+  `\\b${MONTH_SRC}\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b(?:,?\\s+(\\d{4})\\b)?`,
+  "i"
+);
+const MONTH_NUM: Record<string, number> = {
+  jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+  jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+};
+
+// Does this pickup line name a specific calendar date?
+export function isDatedPickupWindow(line: string | null | undefined): boolean {
+  return DATED_WINDOW_RE.test(String(line ?? ""));
+}
+
+// The "YYYY-MM-DD" a dated pickup line refers to, or null for a weekly line.
+// No year written → this year, unless that's more than ~2 months gone, in
+// which case next year (a "Jan 2" typed in December means the coming one).
+export function datedPickupWindowDate(
+  line: string | null | undefined,
+  todayIso: string
+): string | null {
+  const m = String(line ?? "").match(DATED_WINDOW_RE);
+  if (!m) return null;
+  const month = MONTH_NUM[m[1].slice(0, 3).toLowerCase()];
+  const day = Number(m[2]);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  let year = m[3] ? Number(m[3]) : Number(todayIso.slice(0, 4));
+  let iso = `${year}-${pad(month)}-${pad(day)}`;
+  if (!m[3] && iso < addDaysIso(todayIso, -60)) {
+    year += 1;
+    iso = `${year}-${pad(month)}-${pad(day)}`;
+  }
+  return isIsoDate(iso) ? iso : null;
+}
+
+// ---- How cooks lay out the pickup-times box ----
+//
+// Free text, one line each. Two layouts are common and both work:
+//   "Saturdays 2PM-5PM"                   one line per window, or
+//   "Saturdays", then "2 PM", "2:30 PM"…  a day on its own line with the
+//                                         slot times listed under it.
+// A line that says WHEN (weekdays, or a holiday date) but gives no time opens
+// a block; the time-only lines under it are that block's slots, and buyers
+// choose one as "Saturdays 2:30 PM". Before this, each time-only line stood
+// alone with no day: the weekly schedule went unreadable (so "Get it" could
+// promise a weekday the kitchen doesn't hand off on) and checkout offered
+// "2 PM" on any date at all. That was 40 Acres' real layout, Oct 2026.
+const HAS_DAY_RE = new RegExp(
+  `\\b${DAY_SRC}\\b|\\b(weekends?|weekdays?|daily|every ?day|all week|any ?day)\\b`,
+  "i"
+);
+const TIMEISH_RE = /\d|\b(noon|midnight)\b/i;
+
+export type PickupBlock = {
+  line: string; // as the cook typed it (trimmed)
+  slots: string[]; // time-only lines listed under it
+  dated: boolean; // a one-off holiday day rather than the weekly schedule
+};
+
+export function pickupBlocks(lines: string[] | null | undefined): PickupBlock[] {
+  const blocks: PickupBlock[] = [];
+  let open: PickupBlock | null = null;
+  for (const raw of lines ?? []) {
+    const line = String(raw ?? "").trim();
+    if (!line) continue;
+    const dated = isDatedPickupWindow(line);
+    const hasDay = HAS_DAY_RE.test(line);
+    if (open && !dated && !hasDay && TIMEISH_RE.test(line)) {
+      open.slots.push(line);
+      continue;
+    }
+    const block: PickupBlock = { line, slots: [], dated };
+    blocks.push(block);
+    // Says when but not what time (a date's own digits don't count as a time).
+    const rest = dated ? line.replace(DATED_WINDOW_RE, " ") : line;
+    open = (hasDay || dated) && !TIMEISH_RE.test(rest) ? block : null;
+  }
+  return blocks;
+}
+
+// "Saturdays" + "2:30 PM" → "Saturdays 2:30 PM"; a holiday day takes a dot,
+// like the one-line format: "Thanksgiving pickup: Wed, Nov 25, 2026 · 2:30 PM".
+// Capped at checkout's 120-character pickup_time limit, so the value a buyer
+// posts always matches what the server rebuilds.
+function slotChoice(b: PickupBlock, slot: string): string {
+  const head = b.line.replace(/[\s·|,;.-]+$/, "");
+  return `${head}${b.dated ? " · " : " "}${slot}`.slice(0, 120);
+}
+
+// Every choice a buyer can make: a block's slots expand to "Saturdays 2 PM",
+// "Saturdays 2:30 PM", …; other lines are offered as written. Idempotent, so
+// an already-expanded list passes through unchanged.
+export function expandPickupWindows(lines: string[] | null | undefined): string[] {
+  return pickupBlocks(lines).flatMap((b) =>
+    b.slots.length ? b.slots.map((s) => slotChoice(b, s)) : [b.line]
+  );
+}
+
+// The cook's lines with any passed holiday day removed, together with the
+// slot times listed under it. Keeps the cook's own layout, so Settings shows
+// this for editing and the next save tidies the passed days away.
+export function activePickupWindows(
+  windows: string[] | null | undefined,
+  todayIso: string
+): string[] {
+  return pickupBlocks(windows)
+    .filter((b) => {
+      const d = datedPickupWindowDate(b.line, todayIso);
+      return d === null || d >= todayIso;
+    })
+    .flatMap((b) => [b.line, ...b.slots]);
+}
+
+// The pickup choices checkout offers (client and server alike): one per slot,
+// passed holiday days gone.
+export function pickupChoices(
+  windows: string[] | null | undefined,
+  todayIso: string
+): string[] {
+  return expandPickupWindows(activePickupWindows(windows, todayIso));
+}
+
+// The checkout dropdown's text for a pickup choice. A closed dropdown on a
+// phone shows only ~35 characters, which cut a holiday slot ("Thanksgiving
+// pickup: Wed, Nov 25, 2026 · 2:30 PM") off right before its time — so a
+// holiday choice leads with what the buyer is picking: "Wed, Nov 25 ·
+// 2:30 PM · Thanksgiving". The option's VALUE stays the full line, which is
+// what the server checks and what the order records.
+const CANONICAL_DATED_RE =
+  /^(.+?): [A-Za-z]{3}, [A-Za-z]{3} \d{1,2}, \d{4}(?: · (.+))?$/;
+export function pickupChoiceLabel(choice: string, todayIso: string): string {
+  const date = datedPickupWindowDate(choice, todayIso);
+  const m = choice.match(CANONICAL_DATED_RE);
+  if (!date || !m) return choice;
+  const name = m[1].replace(/\s+pickup$/i, "") || m[1];
+  return [formatDateShort(date), m[2], name].filter(Boolean).join(" · ");
+}
+
+// Minutes after midnight for a plain slot time ("2 PM", "3:30PM", "noon"), or
+// null for anything else.
+function slotMinutes(t: string): number | null {
+  const s = t.toLowerCase().replace(/\./g, "").trim();
+  if (s === "noon") return 720;
+  const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2] ?? 0);
+  if (h < 1 || h > 12 || min > 59) return null;
+  return (h % 12) * 60 + min + (m[3] === "pm" ? 720 : 0);
+}
+
+// A block's slot times as one phrase: a run of 4+ in time order reads as its
+// span ("2 PM to 5:30 PM"); anything else is listed ("11 AM, 4 PM").
+export function pickupSlotsLabel(slots: string[]): string {
+  if (slots.length >= 4) {
+    const mins = slots.map(slotMinutes);
+    const inOrder = mins.every(
+      (m, i) => m !== null && (i === 0 || m > (mins[i - 1] as number))
+    );
+    if (inOrder) return `${slots[0]} to ${slots[slots.length - 1]}`;
+  }
+  return slots.join(", ");
+}
+
+// The schedule as display lines, each block's slots kept together:
+// "Saturdays 2 PM to 5:30 PM", "Sundays".
+export function pickupScheduleSummary(lines: string[] | null | undefined): string[] {
+  return pickupBlocks(lines).map((b) =>
+    b.slots.length ? slotChoice(b, pickupSlotsLabel(b.slots)) : b.line
+  );
+}
+
 export function parsePickupDays(
   windows: string[] | null | undefined
 ): Set<number> | null {
   if (!windows || windows.length === 0) return null;
   const days = new Set<number>();
-  for (const w of windows) {
+  for (const w of expandPickupWindows(windows)) {
+    // One-off dated lines aren't part of the weekly schedule.
+    if (isDatedPickupWindow(w)) continue;
     let t = (w ?? "").toLowerCase();
     if (UNPARSEABLE_QUALIFIER.test(t)) return null;
     let found = false;

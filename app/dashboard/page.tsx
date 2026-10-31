@@ -2,11 +2,21 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentCook } from "@/lib/cook";
-import { SITE_URL, formatUsd } from "@/lib/constants";
+import { MAX_PICKUP_LINES, SITE_URL, formatUsd } from "@/lib/constants";
 import ShareLink from "@/components/share-link";
 import EmptyState from "@/components/empty-state";
 import { sectionedMenuIds } from "@/lib/menu-display";
-import { isListingOpen, pacificTodayIso } from "@/lib/availability";
+import {
+  formatDateLong,
+  formatDateShort,
+  isIsoDate,
+  isListingOpen,
+  pacificTodayIso,
+  parsePickupDays,
+  pickupDaysSentence,
+} from "@/lib/availability";
+import { holidayNudge, weeklyPickupHours } from "@/lib/holidays";
+import { addHolidayPickupDay } from "./holiday-actions";
 import {
   MONTH_NAMES,
   formatDueDate,
@@ -21,7 +31,11 @@ export const dynamic = "force-dynamic";
 
 const PAID_STATUSES = ["confirmed", "in_progress", "ready", "completed"];
 
-export default async function DashboardOverview() {
+export default async function DashboardOverview({
+  searchParams = {},
+}: {
+  searchParams?: { holiday?: string; holiday_error?: string };
+}) {
   const { cook } = await getCurrentCook();
   // A signed-in non-cook (buyer, or mid-onboarding) has no kitchen; the layout
   // redirects too, but guard here so the page can't null-deref cook.id first.
@@ -229,8 +243,71 @@ export default async function DashboardOverview() {
       href: "/dashboard/menu",
     });
 
+  // A food holiday is coming and this kitchen's pickup days don't cover it:
+  // ask, with one-tap days at the cook's usual hours. Live kitchens only.
+  const nudge =
+    cook.status === "active" && cook.pickup_available
+      ? holidayNudge(cook.pickup_windows ?? [], todayIso)
+      : null;
+  const usualHours = weeklyPickupHours(cook.pickup_windows ?? []);
+  const weeklyDays = pickupDaysSentence(parsePickupDays(cook.pickup_windows ?? []));
+  const addedHoliday =
+    searchParams.holiday && isIsoDate(searchParams.holiday)
+      ? searchParams.holiday
+      : null;
+
   return (
     <div className="space-y-6">
+      {addedHoliday && (
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          <span className="font-medium">
+            Added your holiday pickup day: {formatDateLong(addedHoliday)}.
+          </span>{" "}
+          Customers can choose it at checkout now. Change the hours anytime in{" "}
+          <Link href="/dashboard/settings" className="font-medium underline underline-offset-2">
+            Settings
+          </Link>
+          .
+        </p>
+      )}
+      {searchParams.holiday_error && (
+        <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+          {searchParams.holiday_error === "full"
+            ? `Your pickup times are full (${MAX_PICKUP_LINES} lines). Remove a few in Settings, then add the holiday day there.`
+            : "Couldn't add that day. Try again, or add it under pickup times in Settings."}
+        </p>
+      )}
+      {nudge && (
+        <div id="holiday" className="rounded-xl border border-brand/30 bg-brand/5 p-5">
+          <p className="font-medium text-ink">
+            {nudge.holiday.name} is {formatDateLong(nudge.holiday.date)}.
+          </p>
+          <p className="mt-1 text-sm text-muted">
+            {weeklyDays
+              ? `Your pickups are on ${weeklyDays}, so customers can't order for it yet. Taking holiday orders? Add a pickup day:`
+              : "Taking holiday orders? Add a pickup day so customers can choose it at checkout:"}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {nudge.suggestions.map((d) => (
+              <form key={d} action={addHolidayPickupDay}>
+                <input type="hidden" name="date" value={d} />
+                <button
+                  type="submit"
+                  className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90"
+                >
+                  + {formatDateShort(d)}
+                </button>
+              </form>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-faint">
+            {usualHours
+              ? `It uses your usual pickup times (${usualHours}). You can change them in Settings.`
+              : "You can set the hours in Settings."}{" "}
+            Not cooking that day? Ignore this. It goes away on its own.
+          </p>
+        </div>
+      )}
       {/* The storefront hero auto-picks the newest dish photo until a cover is
           set — which can be a blurry crop. Nudge until the cook chooses one. */}
       {!cook.cover_url && (

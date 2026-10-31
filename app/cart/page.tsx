@@ -7,6 +7,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCart, lineKey } from "@/components/cart-context";
 import CartSync from "@/components/cart-sync";
 import { formatUsd, calcServiceFeeCents } from "@/lib/constants";
+import {
+  activePickupWindows,
+  pacificTodayIso,
+  pickupScheduleSummary,
+} from "@/lib/availability";
 import { FormError } from "@/components/form";
 import ForkMark from "@/components/fork-mark";
 
@@ -47,6 +52,12 @@ export default function CartPage() {
 
   const fee = calcServiceFeeCents(subtotalCents);
   const total = subtotalCents + fee;
+  // The kitchen's schedule as buyers read it: a day's slot times kept
+  // together ("Saturdays 2 PM to 5:30 PM"), holiday days that have passed
+  // left out. (Client-only: this renders after the cart loads.)
+  const pickupSummary = pickupScheduleSummary(
+    activePickupWindows(cart.cook.pickupWindows ?? [], pacificTodayIso())
+  );
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-10">
@@ -64,13 +75,12 @@ export default function CartPage() {
           {cart.cook.name}
         </Link>
       </p>
-      {(cart.cook.pickupAvailable ?? true) &&
-        (cart.cook.pickupWindows ?? []).length > 0 && (
+      {(cart.cook.pickupAvailable ?? true) && pickupSummary.length > 0 && (
         // Surface the kitchen's handoff schedule mid-funnel — a buyer must
         // never first learn "weekends only" at the payment screen.
         <p className="mt-2 rounded-lg bg-card px-3 py-2 text-sm text-muted shadow-soft">
           🕐 <span className="font-medium text-ink">Pickup times:</span>{" "}
-          {(cart.cook.pickupWindows ?? []).join(" · ")}
+          {pickupSummary.join(" · ")}
         </p>
       )}
 

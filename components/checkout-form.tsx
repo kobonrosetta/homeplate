@@ -11,7 +11,11 @@ import {
   MAX_EVENT_DAYS_OUT,
 } from "@/lib/constants";
 import {
+  expandPickupWindows,
+  pickupChoiceLabel,
+  pickupChoices,
   addDaysIso,
+  datedPickupWindowDate,
   formatDateShort,
   nextHandoffIso,
   pacificTodayIso,
@@ -81,7 +85,12 @@ export default function CheckoutForm({
     optionIds: i.optionIds ?? [],
   }));
 
-  const windows = cart.cook.pickupWindows ?? [];
+  // One choice per pickup slot ("Saturdays 2:30 PM"), with holiday pickup
+  // days whose date has passed left out once today is known on the client.
+  // The server builds the same list.
+  const windows = todayIso
+    ? pickupChoices(cart.cook.pickupWindows ?? [], todayIso)
+    : expandPickupWindows(cart.cook.pickupWindows ?? []);
   // The chosen window, or the first one; a choice CartSync's reconcile has
   // since deleted falls back too, so the date list never follows a window
   // the visible select no longer shows.
@@ -89,11 +98,16 @@ export default function CheckoutForm({
     pickupChoice === "" || (pickupChoice && windows.includes(pickupChoice))
       ? pickupChoice
       : windows[0] ?? "";
+  // A holiday pickup day ("Thanksgiving pickup: Wed, Nov 25, …") fixes the
+  // date; there's nothing to choose.
+  const holidayDate =
+    pickupTime && todayIso ? datedPickupWindowDate(pickupTime, todayIso) : null;
   // Days the chosen window runs (falling back to the union of all windows,
   // exactly like the server); null when the schedule can't be read.
-  const windowDays = pickupTime
-    ? parsePickupDays([pickupTime]) ?? parsePickupDays(windows)
-    : null;
+  const windowDays =
+    pickupTime && !holidayDate
+      ? parsePickupDays([pickupTime]) ?? parsePickupDays(windows)
+      : null;
   const readyBy = readiness?.floor ?? null;
   // Earliest date the picker may offer: the cart's unpushed lead-time floor
   // (the server's leadFloor), never before today.
@@ -232,7 +246,7 @@ export default function CheckoutForm({
               >
                 {windows.map((w) => (
                   <option key={w} value={w}>
-                    {w}
+                    {todayIso ? pickupChoiceLabel(w, todayIso) : w}
                   </option>
                 ))}
                 <option value="">Another time (I&apos;ll arrange it with the kitchen)</option>
@@ -257,6 +271,23 @@ export default function CheckoutForm({
             // Don't offer dates until the live check settles — a date chosen
             // now could silently vanish when the lead-time floor lands.
             <p className="text-xs text-faint">Checking availability&hellip;</p>
+          ) : holidayDate ? (
+            <div>
+              <p className="mb-1 text-sm font-medium text-ink">Pickup date</p>
+              <p className="text-ink">{formatDateShort(holidayDate)}</p>
+              <input type="hidden" name="event_date" value={holidayDate} />
+              {floor && floor > holidayDate ? (
+                <p className="mt-1 text-xs text-rose-700">
+                  Something in your cart needs until {formatDateShort(floor)}.
+                  Choose a different pickup time, or remove it.
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-faint">
+                  A one-day holiday pickup. Your confirmation will show this
+                  date.
+                </p>
+              )}
+            </div>
           ) : pickupTime && pickupDates.length > 0 ? (
             // The window's days are known: offer only dates it actually runs,
             // from the cart's lead-time floor forward. Keyed on the window so

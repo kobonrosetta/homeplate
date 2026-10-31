@@ -1,5 +1,5 @@
 import { checkPhotoImage } from "@/lib/ai";
-import { MIN_PHOTO_SCORE } from "@/lib/constants";
+import { MAX_PICKUP_LINES, MIN_PHOTO_SCORE } from "@/lib/constants";
 import { optimizePhoto, AVATAR_MAX_EDGE } from "@/lib/image";
 import { readAllergensFromForm, allergenColumns } from "@/lib/allergens";
 import {
@@ -80,14 +80,15 @@ export function readQuantity(formData: FormData): {
 }
 
 // Cook-defined pickup windows: one per line, each trimmed + capped at 80 chars,
-// max 10, blanks dropped — so a paste-happy cook can't blow up checkout. Shared
-// by the sell wizard and dashboard settings (both write cooks.pickup_windows).
+// at most MAX_PICKUP_LINES, blanks dropped — so a paste-happy cook can't blow
+// up checkout. Shared by the sell wizard and dashboard settings (both write
+// cooks.pickup_windows).
 export function readPickupWindows(formData: FormData): string[] {
   return String(formData.get("pickup_windows") ?? "")
     .split("\n")
     .map((s) => s.trim().slice(0, 80))
     .filter(Boolean)
-    .slice(0, 10);
+    .slice(0, MAX_PICKUP_LINES);
 }
 
 // Create a listing for `cookId` from a submitted form (photo upload + the
