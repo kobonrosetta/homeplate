@@ -26,6 +26,14 @@ export const MAX_PREORDER_HORIZON_DAYS = 30;
 export const MAX_EVENT_DAYS_OUT = 90;
 
 /**
+ * Most pickup-time lines a kitchen can save. Room for half-hour slots on two
+ * days ("Saturdays" + 8 times, "Sundays" + 8 times) plus a holiday day or two
+ * with the same slots. 40 Acres filled the old limit of 10 with one day of
+ * slots (a save drops any lines past the limit).
+ */
+export const MAX_PICKUP_LINES = 40;
+
+/**
  * The site's public origin, for absolute URLs in emails, share links, and
  * social-card metadata. At go-live: set NEXT_PUBLIC_SITE_URL on Render (and
  * update the fallback) — this constant is the ONLY place the host lives.

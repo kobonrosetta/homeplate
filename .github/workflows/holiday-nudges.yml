@@ -1,0 +1,28 @@
+# Emails each live kitchen once per food holiday (Thanksgiving, Christmas,
+# New Year's Eve) when its pickup days don't cover it: "Taking Thanksgiving
+# orders? Add your pickup day." Calls the app's endpoint daily; the endpoint
+# decides who's due and records each send (holiday_nudges table, migration 44)
+# so nobody gets it twice.
+#
+# Setup: reuses the same CRON_SECRET repository secret as the other crons
+# (GitHub → Settings → Secrets), matching the CRON_SECRET env var on Render.
+name: Holiday pickup nudges
+
+on:
+  schedule:
+    # Daily ~10:23 America/Los_Angeles (17:23 UTC during daylight time).
+    # Off-the-hour to dodge GitHub's top-of-hour cron congestion.
+    - cron: "23 17 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  nudge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the holiday-nudge endpoint
+        run: |
+          # Generous timeout + retries ride out Render's free-tier cold start.
+          curl -sS --fail-with-body -X POST \
+            --max-time 120 --retry 3 --retry-delay 20 --retry-all-errors \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://forkfork.app/api/cron/holiday-nudge

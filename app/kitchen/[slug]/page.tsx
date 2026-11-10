@@ -7,7 +7,10 @@ import ShareLink from "@/components/share-link";
 import AddToCart from "@/components/add-to-cart";
 import AvailabilityPill from "@/components/availability-pill";
 import {
+  activePickupWindows,
+  pickupScheduleSummary,
   availabilityFromListing,
+  isDatedPickupWindow,
   isListingOpen,
   isOrderable,
   pacificTodayIso,
@@ -220,13 +223,21 @@ export default async function KitchenPage({
   // the collapsed "currently unavailable" block. The feeds parenthetical is
   // lifted out of the (often ALL-CAPS) title into a quiet chip beside the
   // availability pill, so party size gets MORE visible while titles shout less.
+  // Pickup lines buyers can still choose (a holiday day drops off once its
+  // date passes). The header shows them summarized, a day's slot times kept
+  // together ("Saturdays 2 PM to 5:30 PM"), split into the weekly schedule
+  // and one-off holiday days.
+  const activeWindows = activePickupWindows(cook.pickup_windows ?? [], today);
+  const schedule = pickupScheduleSummary(activeWindows);
+  const weeklyWindows = schedule.filter((w) => !isDatedPickupWindow(w));
+  const holidayWindows = schedule.filter((w) => isDatedPickupWindow(w));
   const cartCook = {
     id: cook.id,
     name: cook.business_name,
     slug: cook.slug,
     pickupAvailable: cook.pickup_available,
     deliveryAvailable: cook.delivery_available,
-    pickupWindows: cook.pickup_windows ?? [],
+    pickupWindows: activeWindows,
   };
   const renderDish = (
     l: any,
@@ -298,7 +309,7 @@ export default async function KitchenPage({
               // Windows are PICKUP days — meaningless (possibly stale)
               // when the kitchen doesn't offer pickup.
               pickupWindows={
-                cook.pickup_available ? cook.pickup_windows : null
+                cook.pickup_available ? activeWindows : null
               }
             />
             {disp.feeds && (
@@ -375,7 +386,7 @@ export default async function KitchenPage({
     const timing = (l: any) =>
       [l.fulfillment_mode, l.lead_days, l.ready_date, l.order_by].join("|");
     const sameTiming = rows.every((r) => timing(r.item) === timing(rows[0].item));
-    const pickupWindows = cook.pickup_available ? cook.pickup_windows : null;
+    const pickupWindows = cook.pickup_available ? activeWindows : null;
     const title = stripSectionPrefix(g.title);
     return (
       <div
@@ -594,11 +605,28 @@ export default async function KitchenPage({
           <p>{(cook.cuisine_tags as string[]).join(" · ")}</p>
         )}
         {cook.pickup_available &&
-          ((cook.pickup_windows ?? []).length > 0 ? (
-            <p>
-              <span className="font-medium text-ink">Pickup times:</span>{" "}
-              {(cook.pickup_windows as string[]).join(" · ")}
-            </p>
+          (activeWindows.length > 0 ? (
+            <>
+              {weeklyWindows.length > 0 && (
+                <p>
+                  <span className="font-medium text-ink">Pickup times:</span>{" "}
+                  {weeklyWindows.join(" · ")}
+                </p>
+              )}
+              {/* Holiday days stand apart from the weekly schedule, led by
+                  the cook's own label ("Thanksgiving pickup"). */}
+              {holidayWindows.map((w) => {
+                const cut = w.indexOf(": ");
+                return (
+                  <p key={w}>
+                    <span className="font-medium text-brand">
+                      {cut > 0 ? w.slice(0, cut) : "Holiday pickup"}:
+                    </span>{" "}
+                    {cut > 0 ? w.slice(cut + 2) : w}
+                  </p>
+                );
+              })}
+            </>
           ) : (
             <p>
               <span className="font-medium text-ink">Pickup:</span> available
