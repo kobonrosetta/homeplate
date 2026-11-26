@@ -50,6 +50,7 @@ npm run build        # production build — must pass before shipping
 npx tsc --noEmit     # type check — must be clean
 npm test             # fee-math unit tests (tsx tests/unit.test.ts)
 npm run lint
+npm run check:build  # after a build: scans .next for patterns the minifier corrupted (gotcha #9)
 ```
 
 Env: copy `.env.example` → `.env.local` and fill keys. **`.env.local` is gitignored and
@@ -278,6 +279,30 @@ them re-opens real vulnerabilities:
    line. The marketplace-facilitator flip (ForkFork collecting tax at checkout) is
    deliberately NOT built — it needs the CPA answer on whether a Santa Clara-based
    facilitator must register regardless of the $500k remote-seller threshold.
+9. **Patterns are regex LITERALS only — never `new RegExp(...)` built from a string —
+   and the production build is the thing to test.** Next 14.2.5's minifier can fold a
+   template string such as `` `\\b${MONTHS}…` `` into a plain string literal and write
+   its `\\b` as `\\\b` (a backslash plus a BACKSPACE character). The pattern then
+   matches nothing — in the built SERVER code only; `next dev`, the unit tests (tsx)
+   and the browser bundle all keep working. That is how holiday pickup days shipped
+   broken on Nov 24 2026 and stayed broken for a day: the live server recognized no
+   dated pickup line, so the dashboard kept offering a day the cook had already added
+   (Chef Q tapped it four times), the storefront dumped her raw lines, "Get it" lost
+   the weekly schedule, and checkout refused the holiday time slots the browser
+   offered. Do NOT undo:
+   - every pattern in `lib/availability.ts` is written out as a literal, the day-name
+     alternation repeated in each (keep the copies identical);
+   - `tests/unit.test.ts` fails on any `RegExp(` call in `app/`, `components/`, `lib/`
+     or `middleware.ts`;
+   - `npm run check:build` (`scripts/check-build.mjs`) scans a finished build for the
+     damage itself — run it after `npm run build`;
+   - repeated pickup lines are harmless by construction: `activePickupWindows` drops a
+     block that repeats an earlier one, and `expandPickupWindows` /
+     `pickupScheduleSummary` never return the same text twice.
+   **Anything a buyer or cook sees must be checked on the real build** —
+   `npm run build && npx next start -p 3457`, then load the page — not only through
+   tsx or `next dev`. Server and browser run DIFFERENT compiled copies of `lib/`, so
+   also check that what the browser offers is what the server accepts.
 
 ## Current status & what's left to launch
 

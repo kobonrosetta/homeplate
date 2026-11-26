@@ -1,4 +1,6 @@
 import assert from "node:assert";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { slugify } from "../lib/slug";
 import { titleCase, publicArea } from "../lib/handoff";
 import sharp from "sharp";
@@ -869,6 +871,131 @@ check("badge: preorder open → date tone", () =>
   assert.equal(availabilityBadge({ mode: "preorder", readyDate: "2026-08-20", orderBy: "2026-08-18" }, TODAY).tone, "date"));
 check("badge: preorder closed → closed tone", () =>
   assert.equal(availabilityBadge({ mode: "preorder", readyDate: "2026-08-20", orderBy: "2026-08-05" }, TODAY).tone, "closed"));
+
+// ---- holiday pickup days on the LIVE server (Nov 25 2026: the built server recognized none) ----
+// Chef Q's saved pickup lines as they stood on Thanksgiving eve. The one-tap
+// "+ Thu, Nov 26" button never took itself away (see the note at the top of
+// the patterns in lib/availability.ts), so she tapped it four times: three
+// copies of the day with her slots, then a one-line copy once the list was
+// nearly full. Whatever the lines repeat, buyers must see each thing once.
+// (Q_LIVE and Q_SLOTS, her weekly lines and slot times, are defined above.)
+const Q_TG_DAY = "Thanksgiving pickup: Thu, Nov 26, 2026";
+const Q_TG_ONE_LINE = "Thanksgiving pickup: Thu, Nov 26, 2026 · 2 PM to 5:30 PM";
+const Q_NOV25 = [
+  "Saturdays", ...Q_SLOTS,
+  "Sundays",
+  Q_TG_DAY, ...Q_SLOTS,
+  Q_TG_DAY, ...Q_SLOTS,
+  Q_TG_DAY, ...Q_SLOTS,
+  Q_TG_ONE_LINE,
+];
+check("Nov 25 layout: the fixture is her 38 saved lines", () => {
+  assert.equal(Q_NOV25.length, 38);
+});
+check("Nov 25 layout: a day added several times is kept once", () => {
+  assert.deepEqual(activePickupWindows(Q_NOV25, "2026-11-25"), [
+    "Saturdays", ...Q_SLOTS,
+    "Sundays",
+    Q_TG_DAY, ...Q_SLOTS,
+    Q_TG_ONE_LINE,
+  ]);
+  // Tidying is stable: doing it again changes nothing.
+  const once = activePickupWindows(Q_NOV25, "2026-11-25");
+  assert.deepEqual(activePickupWindows(once, "2026-11-25"), once);
+});
+check("Nov 25 layout: the storefront shows the weekly times and ONE Thanksgiving line", () => {
+  assert.deepEqual(pickupScheduleSummary(activePickupWindows(Q_NOV25, "2026-11-25")), [
+    "Saturdays 2 PM to 5:30 PM",
+    "Sundays",
+    Q_TG_ONE_LINE,
+  ]);
+  // Even handed the raw, repeated lines, no line is shown twice.
+  assert.deepEqual(pickupScheduleSummary(Q_NOV25), [
+    "Saturdays 2 PM to 5:30 PM",
+    "Sundays",
+    Q_TG_ONE_LINE,
+  ]);
+});
+check("Nov 25 layout: checkout offers each Thanksgiving slot once, tied to its date", () => {
+  const choices = pickupChoices(Q_NOV25, "2026-11-25");
+  assert.equal(new Set(choices).size, choices.length, "no choice is offered twice");
+  assert.deepEqual(choices, [
+    ...Q_SLOTS.map((t) => `Saturdays ${t}`),
+    "Sundays",
+    ...Q_SLOTS.map((t) => `${Q_TG_DAY} · ${t}`),
+    Q_TG_ONE_LINE,
+  ]);
+  // No bare time ("2 PM" on any date at all) and no bare day line.
+  assert.ok(!choices.some((c) => Q_SLOTS.includes(c) || c === Q_TG_DAY));
+  for (const c of choices.filter((x) => x.startsWith("Thanksgiving")))
+    assert.equal(datedPickupWindowDate(c, "2026-11-25"), "2026-11-26", c);
+  // The raw lines expand to the same choices: nothing is offered twice.
+  assert.deepEqual(expandPickupWindows(Q_NOV25), choices);
+});
+check("Nov 25 layout: the weekly schedule is still Saturday and Sunday", () => {
+  // The holiday Thursday must not become "every Thursday", and the slot
+  // times under it must not make the schedule unreadable ("Get it Fri").
+  assert.deepEqual([...parsePickupDays(Q_NOV25)!].sort(), [0, 6]);
+  assert.equal(
+    computeGetIt({ mode: "lead_time", leadDays: 2 }, "2026-11-25", parsePickupDays(Q_NOV25)),
+    "2026-11-28"
+  );
+});
+check("Nov 25 layout: one tap is enough, the prompt moves on to Christmas", () => {
+  const before = ["Saturdays", ...Q_SLOTS, "Sundays"];
+  assert.equal(holidayNudge(before, "2026-11-24")?.holiday.key, "thanksgiving-2026");
+  const afterOneTap = [...before, ...holidayPickupLines("Thanksgiving pickup", "2026-11-26", before)];
+  assert.deepEqual(afterOneTap, [...before, Q_TG_DAY, ...Q_SLOTS]);
+  // The day is recognized as already there (what the button's own check asks)…
+  assert.ok(afterOneTap.some((w) => datedPickupWindowDate(w, "2026-11-24") === "2026-11-26"));
+  // …and the prompt stops offering Thanksgiving.
+  assert.equal(holidayNudge(afterOneTap, "2026-11-24")?.holiday.key, "christmas-2026");
+  assert.equal(holidayNudge(Q_NOV25, "2026-11-25")?.holiday.key, "christmas-2026");
+});
+check("Nov 25 layout: the day after Thanksgiving every copy is gone", () => {
+  assert.deepEqual(activePickupWindows(Q_NOV25, "2026-11-27"), ["Saturdays", ...Q_SLOTS, "Sundays"]);
+  assert.deepEqual(pickupScheduleSummary(activePickupWindows(Q_NOV25, "2026-11-27")), [
+    "Saturdays 2 PM to 5:30 PM",
+    "Sundays",
+  ]);
+  assert.equal(pickupChoices(Q_NOV25, "2026-11-27").length, 9);
+});
+check("repeated weekly lines are offered and shown once", () => {
+  const twice = ["Saturdays 2PM-5PM", "Sundays", "Saturdays 2PM-5PM", "Saturdays", "2 PM", "Saturdays", "2 PM"];
+  assert.deepEqual(activePickupWindows(twice, "2026-11-25"), ["Saturdays 2PM-5PM", "Sundays", "Saturdays", "2 PM"]);
+  assert.deepEqual(expandPickupWindows(twice), ["Saturdays 2PM-5PM", "Sundays", "Saturdays 2 PM"]);
+  assert.deepEqual(pickupScheduleSummary(twice), ["Saturdays 2PM-5PM", "Sundays", "Saturdays 2 PM"]);
+});
+
+// The live fault was invisible here: these rules were right in the source and
+// wrong only after the production build minified them. What a unit test CAN
+// hold is the cause: the app must not build patterns from strings. (After a
+// build, `npm run check:build` scans the built files for the damage itself.)
+check("no pattern in the app is built from a string (the production minifier corrupts them)", () => {
+  const root = join(__dirname, "..");
+  const files: string[] = [];
+  const walk = (dir: string) => {
+    for (const name of readdirSync(dir)) {
+      const path = join(dir, name);
+      if (statSync(path).isDirectory()) walk(path);
+      else if (/\.(ts|tsx)$/.test(name)) files.push(path);
+    }
+  };
+  for (const d of ["app", "components", "lib"]) walk(join(root, d));
+  files.push(join(root, "middleware.ts"));
+  assert.ok(files.length > 100, `expected to scan the whole app, found ${files.length} files`);
+  const offenders = files.filter((f) => {
+    const code = readFileSync(f, "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, " ") // block comments
+      .replace(/(^|\s)\/\/.*$/gm, "$1"); // line comments
+    return /\bRegExp\s*\(/.test(code);
+  });
+  assert.deepEqual(
+    offenders.map((f) => f.replace(root + "/", "")),
+    [],
+    "write these as regex literals (/…/); see the note in lib/availability.ts"
+  );
+});
 
 // ---- image optimization (lib/image.ts) ----
 
