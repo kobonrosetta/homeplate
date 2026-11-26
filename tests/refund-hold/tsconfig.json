@@ -9,8 +9,12 @@
     "baseUrl": ".",
     "paths": {
       "@/lib/supabase/admin": ["./mocks/admin.ts"],
+      "@/lib/supabase/server": ["./mocks/server.ts"],
+      "@/lib/cook": ["./mocks/cook.ts"],
       "@/lib/stripe": ["./mocks/stripe.ts"],
       "@/lib/email": ["./mocks/email.ts"],
+      "next/cache": ["./mocks/next-cache.ts"],
+      "next/navigation": ["./mocks/next-navigation.ts"],
       "@/*": ["../../*"]
     }
   }

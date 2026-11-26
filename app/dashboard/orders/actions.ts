@@ -13,6 +13,7 @@ import {
   readRefundHold,
   refundOrderNow,
   reinstateCancelledOrder,
+  type MoneyMoveFailure,
 } from "@/lib/refunds";
 
 // Target status -> the statuses an order may come FROM. Pending never appears:
@@ -62,7 +63,9 @@ export async function advanceOrder(formData: FormData) {
     try {
       const { data: order } = await supabase
         .from("orders")
-        .select("contact_email, contact_name, fulfillment, total_cents, buyer_id")
+        .select(
+          "contact_email, contact_name, fulfillment, total_cents, buyer_id, stripe_payment_intent_id"
+        )
         .eq("id", orderId)
         .maybeSingle();
       const kitchen = cook?.business_name ?? "The kitchen";
@@ -95,8 +98,16 @@ export async function advanceOrder(formData: FormData) {
         // trigger stamps the cancel time) — until then refunds are still an
         // admin click, and every email below says whichever is true.
         const hold = await readRefundHold(orderId);
-        const dueIso = hold.active ? refundDueAt(hold.cancelledAt) : null;
+        // "Goes out by itself" is only true when the hold is in force AND
+        // there is a payment the sweep can refund. Otherwise this falls back
+        // to the old wording and the admin's "Refund owed" email.
+        const auto = hold.active && Boolean(order?.stripe_payment_intent_id);
+        const dueIso = auto ? refundDueAt(hold.cancelledAt) : null;
         const due = dueIso ? formatHoldTime(dueIso) : null;
+        // A refund had ALREADY been started on this order before the cancel
+        // (an admin's, not yet finished). It can't be put back and the sweep
+        // will finish it — so the cook must not be offered an undo.
+        const alreadyRefunding = Boolean(due) && hold.claimed;
         const short = String(orderId).slice(0, 8);
         const amount = formatUsd(order?.total_cents ?? 0);
 
@@ -124,26 +135,35 @@ export async function advanceOrder(formData: FormData) {
         if (due) {
           // The cook's own record of the cancel, with the way back: nothing
           // else tells a cook who tapped Cancel by mistake that they did.
+          const whose = order?.contact_name
+            ? `${escapeHtml(order.contact_name)}'s`
+            : "a buyer's";
           if (user.email) {
             await sendEmail({
               to: user.email,
-              subject: `You cancelled order #${short} · refund goes out ${due}`,
+              subject: alreadyRefunding
+                ? `You cancelled order #${short}`
+                : `You cancelled order #${short} · refund goes out ${due}`,
               html: wrapEmail(
                 `<h2>Order #${escapeHtml(short)} is cancelled</h2>
-                 <p>You cancelled ${
-                   order?.contact_name
-                     ? `${escapeHtml(order.contact_name)}'s`
-                     : "a buyer's"
-                 } ${amount} order, and they've been emailed.</p>
-                 <p>Their refund goes out automatically on
-                 <strong>${escapeHtml(due)}</strong> (Pacific time). Until
-                 then, on your Orders page you can:</p>
-                 <ul>
-                   <li><strong>Undo cancel</strong> if it was a mistake. The
-                   order goes back on and the buyer is told.</li>
-                   <li><strong>Refund now</strong> to send the money back
-                   right away.</li>
-                 </ul>
+                 <p>You cancelled ${whose} ${amount} order, and they've been
+                 emailed.</p>
+                 ${
+                   alreadyRefunding
+                     ? `<p>ForkFork had already started refunding this order,
+                        so it can't be put back. The refund will finish on its
+                        own. There's nothing more for you to do.</p>`
+                     : `<p>Their refund goes out automatically on
+                        <strong>${escapeHtml(due)}</strong> (Pacific time).
+                        Until then, on your Orders page you can:</p>
+                        <ul>
+                          <li><strong>Undo cancel</strong> if it was a
+                          mistake. The order goes back on and the buyer is
+                          told.</li>
+                          <li><strong>Refund now</strong> to send the money
+                          back right away.</li>
+                        </ul>`
+                 }
                  <p><a href="${SITE_URL}/dashboard/orders" style="color:#b45309;font-weight:600;text-decoration:none">Open your orders →</a></p>`
               ),
             });
@@ -158,10 +178,17 @@ export async function advanceOrder(formData: FormData) {
                  ? `, ${escapeHtml(order.contact_name)}`
                  : ""
              }).</p>
-             <p>The refund goes out automatically around
-             <strong>${escapeHtml(due)}</strong> Pacific, unless the kitchen
-             undoes the cancel or sends the refund sooner. You can still
-             Refund or Reinstate it yourself from the admin console.</p>`
+             ${
+               alreadyRefunding
+                 ? `<p>A refund had already been started on this order and
+                    not finished. The scheduled run will finish it; the
+                    kitchen cannot put this order back.</p>`
+                 : `<p>The refund goes out automatically around
+                    <strong>${escapeHtml(due)}</strong> Pacific, unless the
+                    kitchen undoes the cancel or sends the refund sooner. You
+                    can still Refund or Reinstate it yourself from the admin
+                    console.</p>`
+             }`
           );
         }
 
@@ -250,7 +277,42 @@ export async function advanceOrder(formData: FormData) {
 // id and THIS cook's kitchen id to the shared routines in lib/refunds.ts,
 // which re-check that the order belongs to that kitchen before touching it
 // with the service role. A cook can only ever refund or put back their own
-// kitchen's CANCELLED orders; refunds of fulfilled orders stay with the admin.
+// kitchen's CANCELLED orders, and only ones cancelled under the hold
+// (`heldOnly`); refunds of fulfilled orders, and of older cancels, stay with
+// the admin.
+//
+// On failure the cook is sent back with a short REASON code, which the page
+// turns into its own wording — never free text in the URL. The full error
+// (Stripe's words, for instance) goes to the admins instead, who can act on
+// it.
+
+// Failures that mean something is actually wrong, as opposed to "that button
+// no longer applies".
+const WORTH_TELLING_ADMINS = new Set([
+  "stripe",
+  "uncertain",
+  "not_recorded",
+  "db_error",
+]);
+
+async function tellAdminsItFailed(
+  what: string,
+  kitchen: string,
+  orderId: string,
+  result: MoneyMoveFailure
+) {
+  if (!WORTH_TELLING_ADMINS.has(result.reason)) return;
+  await notifyAdmins(
+    `${what} FAILED from the kitchen's dashboard: order ${orderId.slice(0, 8)}`,
+    `<h2>${escapeHtml(what)} did not go through</h2>
+     <p>${escapeHtml(kitchen)} pressed the button for order
+     <strong>${escapeHtml(orderId)}</strong> and it failed
+     (${escapeHtml(result.reason)}):</p>
+     <p>${escapeHtml(result.error)}</p>
+     <p>The kitchen was told ForkFork has been notified. You can try the
+     Refund button in the admin console to see the error first-hand.</p>`
+  );
+}
 
 // "Refund now" — send the buyer's money back without waiting out the hold.
 export async function refundCancelledOrder(formData: FormData) {
@@ -259,23 +321,25 @@ export async function refundCancelledOrder(formData: FormData) {
   if (!cook) redirect("/dashboard");
   const orderId = String(formData.get("order_id") ?? "");
   if (!orderId) redirect("/dashboard/orders");
+  const kitchen = String(cook.business_name ?? "A kitchen");
 
   const result = await refundOrderNow(orderId, {
     cookId: cook.id,
     cancelledOnly: true,
+    heldOnly: true,
   });
   revalidatePath("/dashboard/orders");
-  if (!result.ok)
-    redirect(
-      `/dashboard/orders?refund_error=${encodeURIComponent(result.error)}`
-    );
+  if (!result.ok) {
+    await tellAdminsItFailed("Refund now", kitchen, orderId, result);
+    redirect(`/dashboard/orders?refund_error=${result.reason}`);
+  }
 
   // A money event the admins didn't click: leave them a record.
   await notifyAdmins(
     `Refunded by the kitchen: order ${orderId.slice(0, 8)}`,
     `<h2>No action needed</h2>
-     <p>${escapeHtml(cook.business_name ?? "A kitchen")} refunded order
-     <strong>${escapeHtml(orderId)}</strong> (${formatUsd(
+     <p>${escapeHtml(kitchen)} refunded order
+     <strong>${escapeHtml(result.order.id)}</strong> (${formatUsd(
        result.order.totalCents
      )}${
        result.order.buyerName ? `, ${escapeHtml(result.order.buyerName)}` : ""
@@ -292,19 +356,23 @@ export async function undoCancelOrder(formData: FormData) {
   if (!cook) redirect("/dashboard");
   const orderId = String(formData.get("order_id") ?? "");
   if (!orderId) redirect("/dashboard/orders");
+  const kitchen = String(cook.business_name ?? "A kitchen");
 
-  const result = await reinstateCancelledOrder(orderId, { cookId: cook.id });
+  const result = await reinstateCancelledOrder(orderId, {
+    cookId: cook.id,
+    heldOnly: true,
+  });
   revalidatePath("/dashboard/orders");
-  if (!result.ok)
-    redirect(
-      `/dashboard/orders?refund_error=${encodeURIComponent(result.error)}`
-    );
+  if (!result.ok) {
+    await tellAdminsItFailed("Undo cancel", kitchen, orderId, result);
+    redirect(`/dashboard/orders?refund_error=${result.reason}`);
+  }
 
   await notifyAdmins(
     `Cancel undone by the kitchen: order ${orderId.slice(0, 8)}`,
     `<h2>No action needed</h2>
-     <p>${escapeHtml(cook.business_name ?? "A kitchen")} put order
-     <strong>${escapeHtml(orderId)}</strong> (${formatUsd(
+     <p>${escapeHtml(kitchen)} put order
+     <strong>${escapeHtml(result.order.id)}</strong> (${formatUsd(
        result.order.totalCents
      )}${
        result.order.buyerName ? `, ${escapeHtml(result.order.buyerName)}` : ""

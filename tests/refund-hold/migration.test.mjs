@@ -85,7 +85,7 @@ for (const pass of [1, 2]) {
   const results = await db.exec(migration);
   const check = results[results.length - 1].rows[0];
   ok(
-    Number(check.hold_columns_should_be_2) === 2 &&
+    Number(check.hold_columns_should_be_3) === 3 &&
       check.update_triggers_in_firing_order === "orders_guard_update -> orders_stamp_cancelled_at",
     `migration 45 runs clean (pass ${pass}) and its self-check reads right`,
     JSON.stringify(check)
@@ -110,6 +110,8 @@ for (const pass of [1, 2]) {
   ok(/only order status may be changed/.test(f2.error ?? ""), "cook cannot set refund_claimed_at", f2.error ?? "NOT REJECTED");
   const f3 = await as("authenticated", "update orders set refunded_at = now() where id = $1 returning id", [id]);
   ok(/only order status may be changed/.test(f3.error ?? ""), "cook cannot set refunded_at", f3.error ?? "NOT REJECTED");
+  const f6 = await as("authenticated", "update orders set refund_failed_at = now() where id = $1 returning id", [id]);
+  ok(/only order status may be changed/.test(f6.error ?? ""), "cook cannot set refund_failed_at (to stall their own refund)", f6.error ?? "NOT REJECTED");
   const f4 = await as("authenticated", "update orders set status = 'confirmed' where id = $1 returning id", [id]);
   ok(/illegal order status transition/.test(f4.error ?? ""), "cook cannot un-cancel directly (only the server's undo can)", f4.error ?? "NOT REJECTED");
   const f5 = await as("anon", "update orders set cancelled_at = null where id = $1 returning id", [id]);
@@ -172,6 +174,12 @@ const undo = (id) =>
   const o = await row(id);
   ok(u.rows?.length === 1 && o.status === "confirmed", "after a clean Stripe failure the claim is released and UNDO works");
   ok(o.cancelled_at === null, "putting an order back clears cancelled_at (no stale hold)");
+  // A failure recorded before the undo must not slow the NEXT hold's refund.
+  const id2 = await newOrder("confirmed");
+  await as("authenticated", "update orders set status = 'cancelled' where id = $1", [id2]);
+  await as("service_role", "update orders set refund_failed_at = now() where id = $1", [id2]);
+  await undo(id2);
+  ok((await row(id2)).refund_failed_at === null, "putting an order back also clears the last failure time");
   // Cancelled again later: a brand new hold.
   await as("authenticated", "update orders set status = 'cancelled' where id = $1", [id]);
   ok((await row(id)).cancelled_at !== null, "cancelling it again starts a fresh hold");
@@ -184,6 +192,23 @@ const undo = (id) =>
   const r = await as("service_role", "update orders set status = 'cancelled' where id = $1 and status in ('confirmed','in_progress','ready') returning id", [id]);
   const o = await row(id);
   ok(r.rows?.length === 1 && o.cancelled_at !== null && o.refunded_at !== null, "admin refund of an active order: cancelled, stamped, already refunded");
+}
+
+// ---- The sweep's claim re-checks "the hold is STILL over" in the same write.
+{
+  const claimIfHoldOver = (id) =>
+    as("service_role", "update orders set refund_claimed_at = now() where id = $1 and refunded_at is null and status = 'cancelled' and refund_claimed_at is null and cancelled_at <= now() - interval '24 hours' returning id", [id]);
+  const id = await newOrder("confirmed");
+  await as("authenticated", "update orders set status = 'cancelled' where id = $1", [id]);
+  await q("update orders set cancelled_at = now() - interval '25 hours' where id = $1", [id]);
+  // The sweep saw it as due… then the cook put it back and cancelled again.
+  await undo(id);
+  await as("authenticated", "update orders set status = 'cancelled' where id = $1", [id]);
+  ok((await claimIfHoldOver(id)).rows?.length === 0, "an order put back and re-cancelled cannot be claimed as 'hold over'");
+  await q("update orders set cancelled_at = null where id = $1", [id]);
+  ok((await claimIfHoldOver(id)).rows?.length === 0, "an order with no cancel time cannot be claimed as 'hold over'");
+  await q("update orders set cancelled_at = now() - interval '24 hours 1 second' where id = $1", [id]);
+  ok((await claimIfHoldOver(id)).rows?.length === 1, "an order whose hold really is over can");
 }
 
 // ---- What the sweep would pick up (same filters as the route).
@@ -208,15 +233,21 @@ const undo = (id) =>
   await undo(put);
   const name = Object.fromEntries(made.map(([l, id]) => [id, l]));
 
-  const base = "from orders where status = 'cancelled' and refunded_at is null and stripe_payment_intent_id is not null";
-  const held = await as("service_role", `select id ${base} and cancelled_at <= now() - interval '24 hours' order by cancelled_at asc limit 50`);
+  // An admin's refund of a still-active order that never finished.
+  const activeStuck = await newOrder("ready");
+  await q("update orders set refund_claimed_at = now() - interval '40 minutes' where id = $1", [activeStuck]);
+  made.push(["ACTIVE order with a refund that never finished", activeStuck]);
+  name[activeStuck] = "ACTIVE order with a refund that never finished";
+
+  const base = "from orders where refunded_at is null and stripe_payment_intent_id is not null";
+  const held = await as("service_role", `select id ${base} and status = 'cancelled' and cancelled_at <= now() - interval '24 hours' order by cancelled_at asc limit 50`);
   const started = await as("service_role", `select id ${base} and refund_claimed_at is not null limit 50`);
   const heldNames = held.rows.map((r) => name[r.id]).sort();
   const startedNames = started.rows.map((r) => name[r.id]).sort();
   ok(JSON.stringify(heldNames) === JSON.stringify(["hold over (25h old)"]), "sweep query 1 finds exactly the order whose hold is over", JSON.stringify(heldNames));
   ok(
-    JSON.stringify(startedNames) === JSON.stringify(["refund started 3 minutes ago", "refund started 30 minutes ago and never finished"].sort()),
-    "sweep query 2 finds the started refunds (the app then skips the fresh one)",
+    JSON.stringify(startedNames) === JSON.stringify(["ACTIVE order with a refund that never finished", "refund started 3 minutes ago", "refund started 30 minutes ago and never finished"].sort()),
+    "sweep query 2 finds every started refund, on any order (the app then skips the fresh one)",
     JSON.stringify(startedNames)
   );
 }

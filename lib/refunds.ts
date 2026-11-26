@@ -13,13 +13,20 @@ import { createRefund } from "@/lib/stripe";
 import { restockOrderItems, deductOrderItems } from "@/lib/orders";
 import { escapeHtml, sendEmail, wrapEmail } from "@/lib/email";
 import { formatUsd, SUPPORT_EMAIL } from "@/lib/constants";
-import { REFUND_CLAIM_STALE_MINUTES } from "@/lib/refund-hold";
+import {
+  isMissingHoldColumn,
+  REFUND_CLAIM_STALE_MINUTES,
+} from "@/lib/refund-hold";
 
 type Db = ReturnType<typeof createAdminClient>;
 
+// How long to wait before the one in-line second try at Stripe.
+const UNCERTAIN_RETRY_MS = 1500;
+
 export type MoneyMoveFailure = {
   ok: false;
-  /** Safe to show to a cook or an admin. */
+  /** Full wording, for an admin or a log. Cook-facing screens map `reason`
+   *  to their own copy instead (see app/dashboard/orders/page.tsx). */
   error: string;
   reason:
     | "not_found"
@@ -27,7 +34,10 @@ export type MoneyMoveFailure = {
     | "already_refunded"
     | "never_paid"
     | "not_cancelled"
+    | "not_held"
+    | "not_due"
     | "busy"
+    | "db_error"
     | "stripe"
     | "uncertain"
     | "not_recorded"
@@ -59,81 +69,115 @@ const fail = (
   error: string
 ): MoneyMoveFailure => ({ ok: false, reason, error });
 
-// PostgREST's two ways of saying "that column isn't there": the hold columns
-// arrive with migration 45, which is pasted in by hand and may land before OR
-// after this code deploys. Until it has, everything here falls back to the
-// behavior from before the hold existed, so no refund path ever breaks on
-// the ordering.
-export function isMissingColumn(
-  err: { code?: string; message?: string } | null
-): boolean {
-  if (!err) return false;
-  return (
-    err.code === "42703" ||
-    err.code === "PGRST204" ||
-    /column .* does not exist|schema cache/i.test(err.message ?? "")
-  );
-}
+// The hold columns arrive with migration 45, which is pasted in by hand and
+// may land before OR after this code deploys. Until it has, everything here
+// falls back to the behavior from before the hold existed, so no refund path
+// ever breaks on the ordering. isMissingHoldColumn is deliberately narrow:
+// any OTHER database error fails closed.
 
 /**
- * Does the refund hold exist for this order — i.e. has migration 45 been
- * applied AND did its trigger stamp the cancel time? Callers use this to
- * decide which emails are true: "the refund goes out by itself" is only a
- * promise we can make when this says so.
+ * What the hold columns say about an order, read tolerantly:
+ *   active   migration 45 is applied AND its trigger stamped a cancel time —
+ *            the only state in which "the refund goes out by itself" is true
+ *   claimed  a refund attempt has started (so the order can't be put back)
+ * Without the columns both are false.
  */
 export async function readRefundHold(
   orderId: string
-): Promise<{ active: boolean; cancelledAt: string | null }> {
+): Promise<{ active: boolean; cancelledAt: string | null; claimed: boolean }> {
   const { data, error } = await createAdminClient()
     .from("orders")
-    .select("cancelled_at")
+    .select("cancelled_at, refund_claimed_at")
     .eq("id", orderId)
     .maybeSingle();
-  const cancelledAt = error ? null : ((data as any)?.cancelled_at ?? null);
-  return { active: Boolean(cancelledAt), cancelledAt };
+  if (error || !data)
+    return { active: false, cancelledAt: null, claimed: false };
+  const row = data as {
+    cancelled_at?: string | null;
+    refund_claimed_at?: string | null;
+  };
+  const cancelledAt = row.cancelled_at ?? null;
+  return {
+    active: Boolean(cancelledAt),
+    cancelledAt,
+    claimed: Boolean(row.refund_claimed_at),
+  };
 }
+
+type Claim =
+  | { kind: "claimed"; at: string }
+  | { kind: "busy" }
+  | { kind: "unsupported" }
+  | { kind: "error" };
 
 // Take the order's refund claim, so that for the next few minutes this is the
 // only thing allowed to move its money — the undo below refuses a claimed
-// order. "claimed": go ahead. "busy": another attempt holds a fresh claim.
-// "unsupported": migration 45 isn't applied; proceed the old way, unclaimed.
+// order.
+//   claimed      go ahead (`at` identifies OUR claim, for releasing it)
+//   busy         nothing matched: a fresh claim exists, or the order changed
+//   unsupported  migration 45 isn't applied; proceed the old way, unclaimed
+//   error        the database didn't answer properly; do NOT proceed
 async function claimRefund(
   db: Db,
   orderId: string,
-  cancelledOnly: boolean
-): Promise<"claimed" | "busy" | "unsupported" | "error"> {
+  opts: { cancelledOnly: boolean; holdOverBefore?: string }
+): Promise<Claim> {
   const now = Date.now();
-  const stale = new Date(now - REFUND_CLAIM_STALE_MINUTES * 60_000).toISOString();
+  const at = new Date(now).toISOString();
+  const stale = new Date(
+    now - REFUND_CLAIM_STALE_MINUTES * 60_000
+  ).toISOString();
   // Two plain compare-and-set writes instead of one OR filter: first an
   // unclaimed order, then one whose claim was abandoned.
   for (const takeOver of [false, true]) {
     let q = db
       .from("orders")
-      .update({ refund_claimed_at: new Date(now).toISOString() })
+      .update({ refund_claimed_at: at })
       .eq("id", orderId)
       .is("refunded_at", null);
-    if (cancelledOnly) q = q.eq("status", "cancelled");
-    q = takeOver
-      ? q.lt("refund_claimed_at", stale)
-      : q.is("refund_claimed_at", null);
+    if (opts.cancelledOnly) q = q.eq("status", "cancelled");
+    if (takeOver) {
+      q = q.lt("refund_claimed_at", stale);
+    } else {
+      q = q.is("refund_claimed_at", null);
+      // The sweep's own guard, re-checked at the moment of claiming: the
+      // hold must STILL be over. If the cook put the order back and
+      // cancelled it again while the sweep was busy, this no longer matches.
+      if (opts.holdOverBefore) q = q.lte("cancelled_at", opts.holdOverBefore);
+    }
     const { data, error } = await q.select("id");
     if (error) {
-      if (isMissingColumn(error)) return "unsupported";
+      if (isMissingHoldColumn(error)) return { kind: "unsupported" };
       console.error("claimRefund: write failed", orderId, error);
-      return "error";
+      return { kind: "error" };
     }
-    if (data && data.length > 0) return "claimed";
+    if (data && data.length > 0) return { kind: "claimed", at };
   }
-  return "busy";
+  return { kind: "busy" };
 }
 
-async function releaseClaim(db: Db, orderId: string): Promise<void> {
+// After an attempt that did not refund. `release` gives the claim back (Stripe
+// clearly said no, so the money has not moved and an undo is safe again);
+// without it the claim is kept (we can't tell what Stripe did). Either way
+// the failure time is recorded so the sweep backs off. Only OUR claim is
+// touched — if another attempt has since taken over, this matches nothing.
+async function recordFailedAttempt(
+  db: Db,
+  orderId: string,
+  claimedAt: string,
+  release: boolean
+): Promise<void> {
+  const patch: Record<string, string | null> = {
+    refund_failed_at: new Date().toISOString(),
+  };
+  if (release) patch.refund_claimed_at = null;
   const { error } = await db
     .from("orders")
-    .update({ refund_claimed_at: null })
+    .update(patch)
     .eq("id", orderId)
+    .eq("refund_claimed_at", claimedAt)
     .is("refunded_at", null);
-  if (error) console.error("releaseClaim: write failed", orderId, error);
+  if (error) console.error("recordFailedAttempt: write failed", orderId, error);
 }
 
 async function kitchenName(db: Db, cookId: string | null): Promise<string> {
@@ -149,17 +193,27 @@ async function kitchenName(db: Db, cookId: string | null): Promise<string> {
 /**
  * Refund a paid order in full, correctly, exactly once.
  *
- *   cookId         when given, the order must belong to this kitchen
- *   cancelledOnly  refuse anything that isn't a cancelled order (the cook's
- *                  button and the sweep; the admin may refund any paid order)
+ *   cookId          when given, the order must belong to this kitchen
+ *   cancelledOnly   refuse anything that isn't a cancelled order (the cook's
+ *                   button and the sweep's expired holds; the admin may
+ *                   refund any paid order)
+ *   heldOnly        refuse an order the hold doesn't cover — one with no
+ *                   database-stamped cancel time. The cook's button sets
+ *                   this: cooks act only on cancels made under the hold,
+ *                   never on older rows whose history we can't vouch for.
+ *   holdOverBefore  (the sweep) only claim an unclaimed order whose cancel
+ *                   time is at or before this instant — the "hold is over"
+ *                   check, repeated atomically at claim time
  *
  * Order of operations — each step is the guard for the next:
  *   1. claim the order (compare-and-set), so an "undo cancel" can't slip in
  *      while Stripe is working;
  *   2. ask Stripe (createRefund always reverses the cook's transfer and
  *      returns the service fee; the idempotency key is the order id);
- *   3. stamp refunded_at — only now is the order "refunded";
- *   4. cancel + restock if the order was still un-fulfilled;
+ *   3. record it: refunded_at, and — in the SAME write — 'cancelled' for an
+ *      order that was still un-fulfilled, so an order is never left
+ *      "refunded but active";
+ *   4. restock if that write cancelled it;
  *   5. tell the buyer.
  * If Stripe clearly said no, the claim is released and nothing changed. If we
  * can't tell what Stripe did, the claim is KEPT: the order can't be put back,
@@ -168,7 +222,12 @@ async function kitchenName(db: Db, cookId: string | null): Promise<string> {
  */
 export async function refundOrderNow(
   orderId: string,
-  opts: { cookId?: string; cancelledOnly?: boolean } = {}
+  opts: {
+    cookId?: string;
+    cancelledOnly?: boolean;
+    heldOnly?: boolean;
+    holdOverBefore?: string;
+  } = {}
 ): Promise<MoneyMoveResult> {
   const db = createAdminClient();
   const { data: order } = await db
@@ -193,73 +252,131 @@ export async function refundOrderNow(
       "not_cancelled",
       "Only a cancelled order can be refunded from here."
     );
+  if (opts.heldOnly && !(await readRefundHold(order.id)).active)
+    return fail(
+      "not_held",
+      "This order's refund isn't managed from the kitchen's dashboard."
+    );
 
-  // What happens to an attempt that doesn't finish: the sweep only watches
-  // CANCELLED orders, so only those can honestly be promised a retry.
-  const retryNote =
-    order.status === "cancelled"
-      ? "It will be retried automatically."
-      : "Press Refund again in about ten minutes (it can't refund twice).";
+  // From here on, the row's own id — never the caller's spelling of it — so
+  // every attempt for an order shares one Stripe idempotency key.
+  const id = order.id as string;
 
-  const claim = await claimRefund(db, orderId, Boolean(opts.cancelledOnly));
-  if (claim === "busy")
+  const claim = await claimRefund(db, id, {
+    cancelledOnly: Boolean(opts.cancelledOnly),
+    holdOverBefore: opts.holdOverBefore,
+  });
+  if (claim.kind === "error")
+    return fail(
+      "db_error",
+      "Couldn't start the refund (database error). Please try again."
+    );
+  if (claim.kind === "busy") {
+    // Nothing matched. Say which of the reasons it was.
+    const { data: latest } = await db
+      .from("orders")
+      .select("status, refunded_at, refund_claimed_at")
+      .eq("id", id)
+      .maybeSingle();
+    const row = latest as {
+      status?: string;
+      refunded_at?: string | null;
+      refund_claimed_at?: string | null;
+    } | null;
+    if (row?.refunded_at)
+      return fail("already_refunded", "This order was already refunded.");
+    if (opts.cancelledOnly && row && row.status !== "cancelled")
+      return fail(
+        "not_cancelled",
+        "This order is no longer cancelled, so there is nothing to refund here."
+      );
+    if (opts.holdOverBefore && row && !row.refund_claimed_at)
+      return fail("not_due", "This order's hold is not over.");
     return fail(
       "busy",
       "A refund for this order is already being sent. Check again in a few minutes."
     );
-  if (claim === "error")
-    return fail("busy", "Couldn't start the refund. Please try again.");
+  }
+
+  // What we can honestly promise about an attempt that doesn't finish: with a
+  // claim in place the sweep will pick it up (any order, cancelled or not);
+  // without one (migration 45 not applied) nothing will.
+  const retryNote =
+    claim.kind === "claimed"
+      ? "It will be retried automatically."
+      : "Press Refund again in a few minutes (it can't refund twice).";
 
   // Idempotency-Key = order id: a lost response on a succeeded refund replays
   // Stripe's success on retry instead of erroring forever (see createRefund).
-  const result = await createRefund(
+  let result = await createRefund(
     order.stripe_payment_intent_id as string,
-    orderId
+    id
   );
+  if ("error" in result && result.uncertain) {
+    // Most "no answer" results are a momentary hiccup. Ask once more, same
+    // key, before leaving this order to the sweep's slower retry.
+    await new Promise((resolve) => setTimeout(resolve, UNCERTAIN_RETRY_MS));
+    result = await createRefund(order.stripe_payment_intent_id as string, id);
+  }
   // "Already refunded" means the buyer has the money (an earlier attempt we
   // never recorded, or a refund made in the Stripe dashboard): record it.
   if ("error" in result && result.code !== "charge_already_refunded") {
     if (result.uncertain) {
+      // Recording the failure makes the sweep wait REFUND_RETRY_HOURS before
+      // its next try. That matters here: Stripe replays a stored 5xx for the
+      // same idempotency key for up to a day, so retrying every run would
+      // only repeat the same answer (and the same admin email).
+      if (claim.kind === "claimed")
+        await recordFailedAttempt(db, id, claim.at, false);
       return fail(
         "uncertain",
         `Stripe didn't answer, so we can't tell yet whether the refund went through. ${retryNote} Don't refund it by hand in Stripe.`
       );
     }
-    if (claim === "claimed") await releaseClaim(db, orderId);
+    if (claim.kind === "claimed")
+      await recordFailedAttempt(db, id, claim.at, true);
     return fail("stripe", "Refund failed: " + result.error);
   }
 
-  // Record the refund FIRST and unconditionally — this is the critical marker
-  // (blocks a double-refund; the money already left Stripe). Keep it separate
-  // from the cancel so a status hiccup can't lose the refund record.
-  const { error: stampErr } = await db
+  // The money has left. Record it — this is the critical marker (it blocks a
+  // double refund) — and, in the SAME write, cancel an order that was still
+  // un-fulfilled. One statement, so a crash or a failed second write can
+  // never leave an order refunded yet still active on the cook's list. The
+  // status precondition keeps a concurrent 'completed' (the cook handed it
+  // over mid-refund) from being flipped to cancelled.
+  const refundedAt = new Date().toISOString();
+  const { data: cancelledNow, error: cancelErr } = await db
     .from("orders")
-    .update({ refunded_at: new Date().toISOString() })
-    .eq("id", orderId);
-  if (stampErr) {
+    .update({ refunded_at: refundedAt, status: "cancelled" })
+    .eq("id", id)
+    .in("status", ["confirmed", "in_progress", "ready"])
+    .select("id");
+  const cancelledByThis =
+    !cancelErr && Boolean(cancelledNow && cancelledNow.length > 0);
+  let recordErr = cancelErr;
+  if (!cancelErr && !cancelledByThis) {
+    // Already cancelled (the cook's cancel, restocked then) or completed
+    // (history stays): just the marker.
+    const { error } = await db
+      .from("orders")
+      .update({ refunded_at: refundedAt })
+      .eq("id", id);
+    recordErr = error;
+  }
+  if (recordErr) {
     // The claim stays, so nobody can put the order back; the next attempt
     // replays the refund at Stripe (same key, or "already refunded" once the
     // key has expired) and lands here again.
-    console.error("refundOrderNow: refunded but not recorded", orderId, stampErr);
+    console.error("refundOrderNow: refunded but not recorded", id, recordErr);
     return fail(
       "not_recorded",
       `The refund was sent, but saving that failed. ${retryNote} Don't refund it by hand in Stripe.`
     );
   }
 
-  // Cancel + restock ONLY if the order is still un-fulfilled. Guard the write
-  // with a status precondition and check it actually matched: a concurrent cook
-  // 'completed' transition (mid-refund) must NOT be flipped to cancelled, and
-  // its already-delivered stock must NOT be put back. Restock only when the
-  // cancel truly persisted (restockOrderItems' documented contract). An order
-  // the cook already cancelled matches nothing here — it was restocked then.
-  const { data: cancelled } = await db
-    .from("orders")
-    .update({ status: "cancelled" })
-    .eq("id", orderId)
-    .in("status", ["confirmed", "in_progress", "ready"])
-    .select("id");
-  if (cancelled && cancelled.length > 0) await restockOrderItems(orderId);
+  // Restock only when this write is what cancelled the order
+  // (restockOrderItems' documented contract: once per real cancellation).
+  if (cancelledByThis) await restockOrderItems(id);
 
   // Tell the buyer their money's coming back. Best-effort: email must never
   // block or undo the refund record.
@@ -299,10 +416,13 @@ export async function refundOrderNow(
  * emails the buyer that the order is on again: the cancellation email
  * promised them a refund, so staying silent would mean a no-show or a
  * chargeback.
+ *
+ *   heldOnly  refuse an order the hold doesn't cover (no database-stamped
+ *             cancel time) — set by the cook's button, see refundOrderNow.
  */
 export async function reinstateCancelledOrder(
   orderId: string,
-  opts: { cookId: string }
+  opts: { cookId: string; heldOnly?: boolean }
 ): Promise<MoneyMoveResult> {
   const db = createAdminClient();
   const { data: order } = await db
@@ -327,6 +447,12 @@ export async function reinstateCancelledOrder(
       "never_paid",
       "This order was never paid — nothing to reinstate."
     );
+  if (opts.heldOnly && !(await readRefundHold(order.id)).active)
+    return fail(
+      "not_held",
+      "This order can't be put back from the kitchen's dashboard."
+    );
+  const id = order.id as string;
 
   // Guarded flip: only out of 'cancelled', and verify it actually matched so
   // a concurrent refund/reinstate can't double-apply the side effects below.
@@ -339,21 +465,25 @@ export async function reinstateCancelledOrder(
     let q = db
       .from("orders")
       .update({ status: "confirmed" })
-      .eq("id", orderId)
+      .eq("id", id)
       .eq("status", "cancelled")
       .is("refunded_at", null);
     if (withClaimGuard) q = q.is("refund_claimed_at", null);
     return q.select("id");
   };
   let { data: flipped, error: flipErr } = await flip(true);
-  // Before migration 45 there is no claim column (and no refund path that
-  // claims), so the pre-hold guard is the whole guard.
-  if (flipErr && isMissingColumn(flipErr)) {
+  // ONLY when the claim column provably doesn't exist (migration 45 not
+  // applied — so no refund path claims either) is the pre-hold guard the
+  // whole guard. Any other error must not drop the claim check.
+  if (flipErr && isMissingHoldColumn(flipErr)) {
     ({ data: flipped, error: flipErr } = await flip(false));
   }
   if (flipErr) {
-    console.error("reinstateCancelledOrder: write failed", orderId, flipErr);
-    return fail("changed", "Couldn't put the order back. Please try again.");
+    console.error("reinstateCancelledOrder: write failed", id, flipErr);
+    return fail(
+      "db_error",
+      "Couldn't put the order back (database error). Please try again."
+    );
   }
   if (!flipped || flipped.length === 0)
     return fail(
@@ -362,7 +492,7 @@ export async function reinstateCancelledOrder(
     );
 
   // Re-take the limited stock the cancellation put back on the shelf.
-  await deductOrderItems(orderId);
+  await deductOrderItems(id);
 
   // Tell the buyer it's back on. Best-effort — the reinstate must stand even
   // if email fails (someone can always follow up by hand).

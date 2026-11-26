@@ -11,15 +11,25 @@
 //                      'cancelled', cleared when the order is put back
 //   refund_claimed_at  set by the server just before it asks Stripe for the
 //                      refund, so a refund and an undo can never both win
+//   refund_failed_at   when the last refund attempt did not succeed; the sweep
+//                      waits REFUND_RETRY_HOURS before trying that order again
 //   refunded_at        (migration 40) the money has been sent back
 import { REFUND_HOLD_HOURS } from "@/lib/constants";
 
 /**
  * A refund attempt that has held its claim longer than this did not finish
  * (crash, lost connection). The next attempt may take the claim over — safe,
- * because every attempt for an order uses the same Stripe idempotency key.
+ * because every attempt for an order uses the same Stripe idempotency key and
+ * the Stripe call itself is bounded at 30 seconds.
  */
 export const REFUND_CLAIM_STALE_MINUTES = 10;
+
+/**
+ * After a refund attempt fails, the sweep leaves that order alone for this
+ * long. Without it a refund Stripe keeps refusing (a disputed charge, say)
+ * would be retried — and the admins emailed — on every run, forever.
+ */
+export const REFUND_RETRY_HOURS = 12;
 
 /** The fields of an order row the hold rules read. */
 export type RefundHoldOrder = {
@@ -28,16 +38,22 @@ export type RefundHoldOrder = {
   refunded_at?: string | null;
   cancelled_at?: string | null;
   refund_claimed_at?: string | null;
+  refund_failed_at?: string | null;
 };
 
 /**
- * Where a cancelled order's refund stands:
- *  - "none"      not a paid, cancelled order — nothing to refund here
- *  - "held"      cancelled, money still in place: can be undone or refunded
+ * Where an order's refund stands:
+ *  - "none"      nothing to refund here: unpaid, or not cancelled and no
+ *                refund ever started
+ *  - "held"      cancelled, money still in place, no refund started: it can
+ *                be undone or refunded
  *  - "sending"   a refund attempt holds a fresh claim; wait for it
  *  - "stalled"   a refund attempt started and never finished; it may be
  *                retried, but the order can no longer be put back
  *  - "refunded"  the money has been sent back
+ * "sending" and "stalled" apply to ANY paid order, cancelled or not: the
+ * admin can refund an order that is still active, and that attempt can stall
+ * like any other.
  */
 export type RefundState = "none" | "held" | "sending" | "stalled" | "refunded";
 
@@ -49,12 +65,16 @@ function ms(iso: string | null | undefined): number | null {
 
 export function refundState(o: RefundHoldOrder, nowMs: number): RefundState {
   if (o.refunded_at) return "refunded";
-  if (o.status !== "cancelled" || !o.stripe_payment_intent_id) return "none";
-  const claimed = ms(o.refund_claimed_at);
-  if (claimed === null) return "held";
-  return nowMs - claimed < REFUND_CLAIM_STALE_MINUTES * 60_000
-    ? "sending"
-    : "stalled";
+  if (!o.stripe_payment_intent_id) return "none";
+  if (o.refund_claimed_at) {
+    // A claim we can't read as a time is still a claim: never "held".
+    const claimed = ms(o.refund_claimed_at);
+    return claimed !== null &&
+      nowMs - claimed < REFUND_CLAIM_STALE_MINUTES * 60_000
+      ? "sending"
+      : "stalled";
+  }
+  return o.status === "cancelled" ? "held" : "none";
 }
 
 /** When the hold ends and the refund goes out by itself (ISO), or null when
@@ -68,15 +88,20 @@ export function refundDueAt(
 }
 
 /** Should the scheduled sweep refund this order now?
+ *  - Not while a refund is in flight, and not within REFUND_RETRY_HOURS of a
+ *    failed attempt.
  *  - A held order: only once its hold is over, and only with a KNOWN cancel
  *    time — an order with no cancelled_at is never refunded automatically.
- *  - A stalled order: yes, whatever the clock says. Someone already chose to
+ *  - A stalled order: yes, whatever the hold says. Someone already chose to
  *    refund it and it can no longer be put back, so finishing is the only way
  *    out. */
 export function isRefundDue(o: RefundHoldOrder, nowMs: number): boolean {
   const state = refundState(o, nowMs);
+  if (state !== "held" && state !== "stalled") return false;
+  const failed = ms(o.refund_failed_at);
+  if (failed !== null && nowMs - failed < REFUND_RETRY_HOURS * 3_600_000)
+    return false;
   if (state === "stalled") return true;
-  if (state !== "held") return false;
   const due = ms(refundDueAt(o.cancelled_at));
   return due !== null && due <= nowMs;
 }
@@ -94,8 +119,30 @@ export function canRefundNow(o: RefundHoldOrder, nowMs: number): boolean {
   return state === "held" || state === "stalled";
 }
 
+const HOLD_COLUMNS = ["cancelled_at", "refund_claimed_at", "refund_failed_at"];
+
+/**
+ * Is this database error "the hold columns aren't there" — i.e. migration 45
+ * has not been applied? The code falls back to the pre-hold behavior ONLY on
+ * this exact answer, so the test is deliberately narrow: Postgres' 42703 or
+ * PostgREST's PGRST204, AND a message that names one of the hold columns.
+ * Anything else (an outage, a timeout, a different missing column) is a real
+ * error and must fail closed — treating it as "not migrated" would silently
+ * drop the claim that keeps a refund and an undo from both winning.
+ */
+export function isMissingHoldColumn(
+  err: { code?: string | null; message?: string | null } | null | undefined
+): boolean {
+  if (!err) return false;
+  if (err.code !== "42703" && err.code !== "PGRST204") return false;
+  const message = err.message ?? "";
+  return HOLD_COLUMNS.some((column) => message.includes(column));
+}
+
 /** "Thu, Nov 26, 2:15 PM" in Pacific time — how a refund's due time is shown
- *  to the cook and in emails (the server's own clock runs in UTC). */
+ *  to the cook and in emails (the server's own clock runs in UTC). Newer
+ *  runtimes put a narrow no-break space before AM/PM; plain spaces only, so
+ *  the text is the same everywhere it's shown. */
 export function formatHoldTime(iso: string): string {
   return new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Los_Angeles",
@@ -104,5 +151,7 @@ export function formatHoldTime(iso: string): string {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-  }).format(new Date(iso));
+  })
+    .format(new Date(iso))
+    .replace(/[  ]/g, " ");
 }

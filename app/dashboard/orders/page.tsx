@@ -9,6 +9,8 @@ import {
 } from "@/lib/constants";
 import { formatDateLong, pacificTodayIso } from "@/lib/availability";
 import {
+  canRefundNow,
+  canUndoCancel,
   formatHoldTime,
   refundDueAt,
   refundState,
@@ -35,6 +37,27 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   completed: { label: "Completed", cls: "bg-emerald-100 text-emerald-800" },
   cancelled: { label: "Cancelled", cls: "bg-red-100 text-red-800" },
 };
+
+// What a failed "Refund now" / "Undo cancel" tells the cook. The action sends
+// back only a REASON code (never free text in the URL); anything a cook can't
+// act on is worded as "ForkFork has been told", because it has.
+const REFUND_PROBLEMS: Record<string, string> = {
+  already_refunded: "That order was already refunded.",
+  not_cancelled:
+    "That order is no longer cancelled, so there is nothing to refund or undo.",
+  changed:
+    "That order can't be put back: its refund has already started.",
+  busy: "A refund for that order is already being sent. Check again in a few minutes.",
+  uncertain:
+    "We couldn't confirm that refund with the card processor yet. It will be tried again automatically, and ForkFork has been told. You don't need to do anything.",
+  not_recorded:
+    "We couldn't confirm that refund with the card processor yet. It will be tried again automatically, and ForkFork has been told. You don't need to do anything.",
+  stripe:
+    "That refund didn't go through. ForkFork has been told and will sort it out. You don't need to do anything.",
+  db_error: "Something went wrong on our side. Please try again in a minute.",
+};
+const REFUND_PROBLEM_FALLBACK =
+  "That order can't be changed from here. If it needs a refund, contact ForkFork.";
 
 export default async function OrdersPage({
   searchParams,
@@ -75,9 +98,9 @@ export default async function OrdersPage({
   // as it did before (a cancelled order is refunded by an admin).
   const { data: holdRows, error: holdError } = await supabase
     .from("orders")
-    .select("id, cancelled_at, refund_claimed_at")
+    .select("id, cancelled_at, refund_claimed_at, refund_failed_at")
     .eq("cook_id", cook!.id)
-    .eq("status", "cancelled");
+    .neq("status", "pending");
   const holdOn = !holdError;
   const holdById = new Map<string, any>(
     (holdRows ?? []).map((r: any) => [r.id, r])
@@ -93,10 +116,16 @@ export default async function OrdersPage({
   );
   // Cancelled orders whose money hasn't gone back yet get their own block at
   // the top: they are the only finished orders with something left to decide
-  // (undo the cancel, or send the refund before the hold runs out).
+  // (undo the cancel, or send the refund before the hold runs out). Only
+  // cancels made under the hold belong here — a cancelled order with no
+  // database-stamped cancel time predates it, its history can't be vouched
+  // for, and its refund stays with ForkFork (the server refuses it too).
   const refundPending: any[] = holdOn
-    ? list.filter((o: any) =>
-        ["held", "sending", "stalled"].includes(refundState(o, nowMs))
+    ? list.filter(
+        (o: any) =>
+          o.status === "cancelled" &&
+          Boolean(o.cancelled_at) &&
+          ["held", "sending", "stalled"].includes(refundState(o, nowMs))
       )
     : [];
   const pendingIds = new Set(refundPending.map((o: any) => o.id));
@@ -242,7 +271,8 @@ export default async function OrdersPage({
       )}
       {searchParams.refund_error && (
         <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-          {searchParams.refund_error.slice(0, 300)}
+          {REFUND_PROBLEMS[String(searchParams.refund_error)] ??
+            REFUND_PROBLEM_FALLBACK}
         </p>
       )}
       {requestsUi}
@@ -333,6 +363,10 @@ function OrderCard({
   const overdue = Boolean(
     dueIso && nowMs !== undefined && Date.parse(dueIso) <= nowMs
   );
+  const now = nowMs ?? Date.now();
+  // An order that pays this kitchen nothing: cancelled, or refunded after the
+  // fact (an admin can refund a completed order).
+  const unpaidToCook = o.status === "cancelled" || Boolean(o.refunded_at);
   // Pacific explicitly: the server's process TZ is UTC on Render, and this
   // sits right under Pacific day headers.
   const date = new Date(o.created_at).toLocaleString("en-US", {
@@ -416,16 +450,14 @@ function OrderCard({
         {/* A cancelled order pays nothing: don't promise money right above
             the line that says it's going back to the buyer. */}
         <span className="font-semibold text-ink">
-          {o.status === "cancelled"
-            ? "You would have received"
-            : "You receive"}{" "}
+          {unpaidToCook ? "You would have received" : "You receive"}{" "}
           {formatUsd(o.subtotal_cents)}
         </span>
       </div>
 
       {/* Where a cancelled order's money stands, once it's settled or when
           the hold isn't available (then an admin still sends refunds). */}
-      {!hold && o.status === "cancelled" && o.refunded_at && (
+      {!hold && o.refunded_at && (
         <p className="mt-3 text-sm text-muted">
           ✓ Refunded{" "}
           {new Date(o.refunded_at).toLocaleDateString("en-US", {
@@ -443,6 +475,13 @@ function OrderCard({
             Refund not sent yet. ForkFork is handling it.
           </p>
         )}
+
+      {active && !o.refunded_at && o.refund_claimed_at && (
+        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          ForkFork has started refunding this order. Check with ForkFork before
+          you prepare it.
+        </p>
+      )}
 
       {hold && (
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
@@ -463,9 +502,11 @@ function OrderCard({
                   <>
                     The {formatUsd(o.total_cents)} refund hasn&apos;t gone out
                     yet.{" "}
-                    {dueLabel
-                      ? "It goes out on the next automatic run, usually within a few hours."
-                      : "Send it now, or undo the cancel."}
+                    {o.refund_failed_at
+                      ? ""
+                      : dueLabel
+                        ? "It goes out on the next automatic run, usually within a few hours."
+                        : "Send it now, or undo the cancel."}
                   </>
                 ) : (
                   <>
@@ -474,14 +515,20 @@ function OrderCard({
                   </>
                 )}
               </p>
-              {hold === "held" && (
+              {hold === "held" && o.refund_failed_at && (
+                <p className="mt-1 text-sm text-amber-900">
+                  The last try at sending it didn&apos;t go through. ForkFork
+                  has been told, and it will be tried again automatically.
+                </p>
+              )}
+              {canUndoCancel(o, now) && (
                 <p className="mt-1 text-xs text-amber-800">
                   Cancelled by mistake? Undo puts the order back on and tells
                   the buyer.
                 </p>
               )}
               <div className="mt-3 flex flex-wrap justify-end gap-2">
-                {hold === "held" && (
+                {canUndoCancel(o, now) && (
                   <form action={undoCancelOrder}>
                     <input type="hidden" name="order_id" value={o.id} />
                     <ConfirmSubmit
@@ -494,17 +541,19 @@ function OrderCard({
                     </ConfirmSubmit>
                   </form>
                 )}
-                <form action={refundCancelledOrder}>
-                  <input type="hidden" name="order_id" value={o.id} />
-                  <ConfirmSubmit
-                    message={`Send ${buyer}'s ${formatUsd(
-                      o.total_cents
-                    )} refund now?\n\nThe full amount goes back to their card, and this order can no longer be put back. This can't be undone.`}
-                    className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90"
-                  >
-                    {hold === "stalled" ? "Send refund again" : "Refund now"}
-                  </ConfirmSubmit>
-                </form>
+                {canRefundNow(o, now) && (
+                  <form action={refundCancelledOrder}>
+                    <input type="hidden" name="order_id" value={o.id} />
+                    <ConfirmSubmit
+                      message={`Send ${buyer}'s ${formatUsd(
+                        o.total_cents
+                      )} refund now?\n\nThe full amount goes back to their card, and this order can no longer be put back. This can't be undone.`}
+                      className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90"
+                    >
+                      {hold === "stalled" ? "Send refund again" : "Refund now"}
+                    </ConfirmSubmit>
+                  </form>
+                )}
               </div>
             </>
           )}

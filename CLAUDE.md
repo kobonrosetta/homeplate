@@ -150,8 +150,8 @@ them re-opens real vulnerabilities:
 - **Orders RLS**: buyers see only their orders; cooks update only their kitchen's.
 - **Cook-triggered refunds are still server-authored.** A cook session can change
   ONLY an order's status (trigger `orders_guard_update`); `refunded_at`,
-  `cancelled_at` and `refund_claimed_at` are written by the service role or a
-  trigger. The cook's "Refund now" / "Undo cancel" actions prove the session, then
+  `cancelled_at`, `refund_claimed_at` and `refund_failed_at` are written by the
+  service role or a trigger. The cook's "Refund now" / "Undo cancel" actions prove the session, then
   `lib/refunds.ts` re-checks that the order belongs to that cook's kitchen and is
   CANCELLED before the service role touches it. Don't add a client-side or
   cook-session write to any of those columns.
@@ -216,18 +216,36 @@ them re-opens real vulnerabilities:
      announce-dishes workflows) sends the refund. Before this, refunds waited
      on an admin click and buyers waited up to a week. The admin console can
      still Refund any paid order and Reinstate a cancelled one; refunds of
-     COMPLETED orders stay admin-only. Do NOT undo these:
+     COMPLETED orders, and of cancels that predate the hold, stay admin-only.
+     Do NOT undo these (each is covered by `tests/refund-hold/` — run those
+     before touching this code; they need `npm i --no-save @electric-sql/pglite`):
      - `refundOrderNow` **claims the order (`refund_claimed_at`) BEFORE asking
        Stripe**, and the undo (`reinstateCancelledOrder`) refuses a claimed
        order. That ordering is the only thing stopping "buyer refunded AND
-       order back on".
+       order back on". If Stripe clearly says no the claim is released; if we
+       can't tell, it is KEPT and the sweep finishes the refund later — on
+       ANY order, cancelled or not (an admin's refund of an active order can
+       time out too).
+     - The refund is recorded and an un-fulfilled order cancelled **in one
+       write** (`refunded_at` + `status`), so a crash can't leave an order
+       refunded yet active.
      - `orders.cancelled_at` is stamped by a DATABASE TRIGGER
-       (`orders_stamp_cancelled_at`), never by the app, and the sweep never
-       refunds an order without it. The trigger's name must keep sorting
+       (`orders_stamp_cancelled_at`), never by the app; the sweep never
+       refunds an order without it, and re-checks "hold still over" in the
+       same write that claims the order. The trigger's name must keep sorting
        after `orders_guard_update` (Postgres fires them alphabetically).
+     - After a failed attempt (`refund_failed_at`) the sweep leaves that order
+       alone for 12 hours and puts never-failed orders first — without this
+       a refund Stripe keeps refusing is retried, and the admins emailed, on
+       every run.
      - The code works with OR without migration 45 (deploy and SQL can land in
        either order): without the columns, refunds are an admin click exactly
-       as before, and the emails say so.
+       as before, and the emails say so. The "columns are missing" test
+       (`isMissingHoldColumn`) is deliberately narrow — any other database
+       error must fail closed, never fall back to the unguarded path.
+     - The cook's two actions pass `heldOnly` (only cancels stamped under the
+       hold) and send the cook back with a REASON CODE that the page words
+       itself; Stripe's error text goes to the admins, never into a URL.
 3. **Payment confirmation has two paths:** the success-page redirect *and* the webhook.
    `confirmPaidOrder` (in `lib/orders.ts`) is idempotent and shared by both. The webhook is
    only live once `STRIPE_WEBHOOK_SECRET` is set (Stripe CLI locally / dashboard at deploy).

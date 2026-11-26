@@ -10,7 +10,7 @@
 --  whatever is left when the hold runs out. Rules live in
 --  lib/refund-hold.ts; the money code in lib/refunds.ts.
 --
---  Two new columns on orders:
+--  Three new columns on orders:
 --
 --    cancelled_at       When the order became 'cancelled'. Stamped
 --                       by the trigger below — never by the app —
@@ -28,7 +28,14 @@
 --                       back. It makes "refund" and "undo cancel"
 --                       mutually exclusive in the database.
 --
---  Neither needs a policy or an allow-list entry: the existing
+--    refund_failed_at   When the last refund attempt did not
+--                       succeed. The sweep waits before retrying
+--                       such an order, so a refund Stripe keeps
+--                       refusing can't be retried (and the admins
+--                       emailed) on every run. Cleared when an
+--                       order is put back.
+--
+--  None needs a policy or an allow-list entry: the existing
 --  orders_guard_update trigger (migrations 16 + 18) already rejects
 --  ANY non-status change from an end-user session, including these
 --  columns ("any column added later is protected automatically").
@@ -47,7 +54,8 @@
 
 alter table orders
   add column if not exists cancelled_at timestamptz,
-  add column if not exists refund_claimed_at timestamptz;
+  add column if not exists refund_claimed_at timestamptz,
+  add column if not exists refund_failed_at timestamptz;
 
 create or replace function public.stamp_order_cancelled_at()
 returns trigger
@@ -58,7 +66,9 @@ begin
   if new.status = 'cancelled' and old.status is distinct from 'cancelled' then
     new.cancelled_at := now();
   elsif old.status = 'cancelled' and new.status is distinct from 'cancelled' then
+    -- Put back on: the next cancel starts a brand new hold.
     new.cancelled_at := null;
+    new.refund_failed_at := null;
   end if;
   return new;
 end;
@@ -69,15 +79,17 @@ create trigger orders_stamp_cancelled_at
   before update on orders
   for each row execute procedure public.stamp_order_cancelled_at();
 
--- Self-check: the result pane should show 2 and
--- "orders_guard_update -> orders_stamp_cancelled_at".
+-- Self-check: the result pane should show 3 and
+-- "orders_guard_update -> orders_stamp_cancelled_at". If the second value
+-- lists any OTHER trigger, stop and tell whoever maintains this: a trigger
+-- that isn't in the repo could change the firing order.
 select
   (select count(*)
      from information_schema.columns
     where table_schema = 'public'
       and table_name = 'orders'
-      and column_name in ('cancelled_at', 'refund_claimed_at')
-  ) as hold_columns_should_be_2,
+      and column_name in ('cancelled_at', 'refund_claimed_at', 'refund_failed_at')
+  ) as hold_columns_should_be_3,
   (select string_agg(tgname::text, ' -> ' order by tgname)
      from pg_catalog.pg_trigger
     where tgrelid = 'public.orders'::regclass
