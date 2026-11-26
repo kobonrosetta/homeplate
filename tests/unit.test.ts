@@ -16,7 +16,7 @@ import {
   isExpired,
 } from "../lib/match";
 import { deriveUnitPrice, cartLineKey } from "../lib/options";
-import { accountStatus } from "../lib/stripe";
+import { accountStatus, createRefund } from "../lib/stripe";
 import {
   SANTA_CLARA_COUNTY_RATE,
   taxRateForCity,
@@ -51,6 +51,18 @@ import {
   pickupScheduleSummary,
   pickupSlotsLabel,
 } from "../lib/availability";
+import {
+  REFUND_CLAIM_STALE_MINUTES,
+  REFUND_RETRY_HOURS,
+  refundState,
+  refundDueAt,
+  isRefundDue,
+  canUndoCancel,
+  canRefundNow,
+  isMissingHoldColumn,
+  formatHoldTime,
+} from "../lib/refund-hold";
+import { REFUND_HOLD_HOURS } from "../lib/constants";
 import {
   holidaysForYear,
   upcomingHolidays,
@@ -885,6 +897,220 @@ checkAsync("optimize: small photo is never upscaled", async () => {
   assert.equal(meta.format, "webp");
   assert.equal(meta.width, 400);
   assert.equal(meta.height, 300);
+});
+
+// ---- refund hold on cook-cancelled orders (Nov 2026: buyers waited up to a week) ----
+const HOUR = 3_600_000;
+const T0 = Date.parse("2026-11-25T20:00:00Z"); // "now" for these tests
+const iso = (msAgo: number) => new Date(T0 - msAgo).toISOString();
+// A cancelled, paid order as the Orders page and the sweep see it.
+const cancelledOrder = (o: Record<string, unknown> = {}) => ({
+  status: "cancelled",
+  stripe_payment_intent_id: "pi_123",
+  refunded_at: null,
+  cancelled_at: iso(2 * HOUR),
+  refund_claimed_at: null,
+  refund_failed_at: null,
+  ...o,
+});
+
+check("refund hold: a day; a claim goes stale after ten minutes; failures back off half a day", () => {
+  assert.equal(REFUND_HOLD_HOURS, 24);
+  assert.equal(REFUND_CLAIM_STALE_MINUTES, 10);
+  assert.equal(REFUND_RETRY_HOURS, 12);
+});
+check("refundState: only a cancelled, paid, unrefunded, unclaimed order is 'held'", () => {
+  assert.equal(refundState(cancelledOrder(), T0), "held");
+  for (const status of ["confirmed", "in_progress", "ready", "completed", "pending"]) {
+    assert.equal(refundState(cancelledOrder({ status }), T0), "none", status);
+  }
+  // Cancelled but never paid: nothing to refund.
+  assert.equal(refundState(cancelledOrder({ stripe_payment_intent_id: null }), T0), "none");
+  // Refunded wins over everything, including a leftover claim.
+  assert.equal(refundState(cancelledOrder({ refunded_at: iso(HOUR), refund_claimed_at: iso(HOUR) }), T0), "refunded");
+  assert.equal(refundState({ status: "completed", refunded_at: iso(HOUR), stripe_payment_intent_id: "pi" }, T0), "refunded");
+});
+check("refundState: a claim is 'sending' for ten minutes, then 'stalled' — on ANY order", () => {
+  assert.equal(refundState(cancelledOrder({ refund_claimed_at: iso(30_000) }), T0), "sending");
+  assert.equal(refundState(cancelledOrder({ refund_claimed_at: iso(9 * 60_000 + 59_000) }), T0), "sending");
+  assert.equal(refundState(cancelledOrder({ refund_claimed_at: iso(10 * 60_000) }), T0), "stalled");
+  assert.equal(refundState(cancelledOrder({ refund_claimed_at: iso(3 * HOUR) }), T0), "stalled");
+  // An admin's refund of a still-active (or completed) order can stall too.
+  for (const status of ["confirmed", "in_progress", "ready", "completed"]) {
+    assert.equal(refundState(cancelledOrder({ status, refund_claimed_at: iso(60_000) }), T0), "sending", status);
+    assert.equal(refundState(cancelledOrder({ status, refund_claimed_at: iso(HOUR) }), T0), "stalled", status);
+  }
+  // A claim we can't read as a time is still a claim: never "held".
+  assert.equal(refundState(cancelledOrder({ refund_claimed_at: "garbage" }), T0), "stalled");
+  // …but never for an unpaid order.
+  assert.equal(refundState(cancelledOrder({ stripe_payment_intent_id: null, refund_claimed_at: iso(HOUR) }), T0), "none");
+});
+check("refundDueAt: 24 hours after the cancel; unknown cancel time has no due time", () => {
+  assert.equal(refundDueAt("2026-11-25T18:00:00.000Z"), "2026-11-26T18:00:00.000Z");
+  // The database's own timestamp format (microseconds, numeric offset).
+  assert.equal(refundDueAt("2026-11-25T18:00:00.123456+00:00"), "2026-11-26T18:00:00.123Z");
+  assert.equal(refundDueAt(null), null);
+  assert.equal(refundDueAt(undefined), null);
+  assert.equal(refundDueAt("not a date"), null);
+});
+check("isRefundDue: the sweep waits out the full hold", () => {
+  assert.equal(isRefundDue(cancelledOrder({ cancelled_at: iso(1 * HOUR) }), T0), false);
+  assert.equal(isRefundDue(cancelledOrder({ cancelled_at: iso(24 * HOUR - 1000) }), T0), false);
+  assert.equal(isRefundDue(cancelledOrder({ cancelled_at: iso(24 * HOUR) }), T0), true);
+  assert.equal(isRefundDue(cancelledOrder({ cancelled_at: iso(40 * HOUR) }), T0), true);
+});
+check("isRefundDue: never automatic without a known cancel time, payment, or cancel", () => {
+  // Cancelled before migration 45 (no stamp): a person must decide.
+  assert.equal(isRefundDue(cancelledOrder({ cancelled_at: null }), T0), false);
+  assert.equal(isRefundDue(cancelledOrder({ cancelled_at: "garbage" }), T0), false);
+  const old = { cancelled_at: iso(48 * HOUR) };
+  assert.equal(isRefundDue(cancelledOrder({ ...old, stripe_payment_intent_id: null }), T0), false);
+  assert.equal(isRefundDue(cancelledOrder({ ...old, refunded_at: iso(HOUR) }), T0), false);
+  // Put back on (or never cancelled) and no refund ever started: not the
+  // sweep's business, however old.
+  for (const status of ["confirmed", "in_progress", "ready", "completed"]) {
+    assert.equal(isRefundDue(cancelledOrder({ ...old, status }), T0), false, status);
+  }
+});
+check("isRefundDue: a refund in flight is left alone; a stuck one is finished at once", () => {
+  const overdue = { cancelled_at: iso(30 * HOUR) };
+  assert.equal(isRefundDue(cancelledOrder({ ...overdue, refund_claimed_at: iso(60_000) }), T0), false);
+  // Started (by the cook's Refund now) one hour into the hold and never
+  // finished: don't make the buyer wait out a hold nobody can undo anymore.
+  assert.equal(isRefundDue(cancelledOrder({ cancelled_at: iso(1 * HOUR), refund_claimed_at: iso(20 * 60_000) }), T0), true);
+  // An admin's refund of an ACTIVE order that never reported back must be
+  // finished too — otherwise the order sits active with the money gone.
+  assert.equal(isRefundDue(cancelledOrder({ status: "ready", cancelled_at: null, refund_claimed_at: iso(20 * 60_000) }), T0), true);
+  assert.equal(isRefundDue(cancelledOrder({ status: "completed", cancelled_at: null, refund_claimed_at: iso(HOUR) }), T0), true);
+});
+check("isRefundDue: after a failed attempt the sweep backs off for twelve hours", () => {
+  const overdue = { cancelled_at: iso(30 * HOUR) };
+  assert.equal(isRefundDue(cancelledOrder({ ...overdue, refund_failed_at: iso(60_000) }), T0), false);
+  assert.equal(isRefundDue(cancelledOrder({ ...overdue, refund_failed_at: iso(12 * HOUR - 1000) }), T0), false);
+  assert.equal(isRefundDue(cancelledOrder({ ...overdue, refund_failed_at: iso(12 * HOUR) }), T0), true);
+  // The same back-off applies to a stuck refund (Stripe may replay a cached
+  // error for a day; hammering it helps nobody).
+  const stuck = { refund_claimed_at: iso(2 * HOUR) };
+  assert.equal(isRefundDue(cancelledOrder({ ...stuck, refund_failed_at: iso(2 * HOUR) }), T0), false);
+  assert.equal(isRefundDue(cancelledOrder({ ...stuck, refund_failed_at: iso(13 * HOUR) }), T0), true);
+  // An unreadable failure time is no reason to stop refunding.
+  assert.equal(isRefundDue(cancelledOrder({ ...overdue, refund_failed_at: "garbage" }), T0), true);
+});
+check("undo / refund-now: undo only while no refund ever started", () => {
+  const held = cancelledOrder();
+  const sending = cancelledOrder({ refund_claimed_at: iso(60_000) });
+  const stalled = cancelledOrder({ refund_claimed_at: iso(HOUR) });
+  const refunded = cancelledOrder({ refunded_at: iso(HOUR) });
+  const active = cancelledOrder({ status: "confirmed" });
+  const failedOnce = cancelledOrder({ refund_failed_at: iso(60_000) }); // Stripe said no: undo is safe again
+  assert.deepEqual([held, sending, stalled, refunded, active, failedOnce].map((o) => canUndoCancel(o, T0)), [true, false, false, false, false, true]);
+  assert.deepEqual([held, sending, stalled, refunded, active, failedOnce].map((o) => canRefundNow(o, T0)), [true, false, true, false, false, true]);
+});
+check("isMissingHoldColumn: ONLY 'that hold column does not exist' counts as not-migrated", () => {
+  // What Postgres / PostgREST really answer before migration 45 (checked live).
+  assert.equal(isMissingHoldColumn({ code: "42703", message: "column orders.cancelled_at does not exist" }), true);
+  assert.equal(isMissingHoldColumn({ code: "42703", message: "column orders.refund_claimed_at does not exist" }), true);
+  assert.equal(isMissingHoldColumn({ code: "42703", message: 'column "refund_failed_at" of relation "orders" does not exist' }), true);
+  assert.equal(isMissingHoldColumn({ code: "PGRST204", message: "Could not find the 'refund_claimed_at' column of 'orders' in the schema cache" }), true);
+  // Everything else is a real error and must fail closed — reading any of
+  // these as "not migrated" would silently drop the refund/undo guard.
+  assert.equal(isMissingHoldColumn({ code: "PGRST002", message: "Could not query the database for the schema cache. Retrying." }), false);
+  assert.equal(isMissingHoldColumn({ code: "PGRST204", message: "Could not find the 'whatever' column of 'orders' in the schema cache" }), false);
+  assert.equal(isMissingHoldColumn({ code: "42703", message: "column orders.something_else does not exist" }), false);
+  assert.equal(isMissingHoldColumn({ code: "57014", message: "canceling statement due to statement timeout" }), false);
+  assert.equal(isMissingHoldColumn({ code: "42501", message: "permission denied for table orders (refund_claimed_at)" }), false);
+  assert.equal(isMissingHoldColumn({ message: "column orders.cancelled_at does not exist" }), false); // no code: not sure enough
+  assert.equal(isMissingHoldColumn({ code: "42703" }), false);
+  assert.equal(isMissingHoldColumn(null), false);
+  assert.equal(isMissingHoldColumn(undefined), false);
+});
+check("formatHoldTime: shown in Pacific time, whatever the server's clock", () => {
+  assert.equal(formatHoldTime("2026-11-26T22:15:00.000Z"), "Thu, Nov 26, 2:15 PM");
+  // 03:30 UTC is still the evening before in California.
+  assert.equal(formatHoldTime("2026-11-27T03:30:00.000Z"), "Thu, Nov 26, 7:30 PM");
+  // Summer time is handled by the zone, not by us.
+  assert.equal(formatHoldTime("2026-07-04T19:00:00.000Z"), "Sat, Jul 4, 12:00 PM");
+  // Plain spaces only (newer runtimes emit a narrow no-break space before AM/PM).
+  assert.ok(!/[  ]/.test(formatHoldTime("2026-11-26T22:15:00.000Z")));
+});
+
+// createRefund (lib/stripe.ts): what it sends, and how it classifies answers.
+// "uncertain" is what keeps an order locked against an undo, so it must be
+// neither too wide (a clean "no" would lock the order) nor too narrow (a
+// refund that may have gone through would be treated as "nothing happened").
+async function withStripe<T>(
+  respond: (url: string, init: any) => Promise<Response> | Response,
+  run: () => Promise<T>
+): Promise<{ result: T; calls: { url: string; init: any }[] }> {
+  const realFetch = globalThis.fetch;
+  const realKey = process.env.STRIPE_SECRET_KEY;
+  const calls: { url: string; init: any }[] = [];
+  process.env.STRIPE_SECRET_KEY = "sk_test_unit";
+  (globalThis as any).fetch = async (url: any, init: any) => {
+    calls.push({ url: String(url), init });
+    return respond(String(url), init);
+  };
+  try {
+    return { result: await run(), calls };
+  } finally {
+    (globalThis as any).fetch = realFetch;
+    if (realKey === undefined) delete process.env.STRIPE_SECRET_KEY;
+    else process.env.STRIPE_SECRET_KEY = realKey;
+  }
+}
+const json = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+
+checkAsync("createRefund: always reverses the transfer + returns the fee, keyed by the order id", async () => {
+  const { result, calls } = await withStripe(() => json(200, { id: "re_1" }), () => createRefund("pi_abc", "order-1"));
+  assert.deepEqual(result, { id: "re_1" });
+  assert.equal(calls.length, 1);
+  assert.ok(calls[0].url.endsWith("/refunds"));
+  const body = new URLSearchParams(String(calls[0].init.body));
+  assert.equal(body.get("payment_intent"), "pi_abc");
+  assert.equal(body.get("reverse_transfer"), "true");
+  assert.equal(body.get("refund_application_fee"), "true");
+  assert.equal(calls[0].init.headers["Idempotency-Key"], "refund-order-1");
+  assert.equal(calls[0].init.method, "POST");
+});
+checkAsync("createRefund: a clear refusal is definite and carries Stripe's code", async () => {
+  for (const [status, code] of [[400, "charge_already_refunded"], [400, "charge_disputed"], [402, "card_declined"], [401, undefined], [404, "resource_missing"]] as const) {
+    const { result } = await withStripe(() => json(status, { error: { message: "no", code } }), () => createRefund("pi", "o"));
+    assert.ok("error" in result, String(status));
+    assert.equal((result as any).uncertain, false, `${status} must be a definite no`);
+    assert.equal((result as any).code, code, String(status));
+  }
+});
+checkAsync("createRefund: anything that might have gone through is 'uncertain'", async () => {
+  // Stripe unreachable / the call timing out.
+  const thrown = await withStripe(() => { throw new Error("socket hang up"); }, () => createRefund("pi", "o"));
+  assert.equal((thrown.result as any).uncertain, true);
+  // Server errors, a same-key request still in flight, rate limiting.
+  for (const status of [500, 502, 503, 409, 429]) {
+    const { result } = await withStripe(() => json(status, { error: { message: "x", code: status === 409 ? "idempotency_key_in_use" : undefined } }), () => createRefund("pi", "o"));
+    assert.equal((result as any).uncertain, true, String(status));
+  }
+  // A 2xx we couldn't read: Stripe said yes to something.
+  const noId = await withStripe(() => json(200, {}), () => createRefund("pi", "o"));
+  assert.equal((noId.result as any).uncertain, true);
+  const notJson = await withStripe(() => new Response("<html>gateway</html>", { status: 200 }), () => createRefund("pi", "o"));
+  assert.equal((notJson.result as any).uncertain, true);
+});
+checkAsync("createRefund: no Stripe key means nothing was sent (a definite no)", async () => {
+  const realFetch = globalThis.fetch;
+  const realKey = process.env.STRIPE_SECRET_KEY;
+  let called = 0;
+  (globalThis as any).fetch = async () => { called++; return json(200, { id: "re" }); };
+  delete process.env.STRIPE_SECRET_KEY;
+  try {
+    const r = await createRefund("pi", "o");
+    assert.ok("error" in r);
+    assert.ok(!(r as any).uncertain);
+    assert.equal(called, 0);
+  } finally {
+    (globalThis as any).fetch = realFetch;
+    if (realKey !== undefined) process.env.STRIPE_SECRET_KEY = realKey;
+  }
 });
 
 checkAsync("optimize: garbage input rejects (upload falls back to original)", async () => {

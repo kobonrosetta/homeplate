@@ -5,10 +5,7 @@ import { redirect } from "next/navigation";
 import { getAdminUser } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyCookStatusChange } from "@/lib/cook-notify";
-import { createRefund } from "@/lib/stripe";
-import { restockOrderItems, deductOrderItems } from "@/lib/orders";
-import { escapeHtml, sendEmail, wrapEmail } from "@/lib/email";
-import { formatUsd, SUPPORT_EMAIL } from "@/lib/constants";
+import { refundOrderNow, reinstateCancelledOrder } from "@/lib/refunds";
 import { titleCase } from "@/lib/handoff";
 import { normalizePermit, isExpired } from "@/lib/match";
 
@@ -322,87 +319,21 @@ export async function deleteListing(formData: FormData) {
 // ID from their receipt); the admin refunds here so the destination-charge
 // refund is always correct (createRefund forces reverse_transfer +
 // refund_application_fee — you can't forget a checkbox and eat the cook's cut).
+// The work itself is lib/refunds.ts refundOrderNow — the same routine the
+// cook's "Refund now" button and the scheduled sweep use — so an admin refund
+// and a cook's undo can never both win on one order. Unlike those two, the
+// admin may refund ANY paid order, fulfilled or not.
 export async function refundOrder(formData: FormData) {
   const orderId = String(formData.get("order_id") ?? "");
   const cookId = String(formData.get("cook_id") ?? "");
   await adminOrBounce(cookId);
   if (!orderId || !cookId) redirect("/admin");
-  const db = createAdminClient();
-  const fail = (msg: string) =>
-    redirect(`/admin/kitchen/${cookId}?error=${encodeURIComponent(msg)}`);
 
-  const { data: order } = await db
-    .from("orders")
-    .select(
-      "id, status, refunded_at, total_cents, stripe_payment_intent_id, contact_email, contact_name, cook_id"
-    )
-    .eq("id", orderId)
-    .maybeSingle();
-  if (!order) fail("Order not found.");
-  if (order!.refunded_at) fail("This order was already refunded.");
-  if (!order!.stripe_payment_intent_id)
-    fail("No payment to refund (this order was never paid).");
-
-  // Idempotency-Key = order id: a lost response on a succeeded refund replays
-  // Stripe's success on retry instead of erroring forever (see createRefund).
-  const result = await createRefund(
-    order!.stripe_payment_intent_id as string,
-    orderId
-  );
-  if ("error" in result) fail("Refund failed: " + result.error);
-
-  // Record the refund FIRST and unconditionally — this is the critical marker
-  // (blocks a double-refund; the money already left Stripe). Keep it separate
-  // from the cancel so a status hiccup can't lose the refund record.
-  await db
-    .from("orders")
-    .update({ refunded_at: new Date().toISOString() })
-    .eq("id", orderId);
-
-  // Cancel + restock ONLY if the order is still un-fulfilled. Guard the write
-  // with a status precondition and check it actually matched: a concurrent cook
-  // 'completed' transition (mid-refund) must NOT be flipped to cancelled, and
-  // its already-delivered stock must NOT be put back. Restock only when the
-  // cancel truly persisted (restockOrderItems' documented contract).
-  const { data: cancelled } = await db
-    .from("orders")
-    .update({ status: "cancelled" })
-    .eq("id", orderId)
-    .in("status", ["confirmed", "in_progress", "ready"])
-    .select("id");
-  if (cancelled && cancelled.length > 0) await restockOrderItems(orderId);
-
-  // Tell the buyer their money's coming back.
-  if (order!.contact_email) {
-    try {
-      const { data: cook } = await db
-        .from("cooks")
-        .select("business_name")
-        .eq("id", cookId)
-        .maybeSingle();
-      const kitchen = cook?.business_name ?? "the kitchen";
-      await sendEmail({
-        to: order!.contact_email,
-        subject: "Refunded: your ForkFork order",
-        html: wrapEmail(
-          `<h2>You've been refunded</h2>
-           <p>Hi${
-             order!.contact_name ? ` ${escapeHtml(order!.contact_name)}` : ""
-           }, your ${formatUsd(
-            order!.total_cents ?? 0
-          )} order at ${escapeHtml(
-            kitchen
-          )} has been fully refunded.</p>
-           <p>It should land back on your original payment method within a few
-           business days. Questions? Just reply, or email ${escapeHtml(
-             SUPPORT_EMAIL
-           )}.</p>`
-        ),
-      });
-    } catch {
-      /* email must never block the refund record */
-    }
-  }
+  const result = await refundOrderNow(orderId, { cookId });
+  if (!result.ok)
+    redirect(
+      `/admin/kitchen/${cookId}?error=${encodeURIComponent(result.error)}`
+    );
 
   bumpAdmin(cookId);
   redirect(`/admin/kitchen/${cookId}?saved=refunded`);
@@ -411,93 +342,21 @@ export async function refundOrder(formData: FormData) {
 // One-click reinstate of a mistakenly-cancelled order (a cook fat-fingered a
 // $340 buffet cancellation the night before delivery, Oct 2026 — recovering
 // took manual DB surgery). Only valid while the money is still in place:
-// status 'cancelled' AND never refunded. Flips the order back to 'confirmed'
-// (the service role is exempt from the status-transition trigger — this is
-// the one sanctioned path out of 'cancelled'), re-takes any limited stock the
-// cancellation restocked, and emails the buyer that the order is back on —
-// the automatic cancellation email promised them a refund, so staying silent
-// would mean a no-show or a chargeback.
+// status 'cancelled', never refunded, and no refund in flight. The work is
+// lib/refunds.ts reinstateCancelledOrder, shared with the cook's own "Undo
+// cancel" button: back to 'confirmed', limited stock re-taken, buyer emailed
+// that the order is on again.
 export async function reinstateOrder(formData: FormData) {
   const orderId = String(formData.get("order_id") ?? "");
   const cookId = String(formData.get("cook_id") ?? "");
   await adminOrBounce(cookId);
   if (!orderId || !cookId) redirect("/admin");
-  const db = createAdminClient();
-  const fail = (msg: string) =>
-    redirect(`/admin/kitchen/${cookId}?error=${encodeURIComponent(msg)}`);
 
-  const { data: order } = await db
-    .from("orders")
-    .select(
-      "id, status, refunded_at, total_cents, stripe_payment_intent_id, contact_email, contact_name, fulfillment, cook_id"
-    )
-    .eq("id", orderId)
-    .maybeSingle();
-  if (!order) fail("Order not found.");
-  if (order!.cook_id !== cookId) fail("Order does not belong to this kitchen.");
-  if (order!.status !== "cancelled")
-    fail("Only a cancelled order can be reinstated.");
-  if (order!.refunded_at)
-    fail(
-      "This order was already refunded — the buyer's money is on its way back, so it can't be reinstated. Have them place a fresh order instead."
+  const result = await reinstateCancelledOrder(orderId, { cookId });
+  if (!result.ok)
+    redirect(
+      `/admin/kitchen/${cookId}?error=${encodeURIComponent(result.error)}`
     );
-  if (!order!.stripe_payment_intent_id)
-    fail("This order was never paid — nothing to reinstate.");
-
-  // Guarded flip: only out of 'cancelled', and verify it actually matched so a
-  // concurrent refund/reinstate can't double-apply the side effects below.
-  // The refunded_at guard is load-bearing IN the CAS (not just the pre-read
-  // above): refundOrder on an already-cancelled order sets refunded_at but
-  // leaves status='cancelled', so a Reinstate racing the ~1-2s Stripe refund
-  // window would otherwise yield refunded_at + status='confirmed' — buyer
-  // refunded, cook fulfilling a free order, UI showing only "✓ Refunded".
-  const { data: flipped } = await db
-    .from("orders")
-    .update({ status: "confirmed" })
-    .eq("id", orderId)
-    .eq("status", "cancelled")
-    .is("refunded_at", null)
-    .select("id");
-  if (!flipped || flipped.length === 0)
-    fail("The order just changed state — refresh and check again.");
-
-  // Re-take the limited stock the cancellation put back on the shelf.
-  await deductOrderItems(orderId);
-
-  // Tell the buyer it's back on. Best-effort — the reinstate must stand even
-  // if email fails (the admin can always follow up by hand).
-  if (order!.contact_email) {
-    try {
-      const { data: cook } = await db
-        .from("cooks")
-        .select("business_name")
-        .eq("id", cookId)
-        .maybeSingle();
-      const kitchen = cook?.business_name ?? "the kitchen";
-      await sendEmail({
-        to: order!.contact_email,
-        subject: `Your order is back on: ${kitchen}`,
-        html: wrapEmail(
-          `<h2>Your order is back on</h2>
-           <p>Hi${
-             order!.contact_name ? ` ${escapeHtml(order!.contact_name)}` : ""
-           } — good news: your ${formatUsd(
-            order!.total_cents ?? 0
-          )} order at ${escapeHtml(
-            kitchen
-          )} was cancelled by mistake and has been fully reinstated. Your ${
-            order!.fulfillment === "delivery" ? "delivery" : "pickup"
-          } is on as planned.</p>
-           <p>Your original payment stands — no refund was issued and you will
-           not be charged again. Please disregard the earlier cancellation
-           email.</p>
-           <p>Questions? Just reply, or email ${escapeHtml(SUPPORT_EMAIL)}.</p>`
-        ),
-      });
-    } catch {
-      /* email must never block the reinstate */
-    }
-  }
 
   bumpAdmin(cookId);
   redirect(`/admin/kitchen/${cookId}?saved=reinstated`);
