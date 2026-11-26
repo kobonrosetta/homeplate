@@ -131,8 +131,15 @@ export async function retrieveSession(sessionId: string): Promise<{
  *   - refund_application_fee=true → return the platform's service fee too
  * (Stripe keeps only its processing cut — the unavoidable cost of any refund.)
  *
- * Returns { id } on success, or { error } — never throws, so the admin action
- * can show a message.
+ * Returns { id } on success, or { error } — never throws, so the caller can
+ * show a message. An error also carries:
+ *   - `code`: Stripe's error code when it sent one. "charge_already_refunded"
+ *     means the buyer already has the money back (callers treat it as done).
+ *   - `uncertain: true` when we can't tell whether Stripe acted — it couldn't
+ *     be reached, it answered 5xx / 429, or another request with the same key
+ *     is still in flight (409). The refund may have gone through, so the
+ *     caller must NOT conclude "nothing happened"; retrying later with the
+ *     same key is always safe.
  *
  * `idempotencyKey` (the order id) is CRITICAL: if the refund succeeds at Stripe
  * but the HTTP response is lost (timeout/network), a retry with the same key
@@ -140,10 +147,12 @@ export async function retrieveSession(sessionId: string): Promise<{
  * is gone but the order is never marked refunded, and every retry fails on
  * "charge already refunded". Stripe caches the response for 24h.
  */
+export type RefundError = { error: string; code?: string; uncertain?: boolean };
+
 export async function createRefund(
   paymentIntentId: string,
   idempotencyKey: string
-): Promise<{ id: string } | { error: string }> {
+): Promise<{ id: string } | RefundError> {
   const key = secretKey();
   if (!key) return { error: "Payments aren't set up (missing Stripe key)." };
   const body = new URLSearchParams();
@@ -160,13 +169,22 @@ export async function createRefund(
         "Idempotency-Key": `refund-${idempotencyKey}`,
       },
       body,
+      // Bound the call (same reasoning as sendEmail): a hung socket must not
+      // pin a request, or the scheduled sweep, for minutes.
+      signal: AbortSignal.timeout(30_000),
     });
   } catch {
-    return { error: "Couldn't reach Stripe. Try again." };
+    return { error: "Couldn't reach Stripe. Try again.", uncertain: true };
   }
   const data = await res.json().catch(() => null);
   if (!res.ok || !data?.id) {
-    return { error: data?.error?.message ?? "Stripe refund failed." };
+    return {
+      error: data?.error?.message ?? "Stripe refund failed.",
+      code: typeof data?.error?.code === "string" ? data.error.code : undefined,
+      // A 2xx we couldn't read counts as uncertain too: Stripe said yes to
+      // something.
+      uncertain: res.ok || res.status >= 500 || res.status === 409 || res.status === 429,
+    };
   }
   return { id: data.id as string };
 }

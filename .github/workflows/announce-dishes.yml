@@ -22,3 +22,27 @@ jobs:
             --max-time 120 --retry 3 --retry-delay 20 --retry-all-errors \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             https://forkfork.app/api/cron/announce-dishes
+
+      # Sends refunds for cancelled orders whose 24-hour hold is over (see
+      # app/api/cron/refund-cancelled). It rides along on this workflow so it
+      # runs as often as GitHub lets this one run; the endpoint is safe to hit
+      # from overlapping runs. `if: always()` — a hiccup in the step above
+      # must not delay a buyer's refund. A 404 only means the app build that
+      # has this endpoint isn't deployed yet, which is not a failure.
+      - name: Send refunds that are past their hold
+        if: always()
+        run: |
+          code=$(curl -sS -o refunds.json -w "%{http_code}" -X POST \
+            --max-time 120 --retry 3 --retry-delay 20 --retry-all-errors \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://forkfork.app/api/cron/refund-cancelled)
+          cat refunds.json 2>/dev/null || true
+          echo
+          if [ "$code" = "404" ]; then
+            echo "::notice::Refund endpoint not deployed yet; skipping."
+            exit 0
+          fi
+          if [ "$code" != "200" ]; then
+            echo "::error::Refund sweep answered HTTP $code"
+            exit 1
+          fi

@@ -52,6 +52,16 @@ import {
   pickupSlotsLabel,
 } from "../lib/availability";
 import {
+  REFUND_CLAIM_STALE_MINUTES,
+  refundState,
+  refundDueAt,
+  isRefundDue,
+  canUndoCancel,
+  canRefundNow,
+  formatHoldTime,
+} from "../lib/refund-hold";
+import { REFUND_HOLD_HOURS } from "../lib/constants";
+import {
   holidaysForYear,
   upcomingHolidays,
   holidayNudge,
@@ -885,6 +895,89 @@ checkAsync("optimize: small photo is never upscaled", async () => {
   assert.equal(meta.format, "webp");
   assert.equal(meta.width, 400);
   assert.equal(meta.height, 300);
+});
+
+// ---- refund hold on cook-cancelled orders (Nov 2026: buyers waited up to a week) ----
+const HOUR = 3_600_000;
+const T0 = Date.parse("2026-11-25T20:00:00Z"); // "now" for these tests
+const iso = (msAgo: number) => new Date(T0 - msAgo).toISOString();
+// A cancelled, paid order as the Orders page and the sweep see it.
+const cancelledOrder = (o: Record<string, unknown> = {}) => ({
+  status: "cancelled",
+  stripe_payment_intent_id: "pi_123",
+  refunded_at: null,
+  cancelled_at: iso(2 * HOUR),
+  refund_claimed_at: null,
+  ...o,
+});
+
+check("refund hold: a day, and a claim goes stale after ten minutes", () => {
+  assert.equal(REFUND_HOLD_HOURS, 24);
+  assert.equal(REFUND_CLAIM_STALE_MINUTES, 10);
+});
+check("refundState: only a cancelled, paid, unrefunded order is 'held'", () => {
+  assert.equal(refundState(cancelledOrder(), T0), "held");
+  for (const status of ["confirmed", "in_progress", "ready", "completed", "pending"]) {
+    assert.equal(refundState(cancelledOrder({ status }), T0), "none", status);
+  }
+  // Cancelled but never paid: nothing to refund.
+  assert.equal(refundState(cancelledOrder({ stripe_payment_intent_id: null }), T0), "none");
+  // Refunded wins over everything, including a leftover claim.
+  assert.equal(refundState(cancelledOrder({ refunded_at: iso(HOUR), refund_claimed_at: iso(HOUR) }), T0), "refunded");
+  assert.equal(refundState({ status: "completed", refunded_at: iso(HOUR), stripe_payment_intent_id: "pi" }, T0), "refunded");
+});
+check("refundState: a claim is 'sending' for ten minutes, then 'stalled'", () => {
+  assert.equal(refundState(cancelledOrder({ refund_claimed_at: iso(30_000) }), T0), "sending");
+  assert.equal(refundState(cancelledOrder({ refund_claimed_at: iso(9 * 60_000 + 59_000) }), T0), "sending");
+  assert.equal(refundState(cancelledOrder({ refund_claimed_at: iso(10 * 60_000) }), T0), "stalled");
+  assert.equal(refundState(cancelledOrder({ refund_claimed_at: iso(3 * HOUR) }), T0), "stalled");
+});
+check("refundDueAt: 24 hours after the cancel; unknown cancel time has no due time", () => {
+  assert.equal(refundDueAt("2026-11-25T18:00:00.000Z"), "2026-11-26T18:00:00.000Z");
+  assert.equal(refundDueAt(null), null);
+  assert.equal(refundDueAt(undefined), null);
+  assert.equal(refundDueAt("not a date"), null);
+});
+check("isRefundDue: the sweep waits out the full hold", () => {
+  assert.equal(isRefundDue(cancelledOrder({ cancelled_at: iso(1 * HOUR) }), T0), false);
+  assert.equal(isRefundDue(cancelledOrder({ cancelled_at: iso(24 * HOUR - 1000) }), T0), false);
+  assert.equal(isRefundDue(cancelledOrder({ cancelled_at: iso(24 * HOUR) }), T0), true);
+  assert.equal(isRefundDue(cancelledOrder({ cancelled_at: iso(40 * HOUR) }), T0), true);
+});
+check("isRefundDue: never automatic without a known cancel time, payment, or cancel", () => {
+  // Cancelled before migration 45 (no stamp): a person must decide.
+  assert.equal(isRefundDue(cancelledOrder({ cancelled_at: null }), T0), false);
+  assert.equal(isRefundDue(cancelledOrder({ cancelled_at: "garbage" }), T0), false);
+  const old = { cancelled_at: iso(48 * HOUR) };
+  assert.equal(isRefundDue(cancelledOrder({ ...old, stripe_payment_intent_id: null }), T0), false);
+  assert.equal(isRefundDue(cancelledOrder({ ...old, refunded_at: iso(HOUR) }), T0), false);
+  // Put back on (or never cancelled): not the sweep's business, however old.
+  for (const status of ["confirmed", "in_progress", "ready", "completed"]) {
+    assert.equal(isRefundDue(cancelledOrder({ ...old, status }), T0), false, status);
+  }
+});
+check("isRefundDue: a refund in flight is left alone; a stuck one is finished at once", () => {
+  const overdue = { cancelled_at: iso(30 * HOUR) };
+  assert.equal(isRefundDue(cancelledOrder({ ...overdue, refund_claimed_at: iso(60_000) }), T0), false);
+  // Started (by the cook's Refund now) one hour into the hold and never
+  // finished: don't make the buyer wait out a hold nobody can undo anymore.
+  assert.equal(isRefundDue(cancelledOrder({ cancelled_at: iso(1 * HOUR), refund_claimed_at: iso(20 * 60_000) }), T0), true);
+});
+check("undo / refund-now: undo only while no refund ever started", () => {
+  const held = cancelledOrder();
+  const sending = cancelledOrder({ refund_claimed_at: iso(60_000) });
+  const stalled = cancelledOrder({ refund_claimed_at: iso(HOUR) });
+  const refunded = cancelledOrder({ refunded_at: iso(HOUR) });
+  const active = cancelledOrder({ status: "confirmed" });
+  assert.deepEqual([held, sending, stalled, refunded, active].map((o) => canUndoCancel(o, T0)), [true, false, false, false, false]);
+  assert.deepEqual([held, sending, stalled, refunded, active].map((o) => canRefundNow(o, T0)), [true, false, true, false, false]);
+});
+check("formatHoldTime: shown in Pacific time, whatever the server's clock", () => {
+  assert.equal(formatHoldTime("2026-11-26T22:15:00.000Z"), "Thu, Nov 26, 2:15 PM");
+  // 03:30 UTC is still the evening before in California.
+  assert.equal(formatHoldTime("2026-11-27T03:30:00.000Z"), "Thu, Nov 26, 7:30 PM");
+  // Summer time is handled by the zone, not by us.
+  assert.equal(formatHoldTime("2026-07-04T19:00:00.000Z"), "Sat, Jul 4, 12:00 PM");
 });
 
 checkAsync("optimize: garbage input rejects (upload falls back to original)", async () => {

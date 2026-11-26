@@ -34,6 +34,15 @@ export const MAX_EVENT_DAYS_OUT = 90;
 export const MAX_PICKUP_LINES = 40;
 
 /**
+ * How long a cook-cancelled order waits before its refund goes out by itself
+ * (see lib/refund-hold.ts). During the hold the cook can undo the cancel or
+ * send the refund right away. A day, not an hour: 3 of the pilot kitchen's
+ * first 8 cancels were later put back, the scheduler that releases the hold
+ * only runs every few hours, and a card refund takes days to land anyway.
+ */
+export const REFUND_HOLD_HOURS = 24;
+
+/**
  * The site's public origin, for absolute URLs in emails, share links, and
  * social-card metadata. At go-live: set NEXT_PUBLIC_SITE_URL on Render (and
  * update the fallback) — this constant is the ONLY place the host lives.

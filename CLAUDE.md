@@ -88,6 +88,9 @@ lib/
                           #   createAccountLink / retrieveAccount / accountStatus
   connect.ts              # syncCookStripeStatus(): service-role write of cook_stripe + cooks.stripe_ready
   orders.ts               # confirmPaidOrder(): idempotent, deducts stock, emails the cook
+  refunds.ts              # refundOrderNow() + reinstateCancelledOrder(): the ONLY refund / un-cancel paths
+                          #   (cook buttons, admin console and the sweep all call these) — SERVER ONLY
+  refund-hold.ts          # pure rules of the 24h refund hold on a cook-cancelled order — unit-tested
   email.ts                # sendEmail (Resend REST, key-safe no-op) + wrapEmail (branded HTML)
   listings.ts             # insertListingFromForm (photo gate + extra photos + allergens), uploadCookAvatar,
                           #   uploadPermitPhoto — ALL storage writes via the service role (paths derived
@@ -145,6 +148,13 @@ them re-opens real vulnerabilities:
   name/address. Admins view via short-lived signed URLs only. Never make this bucket
   public or add end-user policies to it.
 - **Orders RLS**: buyers see only their orders; cooks update only their kitchen's.
+- **Cook-triggered refunds are still server-authored.** A cook session can change
+  ONLY an order's status (trigger `orders_guard_update`); `refunded_at`,
+  `cancelled_at` and `refund_claimed_at` are written by the service role or a
+  trigger. The cook's "Refund now" / "Undo cancel" actions prove the session, then
+  `lib/refunds.ts` re-checks that the order belongs to that cook's kitchen and is
+  CANCELLED before the service role touches it. Don't add a client-side or
+  cook-session write to any of those columns.
 - **`order_items` are server-authored** (migration 35): end users have **no INSERT
   policy** — both checkout paths write line items via the service role from
   authoritative DB prices. Do NOT restore a buyer-session `order_items` insert or a
@@ -192,10 +202,32 @@ them re-opens real vulnerabilities:
      `account.updated` re-fetches the account live (events arrive out of order) and
      a failed sync returns 5xx so Stripe retries; deauthorization clears the stored
      account id so the cook can re-onboard fresh.
-   - **Refunds are still manual** and destination charges make naive refunds lose
-     money: always `reverse_transfer=true` + `refund_application_fee=true` (the
-     admin cancellation email spells this out). The `payouts` table is the legacy
-     manual ledger, kept for history.
+   - **Every refund goes through ONE routine** — `lib/refunds.ts refundOrderNow`
+     (→ `lib/stripe.ts createRefund`, which always sets `reverse_transfer=true` +
+     `refund_application_fee=true`; a naive refund on a destination charge leaves
+     the cook their cut and the platform eating the whole refund). Never call
+     Stripe's refund from anywhere else, and never refund by hand in the Stripe
+     dashboard without both flags. Full refunds only. The `payouts` table is the
+     legacy manual ledger, kept for history.
+   - **A cook's cancel starts a 24-hour refund hold** (migration 45, Nov 2026;
+     rules in `lib/refund-hold.ts`, unit-tested). During the hold the cook's
+     Orders tab offers "Undo cancel" and "Refund now"; after it, the sweep
+     `/api/cron/refund-cancelled` (a second step in the order-reminders and
+     announce-dishes workflows) sends the refund. Before this, refunds waited
+     on an admin click and buyers waited up to a week. The admin console can
+     still Refund any paid order and Reinstate a cancelled one; refunds of
+     COMPLETED orders stay admin-only. Do NOT undo these:
+     - `refundOrderNow` **claims the order (`refund_claimed_at`) BEFORE asking
+       Stripe**, and the undo (`reinstateCancelledOrder`) refuses a claimed
+       order. That ordering is the only thing stopping "buyer refunded AND
+       order back on".
+     - `orders.cancelled_at` is stamped by a DATABASE TRIGGER
+       (`orders_stamp_cancelled_at`), never by the app, and the sweep never
+       refunds an order without it. The trigger's name must keep sorting
+       after `orders_guard_update` (Postgres fires them alphabetically).
+     - The code works with OR without migration 45 (deploy and SQL can land in
+       either order): without the columns, refunds are an admin click exactly
+       as before, and the emails say so.
 3. **Payment confirmation has two paths:** the success-page redirect *and* the webhook.
    `confirmPaidOrder` (in `lib/orders.ts`) is idempotent and shared by both. The webhook is
    only live once `STRIPE_WEBHOOK_SECRET` is set (Stripe CLI locally / dashboard at deploy).
@@ -253,7 +285,7 @@ review-forgery hole + payout-ledger tampering + checkout-trust bugs — see
    the SQL editor — clears test orders/payouts so the admin + chef dashboards start
    at zero; deliberately NO destructive button in the UI), and
    have the first real cook complete live Express onboarding (real SSN/bank — payouts are
-   automated via Connect destination charges; refunds still manual). ~~Verify a Resend
+   automated via Connect destination charges; refunds: see gotcha #2). ~~Verify a Resend
    sending domain~~ ✅ Done 2026-07-30 — `forkfork.app` verified, `EMAIL_FROM` =
    `orders@forkfork.app` (replies alias to `hello@`), Supabase auth email on custom SMTP.
 
