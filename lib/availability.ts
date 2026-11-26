@@ -219,10 +219,20 @@ export function validateAvailability(
 // surface falls back to plain ready-by behavior — parsing failure can never
 // block ordering or invent a wrong day.
 
-// One day-name token (Sun…Sat, with common abbreviations), as a reusable
-// source string so the range regex below can compose two of them.
-const DAY_SRC =
-  "(sun(?:day)?|mon(?:day)?|tue(?:s|sday)?|wed(?:s|nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?)s?";
+// EVERY PATTERN IN THIS FILE IS A REGEX LITERAL (/…/), never assembled from
+// strings with `new RegExp(...)`. That is deliberate, and tests/unit.test.ts
+// enforces it for the whole app. Next 14.2.5's production minifier folds a
+// template string such as `\\b${MONTHS}…` into one string literal and writes
+// its "\\b" as "\\\b": a backslash followed by a BACKSPACE character, so the
+// pattern can never match anything. Only the built SERVER code was hit; the
+// browser bundle, `next dev` and the unit tests all kept working. From
+// Nov 24 to Nov 25 2026 the live server therefore recognized no holiday
+// pickup day at all: the dashboard kept offering a day the cook had already
+// added (she tapped it four times), the storefront header dumped her raw
+// lines, "Get it" lost the weekly schedule, and checkout refused the holiday
+// time slots the browser offered. The day-name alternation (Sun…Sat with the
+// common abbreviations and an optional plural "s") is repeated in each
+// pattern below as the price of that; keep the copies identical.
 const DAY_NUM: Record<string, number> = {
   sun: 0,
   mon: 1,
@@ -250,12 +260,10 @@ const UNPARSEABLE_QUALIFIER =
 // turns into "every Wednesday"), checkout offers exactly that date, and the
 // line hides itself once the date has passed. Lines stay plain text in
 // cooks.pickup_windows, so cooks can also type one by hand.
-const MONTH_SRC =
-  "(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
-const DATED_WINDOW_RE = new RegExp(
-  `\\b${MONTH_SRC}\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b(?:,?\\s+(\\d{4})\\b)?`,
-  "i"
-);
+// A month name, a day number, and optionally a year: "Nov 25", "November
+// 25th", "Dec. 24, 2026". (A literal, on purpose: see the note at DAY_NUM.)
+const DATED_WINDOW_RE =
+  /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s+(\d{1,2})(?:st|nd|rd|th)?\b(?:,?\s+(\d{4})\b)?/i;
 const MONTH_NUM: Record<string, number> = {
   jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
   jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
@@ -299,10 +307,8 @@ export function datedPickupWindowDate(
 // alone with no day: the weekly schedule went unreadable (so "Get it" could
 // promise a weekday the kitchen doesn't hand off on) and checkout offered
 // "2 PM" on any date at all. That was 40 Acres' real layout, Oct 2026.
-const HAS_DAY_RE = new RegExp(
-  `\\b${DAY_SRC}\\b|\\b(weekends?|weekdays?|daily|every ?day|all week|any ?day)\\b`,
-  "i"
-);
+const HAS_DAY_RE =
+  /\b(sun(?:day)?|mon(?:day)?|tue(?:s|sday)?|wed(?:s|nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?)s?\b|\b(weekends?|weekdays?|daily|every ?day|all week|any ?day)\b/i;
 const TIMEISH_RE = /\d|\b(noon|midnight)\b/i;
 
 export type PickupBlock = {
@@ -341,26 +347,39 @@ function slotChoice(b: PickupBlock, slot: string): string {
   return `${head}${b.dated ? " · " : " "}${slot}`.slice(0, 120);
 }
 
+// The same text twice says nothing new: keep the first, in order.
+const unique = (items: string[]): string[] => [...new Set(items)];
+
 // Every choice a buyer can make: a block's slots expand to "Saturdays 2 PM",
 // "Saturdays 2:30 PM", …; other lines are offered as written. Idempotent, so
-// an already-expanded list passes through unchanged.
+// an already-expanded list passes through unchanged. No choice is offered
+// twice, however the lines repeat.
 export function expandPickupWindows(lines: string[] | null | undefined): string[] {
-  return pickupBlocks(lines).flatMap((b) =>
-    b.slots.length ? b.slots.map((s) => slotChoice(b, s)) : [b.line]
+  return unique(
+    pickupBlocks(lines).flatMap((b) =>
+      b.slots.length ? b.slots.map((s) => slotChoice(b, s)) : [b.line]
+    )
   );
 }
 
 // The cook's lines with any passed holiday day removed, together with the
-// slot times listed under it. Keeps the cook's own layout, so Settings shows
-// this for editing and the next save tidies the passed days away.
+// slot times listed under it, and with any block that repeats an earlier one
+// word for word left out (a day added twice is still one day). Keeps the
+// cook's own layout, so Settings shows this for editing and the next save
+// tidies the passed days and the repeats away.
 export function activePickupWindows(
   windows: string[] | null | undefined,
   todayIso: string
 ): string[] {
+  const seen = new Set<string>();
   return pickupBlocks(windows)
     .filter((b) => {
       const d = datedPickupWindowDate(b.line, todayIso);
-      return d === null || d >= todayIso;
+      if (d !== null && d < todayIso) return false;
+      const key = [b.line, ...b.slots].join("\n");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     })
     .flatMap((b) => [b.line, ...b.slots]);
 }
@@ -417,10 +436,12 @@ export function pickupSlotsLabel(slots: string[]): string {
 }
 
 // The schedule as display lines, each block's slots kept together:
-// "Saturdays 2 PM to 5:30 PM", "Sundays".
+// "Saturdays 2 PM to 5:30 PM", "Sundays". A line is never shown twice.
 export function pickupScheduleSummary(lines: string[] | null | undefined): string[] {
-  return pickupBlocks(lines).map((b) =>
-    b.slots.length ? slotChoice(b, pickupSlotsLabel(b.slots)) : b.line
+  return unique(
+    pickupBlocks(lines).map((b) =>
+      b.slots.length ? slotChoice(b, pickupSlotsLabel(b.slots)) : b.line
+    )
   );
 }
 
@@ -439,10 +460,8 @@ export function parsePickupDays(
     // Day RANGES first — "Mon-Fri", "Tue – Sat", "Thurs through Sunday" —
     // expanded inclusively (walking forward mod 7, so "Fri-Mon" works too).
     // Matched ranges are blanked out so the endpoint tokens aren't re-counted.
-    const rangeRe = new RegExp(
-      `\\b${DAY_SRC}\\s*(?:-|–|—|to|through|thru|till|until)\\s*${DAY_SRC}\\b`,
-      "gi"
-    );
+    const rangeRe =
+      /\b(sun(?:day)?|mon(?:day)?|tue(?:s|sday)?|wed(?:s|nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?)s?\s*(?:-|–|—|to|through|thru|till|until)\s*(sun(?:day)?|mon(?:day)?|tue(?:s|sday)?|wed(?:s|nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?)s?\b/gi;
     t = t.replace(rangeRe, (_m, startTok: string, endTok: string) => {
       let d = dayNum(startTok);
       const end = dayNum(endTok);
@@ -468,7 +487,9 @@ export function parsePickupDays(
       for (let d = 0; d < 7; d++) days.add(d);
       found = true;
     }
-    for (const m of t.matchAll(new RegExp(`\\b${DAY_SRC}\\b`, "gi"))) {
+    for (const m of t.matchAll(
+      /\b(sun(?:day)?|mon(?:day)?|tue(?:s|sday)?|wed(?:s|nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?)s?\b/gi
+    )) {
       days.add(dayNum(m[1]));
       found = true;
     }
