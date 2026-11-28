@@ -3,6 +3,12 @@ import sharp from "sharp";
 import { createClient } from "@supabase/supabase-js";
 import { loadOgFonts } from "@/lib/og-font";
 import { titleCase } from "@/lib/handoff";
+import { sniffPhotoFormat } from "@/lib/image";
+
+// Photos are only ever fetched from our own public photo storage. The
+// address comes from a database row the kitchen's owner can edit, so without
+// this the server would fetch whatever address was written there.
+const OUR_PHOTOS = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/`;
 
 // Match lib/image.ts's process-wide sharp bounds in case this route is the
 // first sharp user in a fresh instance (one worker thread, no pixel cache).
@@ -124,17 +130,21 @@ async function renderCard(slug: string): Promise<ImageResponse> {
   // Transcode whatever the photo is to JPEG and embed it as a data URI; on any
   // failure fall through to the branded no-photo card instead.
   let photoSrc: string | null = null;
-  if (photo) {
+  if (photo && photo.startsWith(OUR_PHOTOS)) {
     try {
       const res = await fetch(photo);
       if (res.ok) {
-        const jpg = await sharp(Buffer.from(await res.arrayBuffer()), {
-          limitInputPixels: 40_000_000,
-        })
-          .resize(900, 900, { fit: "inside", withoutEnlargement: true })
-          .jpeg({ quality: 80 })
-          .toBuffer();
-        photoSrc = `data:image/jpeg;base64,${jpg.toString("base64")}`;
+        const bytes = Buffer.from(await res.arrayBuffer());
+        // Same rule as uploads (lib/image.ts): only real JPEG, PNG or WebP
+        // bytes are ever decoded. A stored file can be an untouched original
+        // of any format, and this route is open to anyone.
+        if (sniffPhotoFormat(bytes)) {
+          const jpg = await sharp(bytes, { limitInputPixels: 40_000_000 })
+            .resize(900, 900, { fit: "inside", withoutEnlargement: true })
+            .jpeg({ quality: 80 })
+            .toBuffer();
+          photoSrc = `data:image/jpeg;base64,${jpg.toString("base64")}`;
+        }
       }
     } catch {
       /* branded fallback below */

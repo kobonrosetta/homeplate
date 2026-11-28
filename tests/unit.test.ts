@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { slugify } from "../lib/slug";
 import { titleCase, publicArea } from "../lib/handoff";
 import sharp from "sharp";
-import { optimizeImageBuffer } from "../lib/image";
+import { optimizeImageBuffer, sniffPhotoFormat } from "../lib/image";
 import {
   calcServiceFeeCents,
   calcTotalCents,
@@ -1237,6 +1237,44 @@ checkAsync("createRefund: no Stripe key means nothing was sent (a definite no)",
   } finally {
     (globalThis as any).fetch = realFetch;
     if (realKey !== undefined) process.env.STRIPE_SECRET_KEY = realKey;
+  }
+});
+
+// Nov 2026: memory bugs were published in the libraries behind AVIF and SVG
+// decoding, both rated remote code execution. Anyone can open a cook account
+// and upload a "photo", and the image library picks its decoder from the
+// file's bytes, so the gate has to look at the bytes too.
+checkAsync("optimize: only real JPEG, PNG and WebP bytes ever reach the image library", async () => {
+  const base = sharp({
+    create: { width: 64, height: 48, channels: 3, background: { r: 200, g: 100, b: 50 } },
+  });
+  const jpeg = await base.clone().jpeg().toBuffer();
+  const png = await base.clone().png().toBuffer();
+  const webp = await base.clone().webp().toBuffer();
+  assert.equal(sniffPhotoFormat(jpeg), "jpeg");
+  assert.equal(sniffPhotoFormat(png), "png");
+  assert.equal(sniffPhotoFormat(webp), "webp");
+  for (const good of [jpeg, png, webp]) {
+    const out = await optimizeImageBuffer(good);
+    assert.equal((await sharp(out).metadata()).format, "webp");
+  }
+  // Real files in formats the library WOULD decode if it were asked to.
+  const avif = await base.clone().avif().toBuffer();
+  const tiff = await base.clone().tiff().toBuffer();
+  const gif = await base.clone().gif().toBuffer();
+  const svg = Buffer.from(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="48"><rect width="64" height="48" fill="red"/></svg>'
+  );
+  const refused: [string, Buffer][] = [["avif", avif], ["tiff", tiff], ["gif", gif], ["svg", svg]];
+  for (const [name, file] of refused) {
+    // The library itself reads each of these, which is why the gate comes first.
+    assert.ok((await sharp(file).metadata()).format, name + " is readable by the library");
+    assert.equal(sniffPhotoFormat(file), null, name);
+    await assert.rejects(() => optimizeImageBuffer(file), /not a JPEG, PNG or WebP/, name);
+  }
+  // A file that only CLAIMS to be a photo: the right first bytes of nothing.
+  for (const junk of [Buffer.alloc(0), Buffer.from("RIFF"), Buffer.from("RIFFxxxxWAVE"), Buffer.from("hello, not an image")]) {
+    assert.equal(sniffPhotoFormat(junk), null);
   }
 });
 
