@@ -14,11 +14,12 @@ export const metadata = {
 // an honest explainer of the two county paths plus a lead form that emails
 // the founder. These people are future supply, not rejects — the page's job
 // is to keep them warm and point them at the county.
-export default function GetPermittedPage({
-  searchParams,
-}: {
-  searchParams: { sent?: string; error?: string };
-}) {
+export default async function GetPermittedPage(
+  props: {
+    searchParams: Promise<{ sent?: string; error?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
       <h1 className="font-display text-3xl font-semibold text-ink">

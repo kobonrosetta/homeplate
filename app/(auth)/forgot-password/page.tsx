@@ -2,11 +2,12 @@ import Link from "next/link";
 import { requestPasswordReset } from "../actions";
 import { SubmitButton, FormError } from "@/components/form";
 
-export default function ForgotPasswordPage({
-  searchParams,
-}: {
-  searchParams: { error?: string; sent?: string };
-}) {
+export default async function ForgotPasswordPage(
+  props: {
+    searchParams: Promise<{ error?: string; sent?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const sent = searchParams.sent === "1";
 
   return (

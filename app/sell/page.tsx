@@ -26,11 +26,12 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function SellPage({
-  searchParams,
-}: {
-  searchParams: { step?: string; error?: string; start?: string; welcome?: string; have?: string };
-}) {
+export default async function SellPage(
+  props: {
+    searchParams: Promise<{ step?: string; error?: string; start?: string; welcome?: string; have?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   // Not signed in (or just a guest-checkout session)? This is a prospective
   // cook clicking "Apply to sell" — show the pitch, not a login wall.
   const { user, cook } = await getCurrentCook();

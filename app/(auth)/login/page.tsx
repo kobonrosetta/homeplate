@@ -4,11 +4,12 @@ import { SubmitButton, TextField, FormError } from "@/components/form";
 import GoogleButton, { OrDivider } from "@/components/google-button";
 import { safeNext } from "@/lib/safe-next";
 
-export default function LoginPage({
-  searchParams,
-}: {
-  searchParams: { error?: string; next?: string; notice?: string };
-}) {
+export default async function LoginPage(
+  props: {
+    searchParams: Promise<{ error?: string; next?: string; notice?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   // ?next= — where to land after signing in (e.g. a kitchen a guest wanted to
   // follow). Validated; defaults into the app (Browse), not the marketing home.
   // Carried onto Google, the form, the error redirect (via the action), and the

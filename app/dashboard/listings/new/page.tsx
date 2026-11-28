@@ -6,11 +6,12 @@ import { parsePickupDays, pickupDaysLabel } from "@/lib/availability";
 import { createListing } from "../actions";
 import NewListingForm from "@/components/new-listing-form";
 
-export default async function NewListingPage({
-  searchParams,
-}: {
-  searchParams: { error?: string };
-}) {
+export default async function NewListingPage(
+  props: {
+    searchParams: Promise<{ error?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const { cook } = await getCurrentCook();
   if (!cook) redirect("/sell");
 

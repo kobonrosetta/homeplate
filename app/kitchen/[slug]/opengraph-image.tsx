@@ -54,11 +54,11 @@ const anonDb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default async function Image({
-  params,
-}: {
-  params: { slug: string };
+export default async function Image(props: {
+  // A plain object in Next 15, a promise from Next 16 on; awaiting covers both.
+  params: Promise<{ slug: string }> | { slug: string };
 }) {
+  const params = await props.params;
   // Fast path: a real kitchen's card already in cache (no DB touch). Keys are
   // namespaced ("s:<slug>" / "fallback") so no DB slug value — however it got
   // written — can ever collide with the shared fallback slot.

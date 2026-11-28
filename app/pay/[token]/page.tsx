@@ -10,13 +10,14 @@ export const dynamic = "force-dynamic";
 // A cook-minted payment link for a DM-negotiated custom order. The token in
 // the URL is the whole capability: the row is read server-side (service role);
 // there is no public read on custom_requests.
-export default async function PayPage({
-  params,
-  searchParams,
-}: {
-  params: { token: string };
-  searchParams: { error?: string };
-}) {
+export default async function PayPage(
+  props: {
+    params: Promise<{ token: string }>;
+    searchParams: Promise<{ error?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const admin = createAdminClient();
   const { data: request } = await admin
     .from("custom_requests")

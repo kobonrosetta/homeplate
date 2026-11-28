@@ -15,11 +15,12 @@ import {
 } from "@/lib/availability";
 import AvailabilityPill from "@/components/availability-pill";
 
-export default async function MenuPage({
-  searchParams,
-}: {
-  searchParams: { error?: string };
-}) {
+export default async function MenuPage(
+  props: {
+    searchParams: Promise<{ error?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const { cook } = await getCurrentCook();
   if (!cook) redirect("/sell");
   const supabase = createClient();

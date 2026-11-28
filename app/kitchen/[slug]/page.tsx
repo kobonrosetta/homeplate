@@ -66,11 +66,12 @@ const getActiveCook = cache(async (slug: string) => {
 // group or an Instagram bio it must unfurl like a real business: name,
 // description, and the branded card from ./opengraph-image (which Next wires
 // in as og:image/twitter:image automatically).
-export async function generateMetadata({
-  params,
-}: {
-  params: { slug: string };
-}) {
+export async function generateMetadata(
+  props: {
+    params: Promise<{ slug: string }>;
+  }
+) {
+  const params = await props.params;
   const cook = await getActiveCook(params.slug);
   if (!cook) return {};
 
@@ -97,11 +98,12 @@ export async function generateMetadata({
   };
 }
 
-export default async function KitchenPage({
-  params,
-}: {
-  params: { slug: string };
-}) {
+export default async function KitchenPage(
+  props: {
+    params: Promise<{ slug: string }>;
+  }
+) {
+  const params = await props.params;
   const supabase = createClient();
   const cook = await getActiveCook(params.slug);
   if (!cook) notFound();

@@ -21,13 +21,14 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminKitchenPage({
-  params,
-  searchParams,
-}: {
-  params: { id: string };
-  searchParams: { saved?: string; error?: string };
-}) {
+export default async function AdminKitchenPage(
+  props: {
+    params: Promise<{ id: string }>;
+    searchParams: Promise<{ saved?: string; error?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const admin = await getAdminUser();
   if (!admin) notFound();
 

@@ -59,11 +59,12 @@ const REFUND_PROBLEMS: Record<string, string> = {
 const REFUND_PROBLEM_FALLBACK =
   "That order can't be changed from here. If it needs a refund, contact ForkFork.";
 
-export default async function OrdersPage({
-  searchParams,
-}: {
-  searchParams: { created?: string; refund?: string; refund_error?: string };
-}) {
+export default async function OrdersPage(
+  props: {
+    searchParams: Promise<{ created?: string; refund?: string; refund_error?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const { cook } = await getCurrentCook();
   const supabase = createClient();
 

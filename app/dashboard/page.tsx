@@ -31,11 +31,13 @@ export const dynamic = "force-dynamic";
 
 const PAID_STATUSES = ["confirmed", "in_progress", "ready", "completed"];
 
-export default async function DashboardOverview({
-  searchParams = {},
-}: {
-  searchParams?: { holiday?: string; holiday_error?: string };
-}) {
+export default async function DashboardOverview(
+  props: {
+    searchParams?: Promise<{ holiday?: string; holiday_error?: string }>;
+  }
+) {
+  // (Kept optional with an empty default, as before the move to async props.)
+  const searchParams = (await props.searchParams) ?? {};
   const { cook } = await getCurrentCook();
   // A signed-in non-cook (buyer, or mid-onboarding) has no kitchen; the layout
   // redirects too, but guard here so the page can't null-deref cook.id first.

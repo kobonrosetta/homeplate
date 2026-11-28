@@ -1,6 +1,7 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { joinWaitlist, type WaitlistState } from "@/app/browse/actions";
 
 const initial: WaitlistState = { ok: false };
@@ -29,7 +30,8 @@ export default function WaitlistForm({
   source?: string;
   defaultEmail?: string;
 }) {
-  const [state, formAction] = useFormState(joinWaitlist, initial);
+  // (React 19 renamed react-dom's useFormState to useActionState; same shape.)
+  const [state, formAction] = useActionState(joinWaitlist, initial);
 
   if (state.ok) {
     return (

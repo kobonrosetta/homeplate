@@ -142,7 +142,7 @@ export async function payLinkCheckout(formData: FormData) {
   if (itemErr) err("Could not start your order. Please try again.");
 
   // Same host-first origin rule as startCheckout (session cookie continuity).
-  const h = headers();
+  const h = await headers();
   const host = h.get("host");
   const origin = host
     ? `${h.get("x-forwarded-proto") ?? "https"}://${host}`

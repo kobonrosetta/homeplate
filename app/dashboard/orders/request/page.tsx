@@ -6,11 +6,12 @@ export const dynamic = "force-dynamic";
 
 // Mint a payment link for a custom order agreed in DMs. Four fields, one tap,
 // copy the link into the chat — the replacement for "Venmo me at…".
-export default function NewPaymentRequestPage({
-  searchParams,
-}: {
-  searchParams: { error?: string };
-}) {
+export default async function NewPaymentRequestPage(
+  props: {
+    searchParams: Promise<{ error?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   return (
     <div className="max-w-xl">
       <h2 className="text-lg font-semibold text-ink">New payment request</h2>

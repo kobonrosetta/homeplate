@@ -23,11 +23,12 @@ const STATUS_ORDER: Record<string, number> = {
 };
 const PAID = new Set(["confirmed", "in_progress", "ready", "completed"]);
 
-export default async function AdminPage({
-  searchParams,
-}: {
-  searchParams: { archived?: string; error?: string };
-}) {
+export default async function AdminPage(
+  props: {
+    searchParams: Promise<{ archived?: string; error?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   // Invisible to anyone who isn't an admin.
   const admin = await getAdminUser();
   if (!admin) notFound();

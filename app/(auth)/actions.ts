@@ -168,7 +168,7 @@ export async function requestPasswordReset(formData: FormData) {
   }
 
   const supabase = createClient();
-  const h = headers();
+  const h = await headers();
   const origin =
     process.env.NEXT_PUBLIC_SITE_URL ||
     `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
