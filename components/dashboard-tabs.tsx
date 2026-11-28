@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
@@ -10,6 +10,24 @@ const TABS = [
   { href: "/dashboard/payouts", label: "Payouts" },
   { href: "/dashboard/settings", label: "Settings" },
 ];
+
+// A small spinner on the tab that was just tapped, shown until its page has
+// arrived. The dashboard deliberately has NO route-level loading screen
+// (app/dashboard/loading.tsx was removed with the move to Next 15: with one
+// in place, a button whose action answers with a redirect usually left the
+// page sitting still; see CLAUDE.md gotcha #11). Without a loading screen the
+// old page stays up while the next one loads, so this is the only sign the
+// tap landed. Must render inside the <Link> it reports on.
+function TabPending() {
+  const { pending } = useLinkStatus();
+  if (!pending) return null;
+  return (
+    <span
+      aria-hidden
+      className="ml-1.5 inline-block h-3 w-3 animate-spin rounded-full border-2 border-line border-t-brand align-middle"
+    />
+  );
+}
 
 export default function DashboardTabs({
   payoutsPending = false,
@@ -45,6 +63,7 @@ export default function DashboardTabs({
               className="ml-1.5 inline-block h-2 w-2 rounded-full bg-amber-500 align-middle"
             />
           )}
+          <TabPending />
         </Link>
       ))}
     </nav>

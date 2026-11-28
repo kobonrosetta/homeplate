@@ -339,6 +339,41 @@ them re-opens real vulnerabilities:
     limits `photo_url` / `avatar_url` / `cover_url` to our own storage address, and
     the share-card route's database answer is saved by Next until the next restart
     (so the card's photo can go stale).
+11. **Next 15 migration (branch `next-15`, Nov 2026) — IN PROGRESS, NOT LIVE. Read
+    this before touching it or merging it.** What the move changed, on purpose:
+    - `params` / `searchParams` are awaited in every page, and `headers()` in the
+      four actions that use it (the official codemod plus hand fixes).
+    - `lib/supabase/server.ts`: `createClient()` stays SYNCHRONOUS; its two cookie
+      hooks are async and wait for `cookies()`. Do not make `createClient()` async —
+      42 call sites would need an `await`, and a missed one is a signed-out page.
+    - `next.config.mjs` `htmlLimitedBots: /.*/`: every visitor gets `<title>` and
+      the `og:` share tags inside `<head>`, as on Next 14. The Next 15 default sends
+      them later in the page for everyone except a built-in list of preview robots.
+    - **`app/dashboard/loading.tsx` is GONE and must stay gone.** On Next 15.5.29 a
+      route-level loading screen above a form whose action ends in `redirect()`
+      makes the browser drop the redirect: the action runs on the server, answers
+      303 with the full page data, and the page just sits there. Measured on the
+      holiday button: 8 of 8 taps lost with the file, 8 of 8 fine without it; Chrome
+      and WebKit both; `experimental.staleTimes` and the title setting made no
+      difference. Almost every dashboard button ends in a redirect, so this is the
+      "button did nothing" failure that made the cook tap four times in November.
+      `components/dashboard-tabs.tsx` shows a small spinner on the tapped tab
+      instead (`useLinkStatus`). The other loading screens (`browse`,
+      `kitchen/[slug]`, `listing/[id]`) have no redirecting action beneath them;
+      do not add one without re-running the tap test.
+    - How it was tested without any real sign-in: two scratch copies of the site
+      (old and new framework), each with `lib/supabase/server.ts`,
+      `lib/supabase/admin.ts` and `lib/admin.ts` swapped for a READ-ONLY stand-in
+      that acts as the kitchen's owner, then real buttons tapped in a real browser
+      and the two compared. The stand-in must call `cookies()` like the real
+      client, or the framework treats the pages differently and the result lies.
+      Never run `next dev` in a folder whose production build is being served: it
+      overwrites `.next` and the running site turns into a dead page.
+    - **Still to do before this can go live:** a real signed-in pass on the new
+      build (sign in, every dashboard tab, one upload, sign out), the same button
+      test in Chrome, and a fresh full check of the public pages after the last
+      change. `npm audit` on this branch shows only Next's own bundled copy of
+      postcss, which is used at build time on our own stylesheet.
 
 ## Current status & what's left to launch
 
