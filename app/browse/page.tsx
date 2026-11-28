@@ -20,11 +20,12 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function BrowsePage({
-  searchParams,
-}: {
-  searchParams: { welcome?: string };
-}) {
+export default async function BrowsePage(
+  props: {
+    searchParams: Promise<{ welcome?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const supabase = createClient();
   // Prefill the waitlist email for a signed-in (non-guest) visitor.
   const {

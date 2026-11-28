@@ -6,8 +6,8 @@ import { getCurrentCook } from "@/lib/cook";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createConnectAccount, createAccountLink } from "@/lib/stripe";
 
-function siteOrigin(): string {
-  const h = headers();
+async function siteOrigin(): Promise<string> {
+  const h = await headers();
   return (
     process.env.NEXT_PUBLIC_SITE_URL ||
     `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`
@@ -70,7 +70,7 @@ export async function startStripeOnboarding() {
     }
   }
 
-  const origin = siteOrigin();
+  const origin = await siteOrigin();
   let url: string;
   try {
     url = await createAccountLink({

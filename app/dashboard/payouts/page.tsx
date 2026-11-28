@@ -8,11 +8,12 @@ import { startStripeOnboarding } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function PayoutsPage({
-  searchParams,
-}: {
-  searchParams: { error?: string };
-}) {
+export default async function PayoutsPage(
+  props: {
+    searchParams: Promise<{ error?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const { cook } = await getCurrentCook();
   if (!cook) redirect("/sell");
 

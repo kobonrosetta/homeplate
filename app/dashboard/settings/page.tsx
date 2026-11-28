@@ -16,11 +16,12 @@ import {
   FormError,
 } from "@/components/form";
 
-export default async function SettingsPage({
-  searchParams,
-}: {
-  searchParams: { error?: string };
-}) {
+export default async function SettingsPage(
+  props: {
+    searchParams: Promise<{ error?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const { user, cook } = await getCurrentCook();
   const supabase = createClient();
   const { data: priv } = await supabase

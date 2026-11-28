@@ -1,5 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Every visitor gets the page title and the share tags (og:title, og:image…)
+  // inside <head>, as on Next 14. From Next 15.2 the default is to send them
+  // LATER in the page for everything except a built-in list of known preview
+  // robots. A kitchen's link is shared in group chats and bios all day, and a
+  // preview fetcher that isn't on that list would show a bare link with no
+  // name and no photo. Matching every visitor removes the guesswork.
+  htmlLimitedBots: /.*/,
   experimental: {
     serverActions: {
       bodySizeLimit: "5mb"

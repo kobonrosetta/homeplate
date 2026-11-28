@@ -23,9 +23,9 @@ are fake data. The tech is ahead of the business.
 
 ## Stack
 
-- **Next.js 14.2.35** (the last release of the 14.2 line — see gotcha #10 for what
-  that does and does not fix), App Router, React 18, TypeScript, server components +
-  server actions.
+- **Next.js 15.5.29**, App Router, **React 19**, TypeScript, server components +
+  server actions. (Moved from 14.2.35 in Nov 2026; gotchas #10 and #11 say why and
+  what that move must not lose.)
 - **Supabase** — Postgres + Auth (email, Google OAuth, **anonymous** sign-ins for guest
   checkout) + Storage + Row-Level Security.
 - **Stripe** — hosted Checkout + webhook + **Connect (Express, destination charges)**
@@ -339,6 +339,57 @@ them re-opens real vulnerabilities:
     limits `photo_url` / `avatar_url` / `cover_url` to our own storage address, and
     the share-card route's database answer is saved by Next until the next restart
     (so the card's photo can go stale).
+11. **Next 15.5.29 + React 19 (moved from 14.2.35, Nov 2026).** Done to get onto a
+    framework line that still receives security fixes (gotcha #10). What the move
+    changed, on purpose — do NOT undo:
+    - `params` / `searchParams` are awaited in every page, and `headers()` in the
+      four actions that use it (the official codemod plus hand fixes).
+    - `lib/supabase/server.ts`: `createClient()` stays SYNCHRONOUS; its two cookie
+      hooks are async and wait for `cookies()`. Do not make `createClient()` async —
+      42 call sites would need an `await`, and a missed one is a signed-out page.
+    - `next.config.mjs` `htmlLimitedBots: /.*/`: every visitor gets `<title>` and
+      the `og:` share tags inside `<head>`, as on Next 14. The Next 15 default sends
+      them later in the page for everyone except a built-in list of preview robots.
+    - **`app/dashboard/loading.tsx` is GONE and must stay gone.** On Next 15.5.29 a
+      route-level loading screen above a form whose action ends in `redirect()`
+      makes the browser drop the redirect: the action runs on the server, answers
+      303 with the full page data, and the page just sits there. Measured on the
+      holiday button: 8 of 8 taps lost with the file, 8 of 8 fine without it; Chrome
+      and WebKit both; `experimental.staleTimes` and the title setting made no
+      difference. Almost every dashboard button ends in a redirect, so this is the
+      "button did nothing" failure that made the cook tap four times in November.
+      `components/dashboard-tabs.tsx` shows a small spinner on the tapped tab
+      instead (`useLinkStatus`). The other loading screens (`browse`,
+      `kitchen/[slug]`, `listing/[id]`) have no redirecting action beneath them;
+      do not add one without re-running the tap test.
+    - How it was tested without any real sign-in: two scratch copies of the site
+      (old and new framework), each with `lib/supabase/server.ts`,
+      `lib/supabase/admin.ts` and `lib/admin.ts` swapped for a READ-ONLY stand-in
+      that acts as the kitchen's owner, then real buttons tapped in a real browser
+      and the two compared. The stand-in must call `cookies()` like the real
+      client, or the framework treats the pages differently and the result lies.
+      Never run `next dev` in a folder whose production build is being served: it
+      overwrites `.next` and the running site turns into a dead page.
+    - It was also tested with ONE real sign-in: a throwaway pending kitchen
+      ("ZZ Test, delete me", approved by Kobon, created and deleted the same night)
+      on a local production build — sign up, start a kitchen, every dashboard page,
+      tab taps, save settings, add / hide / show / delete a dish, sign out, sign in
+      again, in WebKit and in Chrome. A real upload was NOT part of that pass (the
+      upload code path ran only against the stand-in).
+    - Two things a cook or buyer can notice: tapping a dashboard tab no longer
+      flashes a grey placeholder (the tab shows a spinner and the page appears when
+      it is ready), and a browser tab left open across a deploy must be reloaded
+      before its buttons work (Next 15 gives every build new action ids).
+    - `npm audit --omit=dev` now shows only Next's own bundled copy of postcss,
+      which runs at build time on our own stylesheet. Next 15.5 is the "backport"
+      line; the next hop is Next 16 (Turbopack by default, `middleware.ts` →
+      `proxy.ts`, ESLint flat config, Node 20.9+). Every request API here is
+      already fully async, which is the bulk of that hop.
+    - Slow-connection trap for whoever tests next: on Nov 27 this laptop's
+      connection stalled ~30 s on about one request in eight (Google and the live
+      site included). Judge a tap by whether its result ARRIVES, record when each
+      answer finishes (not when its first bytes come), and compare against the old
+      version under the same connection before calling anything a regression.
 
 ## Current status & what's left to launch
 

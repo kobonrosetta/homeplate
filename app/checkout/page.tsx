@@ -4,11 +4,12 @@ import { FormError } from "@/components/form";
 
 export const dynamic = "force-dynamic";
 
-export default async function CheckoutPage({
-  searchParams,
-}: {
-  searchParams: { error?: string };
-}) {
+export default async function CheckoutPage(
+  props: {
+    searchParams: Promise<{ error?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const supabase = createClient();
   const {
     data: { user },

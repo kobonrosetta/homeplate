@@ -4,11 +4,12 @@ import SignupForm from "@/components/signup-form";
 import { FormError } from "@/components/form";
 import { safeNext } from "@/lib/safe-next";
 
-export default function SignupPage({
-  searchParams,
-}: {
-  searchParams: { error?: string; intent?: string; next?: string };
-}) {
+export default async function SignupPage(
+  props: {
+    searchParams: Promise<{ error?: string; intent?: string; next?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   // ?intent=sell — arriving from the cook pitch (/sell). Same form, cook-first
   // copy, and signup drops them straight into the wizard instead of /browse.
   const selling = searchParams.intent === "sell";

@@ -461,7 +461,7 @@ export async function startCheckout(formData: FormData) {
   // env host here would bounce a buyer who checked out on another domain
   // (www / onrender) onto a host without their session cookie — the success
   // page would then hide their order details and never clear their cart.
-  const h = headers();
+  const h = await headers();
   const host = h.get("host");
   const origin = host
     ? `${h.get("x-forwarded-proto") ?? "https"}://${host}`

@@ -49,11 +49,12 @@ const getListing = cache(async (id: string) => {
 
 // A dish link shared in a group chat should unfurl as the dish: photo, name,
 // kitchen, price — a menu item, not a bare URL.
-export async function generateMetadata({
-  params,
-}: {
-  params: { id: string };
-}) {
+export async function generateMetadata(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   const found = await getListing(params.id);
   if (!found) return {};
   const { listing, cook } = found;
@@ -86,11 +87,12 @@ export async function generateMetadata({
   };
 }
 
-export default async function ListingPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function ListingPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   const supabase = createClient();
   const found = await getListing(params.id);
   if (!found) notFound();

@@ -17,11 +17,12 @@ export const dynamic = "force-dynamic";
 // the Referer header.
 export const metadata: Metadata = { referrer: "no-referrer" };
 
-export default async function CheckoutSuccessPage({
-  searchParams,
-}: {
-  searchParams: { session_id?: string };
-}) {
+export default async function CheckoutSuccessPage(
+  props0: {
+    searchParams: Promise<{ session_id?: string }>;
+  }
+) {
+  const searchParams = await props0.searchParams;
   const sessionId = searchParams.session_id;
   if (!sessionId) {
     return (
