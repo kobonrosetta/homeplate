@@ -23,7 +23,9 @@ are fake data. The tech is ahead of the business.
 
 ## Stack
 
-- **Next.js 14.2.5**, App Router, React 18, TypeScript, server components + server actions.
+- **Next.js 14.2.35** (the last release of the 14.2 line — see gotcha #10 for what
+  that does and does not fix), App Router, React 18, TypeScript, server components +
+  server actions.
 - **Supabase** — Postgres + Auth (email, Google OAuth, **anonymous** sign-ins for guest
   checkout) + Storage + Row-Level Security.
 - **Stripe** — hosted Checkout + webhook + **Connect (Express, destination charges)**
@@ -303,6 +305,40 @@ them re-opens real vulnerabilities:
    `npm run build && npx next start -p 3457`, then load the page — not only through
    tsx or `next dev`. Server and browser run DIFFERENT compiled copies of `lib/`, so
    also check that what the browser offers is what the server accepts.
+10. **Images are the attack surface; the framework is on a dead-end line (Nov 2026).**
+    `npm audit --omit=dev` on Nov 27 2026 showed 38 published notices against
+    `next` 14.2.5 (4 rated critical) plus two against `sharp`. The serious ones were
+    remote-code holes in the image libraries (`libheif` for AVIF, `librsvg` for SVG)
+    that `sharp` bundles, reachable on this site three ways. All three are closed,
+    and each closure is deliberate — do NOT undo:
+    - **The built-in image resizer is OFF** (`next.config.mjs`: `images.unoptimized`
+      true, no `remotePatterns`). The site never used it (plain `<img>` tags; photos
+      are resized once, at upload), but it was live at `/_next/image` with a leftover
+      `*.supabase.co` allowance, so anyone could make the server download and decode
+      an image from ANY Supabase project. It must answer 404.
+    - **Only real JPEG, PNG or WebP bytes are ever decoded.** `lib/image.ts
+      sniffPhotoFormat` checks the first bytes before `sharp` sees a file (`sharp`
+      picks its decoder from the bytes, whatever type the upload claimed, and anyone
+      can open a cook account and upload a "photo"). The kitchen share-card route
+      (`app/kitchen/[slug]/opengraph-image.tsx`) applies the same gate and only
+      fetches photos from our own storage address. Unit-tested with real AVIF, TIFF,
+      GIF and SVG files.
+    - **`sharp` stays at 0.35.5 or newer** (the release with the fixed libraries).
+    Updating `next` to 14.2.35 closed 12 of the 38 (including the middleware login
+    bypass, which never applied here: pages check the login themselves). **26 remain
+    by version number and are only fixed in Next 15.5.29 or newer, or the current 16.4
+    line (npm suggested 16.4.6).** Of those, the
+    ones that still apply to this site are the "knock the site over" kind (crafted
+    requests against Server Actions / Server Components that pin the CPU) and a
+    request-forwarding hole in the built-in server's WebSocket upgrade handling; the
+    rest need features this site doesn't use (rewrites, Pages Router with i18n, a
+    custom server, Windows hosting, security-policy nonces, the edge runtime). Moving
+    to Next 15/16 is a real migration (React 19, `params` / `searchParams` /
+    `cookies()` become async in every page) — plan it as its own piece of work and
+    verify it the way gotcha #9 says. Still open and smaller: nothing in the database
+    limits `photo_url` / `avatar_url` / `cover_url` to our own storage address, and
+    the share-card route's database answer is saved by Next until the next restart
+    (so the card's photo can go stale).
 
 ## Current status & what's left to launch
 
